@@ -175,7 +175,7 @@ fn parsed_name(
   occurrence : String,
   unique : BuslaneUnique,
 ) -> BuslaneName {
-  { name_space, occurrence, unique }
+  { name_space, occurrence, unique, }
 }
 
 ///|

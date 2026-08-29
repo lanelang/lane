@@ -24,19 +24,19 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
     terms: [
       Let(
         called,
-        Function({ parameters: [], result_type: unit, body: Literal(Unit) }),
+        Function({ parameters: [], result_type: unit, body: Literal(Unit), }),
       ),
       Let(
         escaped,
-        Function({ parameters: [], result_type: unit, body: Literal(Unit) }),
+        Function({ parameters: [], result_type: unit, body: Literal(Unit), }),
       ),
       Let(
         effectful,
-        Function({ parameters: [], result_type: unit, body: Literal(Unit) }),
+        Function({ parameters: [], result_type: unit, body: Literal(Unit), }),
       ),
       Let(
         dead,
-        Function({ parameters: [], result_type: unit, body: Literal(Unit) }),
+        Function({ parameters: [], result_type: unit, body: Literal(Unit), }),
       ),
       Let(
         main,
@@ -47,7 +47,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
             local_value,
             Ref(escaped),
             Let(
-              { index: 6 },
+              { index: 6, },
               Call(Ref(called), []),
               Call(Ref(effectful), [Ref(local_value)]),
             ),
@@ -56,7 +56,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       ),
     ],
   }
-  let summary = analyze({ program, entry: main, roots: [] })
+  let summary = analyze({ program, entry: main, roots: [], })
   debug_inspect(
     summary,
     content=(
@@ -152,12 +152,12 @@ test "occurrence treats explicit roots as reachable" {
     terms: [
       Let(
         main,
-        Function({ parameters: [], result_type: unit, body: Literal(Unit) }),
+        Function({ parameters: [], result_type: unit, body: Literal(Unit), }),
       ),
       External(runtime_root),
     ],
   }
-  let summary = analyze({ program, entry: main, roots: [runtime_root] })
+  let summary = analyze({ program, entry: main, roots: [runtime_root], })
   debug_inspect(
     summary.facts,
     content=(
@@ -241,7 +241,7 @@ test "occurrence records incomplete type applications only on reachable paths" {
       Let(dead_use, Ref(dead_generic)),
     ],
   }
-  let facts = analyze({ program, entry, roots: [] }).facts
+  let facts = analyze({ program, entry, roots: [], }).facts
   assert_eq(
     (
       facts[fully_applied.index].has_incomplete_type_application,

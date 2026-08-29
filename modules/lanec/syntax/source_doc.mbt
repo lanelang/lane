@@ -15,7 +15,7 @@ fn source_char(value : Int) -> Document {
 
 ///|
 fn source_quoted_literal(value : String, delimiter : Char) -> String {
-  let output = StringBuilder::new()
+  let output = StringBuilder()
   output.write_char(delimiter)
   for character in value {
     let scalar = character.to_int()

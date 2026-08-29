@@ -54,14 +54,16 @@ shape. Failure is the structured `InvalidCallableInvocation` execution error;
 it is not an array failure or an internal representation error.
 
 The Wasm backend persists a compatibility matrix from each private
-callable-table index to every call-site `CallableAbiId`. Before any indirect
-call consumes operands, generated code checks the matrix entry produced by the
-same relation used by verification and the interpreter. This guard is
-necessary because Wasm value types cannot distinguish equal representations
-with different cleanup or semantic contracts. Ordinary function types, runtime-import
-adapter types, `call_indirect`, and `return_call_indirect` types are then
-generated from the same `CallableAbi` description, so Wasm's native type check
-also enforces the representational portion of the identity.
+callable-table index to every call-site `CallableAbiId`. One canonical private
+helper validates a packed callable against that matrix before any indirect call
+consumes operands. Call sites provide only the packed callable and expected ABI
+identifier; they do not inline another copy of the target-range and
+compatibility policy. This guard is necessary because Wasm value types cannot
+distinguish equal representations with different cleanup or semantic
+contracts. Ordinary function types, runtime-import adapter types,
+`call_indirect`, and `return_call_indirect` types are then generated from the
+same `CallableAbi` description, so Wasm's native type check also enforces the
+representational portion of the identity.
 
 ## Persistence
 

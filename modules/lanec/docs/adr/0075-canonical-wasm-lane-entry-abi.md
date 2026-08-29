@@ -1,5 +1,9 @@
 # Canonical Wasm Lane entry ABI
 
+> **Partially superseded.** The WASI Preview 1 WebAssembly Target RFC replaces
+> the public `lane.entry`, `lane.memory`, semantic registry, and rich host-import
+> ABI. Compiler-private callable ABI decisions remain historical context.
+
 Every compiled Lane function target uses one canonical typed Wasm entry convention. Parameters are ordered as the hidden closure environment `env:i32`, followed by all required hidden representation layout witnesses `LayoutId:i32`, followed by user arguments in their erased Wasm representations. Capture-free functions receive zero for `env`; zero is not a valid allocated environment offset.
 
 Monomorphic user values use natural Wasm types: `Int` is `i64`, `Double` is `f64`, `Bool` and wasm32 heap references are `i32`, and a packed callable is `i64`. Representation-polymorphic values use `i64` and are governed by the preceding layout witnesses. Layout witnesses are immediate non-owning image-table indices and do not participate in ARC.

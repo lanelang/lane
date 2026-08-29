@@ -211,7 +211,7 @@ test "contextual offers do not share a fallback name" {
   let offers = ContextualOfferScope()
   offers.bind(
     contextual_offer(
-      { index: 0 },
+      { index: 0, },
       "first",
       Primitive(I64),
       None,
@@ -220,7 +220,7 @@ test "contextual offers do not share a fallback name" {
   )
   offers.bind(
     contextual_offer(
-      { index: 1 },
+      { index: 1, },
       "second",
       Primitive(Bool),
       None,

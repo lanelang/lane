@@ -70,19 +70,15 @@ fn image_code_lines(image : Image) -> Array[String] {
 ///|
 fn render_function_entry(id : Int, entry : FunctionEntry) -> Array[String] {
   match entry {
-    RuntimeImport(import_) => {
-      let parameters = import_.parameters
-        .map(render_runtime_value_kind)
-        .join(", ")
+    RuntimeImport(import_) =>
       [
         "function f\{id} = runtime_import(",
-        "  symbol=\{Repr(import_.symbol)},",
-        "  abi_major=\{import_.abi_major},",
-        "  parameters=[\{parameters}],",
-        "  result=\{render_runtime_value_kind(import_.result)}",
+        "  module=\{Repr(import_.module_name)},",
+        "  field=\{Repr(import_.field_name)},",
+        "  parameters=\{Repr(import_.parameters)},",
+        "  result=\{Repr(import_.result)}",
         ")",
       ]
-    }
     Body(body) => {
       let lines = [
         "function f\{id}(",
@@ -180,6 +176,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "byte_sequence_slice \{render_value(destination)}, \{render_value(source)}, \{render_value(start)}, \{render_value(length)}"
     ByteSequenceIsValidUtf8(destination, source) =>
       unary_instruction("byte_sequence_is_valid_utf8", destination, source)
+    WasiFdWrite(destination, fd, bytes) =>
+      binary_instruction("wasi_fd_write", destination, fd, bytes)
     I32Add(destination, left, right) =>
       binary_instruction("i32_add", destination, left, right)
     I32Sub(destination, left, right) =>
@@ -391,12 +389,12 @@ fn render_optional_destination(value : ValueId?) -> String {
 }
 
 ///|
-fn render_function(function : @bytecode.FunctionId) -> String {
+fn render_function(function : @physical.FunctionId) -> String {
   "f\{function.value}"
 }
 
 ///|
-fn render_optional_function(function : @bytecode.FunctionId?) -> String {
+fn render_optional_function(function : @physical.FunctionId?) -> String {
   match function {
     Some(function) => render_function(function)
     None => "none"
@@ -404,22 +402,22 @@ fn render_optional_function(function : @bytecode.FunctionId?) -> String {
 }
 
 ///|
-fn render_global(global : @bytecode.GlobalId) -> String {
+fn render_global(global : @physical.GlobalId) -> String {
   "g\{global.value}"
 }
 
 ///|
-fn render_layout(layout : @bytecode.LayoutId) -> String {
+fn render_layout(layout : @physical.LayoutId) -> String {
   "l\{layout.value}"
 }
 
 ///|
-fn render_shape(shape : @bytecode.ObjectShapeId) -> String {
+fn render_shape(shape : @physical.ObjectShapeId) -> String {
   "shape\{shape.value}"
 }
 
 ///|
-fn render_constant(constant : @bytecode.ConstantId) -> String {
+fn render_constant(constant : @physical.ConstantId) -> String {
   "c\{constant.value}"
 }
 
@@ -473,7 +471,7 @@ fn render_ownership(ownership : Ownership) -> String {
 }
 
 ///|
-fn render_global_metadata(metadata : @bytecode.GlobalMetadata) -> String {
+fn render_global_metadata(metadata : @physical.GlobalMetadata) -> String {
   let companion = match metadata.erased_companion {
     Some(global) => ", companion=\{render_global(global)}"
     None => ""
@@ -482,7 +480,7 @@ fn render_global_metadata(metadata : @bytecode.GlobalMetadata) -> String {
 }
 
 ///|
-fn render_representation(representation : @bytecode.Representation) -> String {
+fn render_representation(representation : @physical.Representation) -> String {
   match representation {
     I32 => "i32"
     I64 => "i64"
@@ -492,7 +490,7 @@ fn render_representation(representation : @bytecode.Representation) -> String {
 }
 
 ///|
-fn render_cleanup(cleanup : @bytecode.Cleanup) -> String {
+fn render_cleanup(cleanup : @physical.Cleanup) -> String {
   match cleanup {
     Trivial => "trivial"
     OwnedRef => "owned_ref"
@@ -502,7 +500,7 @@ fn render_cleanup(cleanup : @bytecode.Cleanup) -> String {
 }
 
 ///|
-fn render_result(result : @bytecode.ResultAbi) -> String {
+fn render_result(result : @physical.ResultAbi) -> String {
   match result {
     Unit => "unit"
     Value(representation, cleanup, kind) =>
@@ -511,20 +509,7 @@ fn render_result(result : @bytecode.ResultAbi) -> String {
 }
 
 ///|
-fn render_runtime_value_kind(kind : @bytecode.RuntimeValueKind) -> String {
-  match kind {
-    Unit => "unit"
-    Bool => "bool"
-    I64 => "i64"
-    F32 => "f32"
-    F64 => "f64"
-    String => "string"
-    Opaque => "opaque"
-  }
-}
-
-///|
-fn render_layout_recipe(recipe : @bytecode.LayoutRecipe) -> String {
+fn render_layout_recipe(recipe : @physical.LayoutRecipe) -> String {
   match recipe {
     Unit => "unit"
     Bool => "bool"
@@ -543,7 +528,7 @@ fn render_layout_recipe(recipe : @bytecode.LayoutRecipe) -> String {
 }
 
 ///|
-fn render_object_shape(shape : @bytecode.ObjectShape) -> String {
+fn render_object_shape(shape : @physical.ObjectShape) -> String {
   match shape {
     Data(data) =>
       "data(tag=\{data.constructor_tag}, witnesses=\{data.stored_witness_count}, members=[\{data.members.map(render_member).join(", ")}])"
@@ -553,7 +538,7 @@ fn render_object_shape(shape : @bytecode.ObjectShape) -> String {
 }
 
 ///|
-fn render_member(schema : @bytecode.MemberSchema) -> String {
+fn render_member(schema : @physical.MemberSchema) -> String {
   let witness = match schema.witness_ordinal {
     Some(ordinal) => ", witness=\{ordinal}"
     None => ""

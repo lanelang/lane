@@ -66,7 +66,7 @@ fn artifact_diagnostic(
   kind : ArtifactDiagnosticKind,
   span : @basic.SourceSpan?,
 ) -> CompilerDiagnostic {
-  let diagnostic : ArtifactDiagnostic = { kind, span }
+  let diagnostic : ArtifactDiagnostic = { kind, span, }
   @compiler_diag.ToCompilerDiagnostic::to_compiler_diagnostic(
     diagnostic,
     DiagnosticContext(),

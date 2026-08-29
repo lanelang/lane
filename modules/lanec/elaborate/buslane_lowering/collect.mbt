@@ -24,9 +24,8 @@ fn BuslaneLowerer::add_entry(
   module_path_text : String,
   name : String,
   value : @buslane.ValueId,
-  type_ : @buslane.Type,
 ) -> Unit {
-  self.entries.push({ module_path_text, name, value, type_ })
+  self.entries.push({ module_path_text, name, value, })
 }
 
 ///|
@@ -340,7 +339,7 @@ fn BuslaneLowerer::collect_top_values(
           type_,
         )
         if include_entries && declaration.is_public {
-          self.add_entry(module_path_text, declaration.name, value, type_)
+          self.add_entry(module_path_text, declaration.name, value)
         }
       }
       Let(declaration) => {
@@ -352,7 +351,7 @@ fn BuslaneLowerer::collect_top_values(
           type_,
         )
         if include_entries && declaration.is_public {
-          self.add_entry(module_path_text, declaration.name, value, type_)
+          self.add_entry(module_path_text, declaration.name, value)
         }
       }
       _ => ()

@@ -47,8 +47,8 @@ test "function effect widening preserves checked expression contracts" {
   )
 
   let source = CheckedSourceFile::{
-    module_path: { components: ["Test"], loc: location },
-    canonical_basic_abi: { types: [] },
+    module_path: { components: ["Test"], loc: location, },
+    canonical_basic_abi: { types: [], },
     declarations: [
       Let({
         is_public: false,
@@ -65,6 +65,6 @@ test "function effect widening preserves checked expression contracts" {
   }
   assert_eq(source.value_use_analysis(registry), {
     binders: [],
-    references: [{ target, origin_binder: None, loc: location }],
+    references: [{ target, origin_binder: None, loc: location, }],
   })
 }

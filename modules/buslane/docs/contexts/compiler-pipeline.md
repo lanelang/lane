@@ -303,19 +303,20 @@ _Avoid_: current pretty output, implicit stable ABI
 
 **Canonical Core Artifact**:
 The authoritative semantic payload of compiler and linker artifacts, expressed as Buslane/core plus the side metadata needed for linking, inspection, verification, and lowering.
-_Avoid_: ANF cache, bytecode image, runtime execution layout
+_Avoid_: ANF cache, Physical Program, runtime execution layout
 
 **Execution Image Lowering**:
 The transformation from a linked and optimized canonical core program into a target-specific execution image.
 _Avoid_: semantic lowering, source elaboration, interface generation
 
-**Bytecode Image**:
-A portable execution image for the future bytecode VM, produced after core linking and optimization.
-_Avoid_: Buslane program, ANF IR, module interface
+**Physical Program**:
+The verified compiler-private result of VM CFG finalization and physical-slot
+allocation, consumed only by the WebAssembly target.
+_Avoid_: Buslane program, persisted artifact, second runtime language
 
-**Per-Module Bytecode Cache**:
-An optional cached bytecode section in a module object, guarded by compiler version, target, options, and core fingerprint.
-_Avoid_: canonical artifact payload, interface fingerprint source, cross-module semantic record
+**WebAssembly Execution Image**:
+The sole persisted and executable Lane target image.
+_Avoid_: Physical Program, canonical core, per-module cache
 
 **Closure Conversion**:
 A lowering step that makes captured lexical variables explicit in function values.
@@ -382,16 +383,16 @@ _Avoid_: type checking, name resolution
 - Buslane external value metadata does not store runtime names; a **Buslane External Map** belongs to the compiler, linker, or runtime.
 - The **Compiler Facade** may return a **Buslane External Map** alongside a **Buslane Program**.
 - Buslane v1 has no module namespace; a future **Buslane Unit** may wrap a program with linking metadata.
-- A **Canonical Core Artifact** is the semantic source of truth for `.lmo` and
-  linked `.lbp` artifacts.
+- A **Canonical Core Artifact** is the semantic source of truth for relocatable
+  `.lmo` artifacts.
 - ANF is a derived representation below Buslane and must not become the
   artifact boundary.
 - **Execution Image Lowering** happens after linking and any whole-program
   optimization over canonical core.
-- A **Bytecode Image** may become the primary runtime payload for `exec`, but
-  it is still lowered code rather than the compiler interface contract.
-- A **Per-Module Bytecode Cache** is an invalidatable build cache, not a
-  substitute for linkable Buslane/core.
+- A **Physical Program** is verified before WebAssembly emission and never
+  crosses the compiler/runtime or persistence boundary.
+- A **WebAssembly Execution Image** is the only payload accepted by `exec`;
+  module interfaces and objects remain target-independent.
 - Buslane has no `if` node; source conditionals lower to **Synthetic Bool Matches**.
 - Buslane uses **One-Level Buslane Matches**; nested source patterns are compiled into nested one-level matches before entering Buslane.
 - Every **One-Level Buslane Match** must be an **Exhaustive Buslane Match**.

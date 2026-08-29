@@ -75,7 +75,8 @@ fn @syntax.Expr::resolve_expr(
         source~,
       )
     Builtin(name, loc~) => Builtin(name, loc~)
-    Extern(name, loc~) => Extern(name, loc~)
+    Extern(module_name~, field_name~, loc~) =>
+      Extern(module_name~, field_name~, loc~)
     EffectOperationCall(name~, type_witnesses~, arguments~, loc~) =>
       EffectOperationCall(
         name=name.resolve_effect_operation_name(resolver, scope),
@@ -485,7 +486,7 @@ fn @syntax.PatternLetDeclaration::resolve_pattern_let(
     type_.resolve_type(resolver, scope)
   })
   let pattern = self.pattern.resolve_pattern(resolver, scope)
-  { pattern, type_annotation, initializer, loc: self.loc }
+  { pattern, type_annotation, initializer, loc: self.loc, }
 }
 
 ///|

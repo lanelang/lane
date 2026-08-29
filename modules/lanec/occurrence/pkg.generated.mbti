@@ -21,12 +21,18 @@ pub(all) struct OccurrenceInput {
   entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
 } derive(Eq, @debug.Debug)
+pub fn OccurrenceInput::equal(Self, Self) -> Bool
+pub fn OccurrenceInput::not_equal(Self, Self) -> Bool
+pub fn OccurrenceInput::to_repr(Self) -> @debug.Repr
 
 pub(all) struct OccurrenceSummary {
   entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
   facts : Array[ValueOccurrenceFact]
 } derive(Eq, @debug.Debug)
+pub fn OccurrenceSummary::equal(Self, Self) -> Bool
+pub fn OccurrenceSummary::not_equal(Self, Self) -> Bool
+pub fn OccurrenceSummary::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ValueOccurrenceFact {
   value : @buslane.ValueId
@@ -38,6 +44,9 @@ pub(all) struct ValueOccurrenceFact {
   has_incomplete_type_application : Bool
   reachable_from_entry : Bool
 } derive(Eq, @debug.Debug)
+pub fn ValueOccurrenceFact::equal(Self, Self) -> Bool
+pub fn ValueOccurrenceFact::not_equal(Self, Self) -> Bool
+pub fn ValueOccurrenceFact::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -13,9 +13,9 @@ fn compile_program_for_test(
   libraries : Array[String],
 ) -> @compile.CompilationOutcome[@compile.CompiledProgram] {
   @compile.compile({
-    root: { source_id: "<root>", text: root },
+    root: { source_id: "<root>", text: root, },
     libraries: libraries.mapi(fn(index, text) {
-      { source_id: "<library:\{index}>", text }
+      { source_id: "<library:\{index}>", text, }
     }),
   })
 }
@@ -29,22 +29,27 @@ fn conformance_execution_profile() -> @executable.ExecutionProfile {
 }
 
 ///|
-fn lower_conformance_program_to_bytecode(
+fn lower_conformance_program_to_physical(
   program : @buslane.Program,
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
-) -> Result[@loisvm_bytecode.BytecodeImage, String] {
+) -> Result[@physical.PhysicalProgram, String] {
   let executable = match
     @executable.elaborate(
-      { module_path_texts: [], program, externals, entries: [entry] },
+      {
+        module_path_texts: [],
+        program: program.certify().unwrap(),
+        externals,
+        entries: [entry],
+      },
       entry,
       conformance_execution_profile(),
     ) {
     Ok(executable) => executable
     Err(error) => return Err("elaboration failed: \{Repr(error)}")
   }
-  match @loisvm_lowering.lower_executable_program_to_bytecode(executable) {
-    Ok(image) => Ok(image)
+  match @physical_lowering.lower_executable_program_to_physical(executable) {
+    Ok(image) => Ok(image.image())
     Err(error) => Err("lowering failed: \{Repr(error)}")
   }
 }

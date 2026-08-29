@@ -2,6 +2,7 @@
 priv enum ValueUseSite {
   InstructionUse(Int, Int)
   TerminatorUse(Int)
+  MetadataUse(Int, Int)
 }
 
 ///|
@@ -79,9 +80,23 @@ fn analyze_use_def(body : FunctionBody) -> UseDefAnalysis raise FinalizeError {
       uses[value.value].push(TerminatorUse(block_index))
       use_counts[value.value] += 1
     }
-    blocks.push({ instructions: instruction_facts, terminator_uses, use_counts })
+    blocks.push({
+      instructions: instruction_facts,
+      terminator_uses,
+      use_counts,
+    })
   }
-  { definitions, uses, blocks }
+  for owner_index, metadata in body.values {
+    guard metadata.erased_companion is Some(companion) &&
+      definitions[owner_index] is Some(definition) else {
+      continue
+    }
+    let block = definition.block()
+    let position = definition.position()
+    uses[companion.value].push(MetadataUse(block, position))
+    blocks[block].use_counts[companion.value] += 1
+  }
+  { definitions, uses, blocks, }
 }
 
 ///|
@@ -175,7 +190,8 @@ fn ValueDefinitionSite::position(self : ValueDefinitionSite) -> Int {
 ///|
 fn ValueUseSite::block(self : ValueUseSite) -> Int {
   match self {
-    InstructionUse(block, _) | TerminatorUse(block) => block
+    InstructionUse(block, _) | TerminatorUse(block) | MetadataUse(block, _) =>
+      block
   }
 }
 
@@ -184,5 +200,6 @@ fn ValueUseSite::position(self : ValueUseSite, body : FunctionBody) -> Int {
   match self {
     InstructionUse(_, instruction) => instruction
     TerminatorUse(block) => body.blocks[block].instructions.length()
+    MetadataUse(_, position) => position
   }
 }

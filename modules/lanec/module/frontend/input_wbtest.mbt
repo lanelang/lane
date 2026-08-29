@@ -35,11 +35,14 @@ test "module input headers keep aliased imports canonical" {
       source_id: "file:///Main.lane",
       text: "module App.Main\nimport Basic.Data.List as List",
     },
-    [{ source_id: "file:///List.lane", text: "module Basic.Data.List" }],
+    [{ source_id: "file:///List.lane", text: "module Basic.Data.List", }],
   )
-  debug_inspect(parsed.diagnostics, content="[]")
   debug_inspect(
-    parsed.headers,
+    parsed.sources.map(ParsedSource::diagnostics),
+    content="[[], []]",
+  )
+  debug_inspect(
+    parsed.sources.filter_map(ParsedSource::module_header),
     content=(
       #|[
       #|  {
@@ -66,9 +69,9 @@ test "derive module header includes every canonical compiler dependency" {
     },
     [],
   )
-  debug_inspect(parsed.diagnostics, content="[]")
+  debug_inspect(parsed.sources.map(ParsedSource::diagnostics), content="[[]]")
   debug_inspect(
-    parsed.headers,
+    parsed.sources.filter_map(ParsedSource::module_header),
     content=(
       #|[
       #|  {

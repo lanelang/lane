@@ -3,81 +3,71 @@ test "executable pretty output emphasizes execution structure" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)
   let unit_type = @buslane.Type::Primitive(Unit)
-  let string_type = @buslane.Type::Primitive(String)
-  let println_type = @buslane.Type::Function([string_type], unit_type, Empty)
-  let function_type = @buslane.Type::Function([], unit_type, Empty)
-  let println = metadata.define_value("println", External, println_type)
-  let initialized = metadata.define_value("initialized", Local, i64_type)
+  let observe_type = @buslane.Type::Function([i64_type], unit_type, Builtin(Io))
+  let function_type = @buslane.Type::Function([], unit_type, Builtin(Io))
+  let observe = metadata.define_value("observe", External, observe_type)
+  let initialized = metadata.define_value("initialized", Value, i64_type)
   let main = metadata.define_value("main", Function, function_type)
   let entry : @buslane_lowering.BuslaneEntry = {
     module_path_text: "Main",
     name: "main",
     value: main,
-    type_: function_type,
   }
-  let executable : ExecutableProgram = {
-    module_path_texts: ["Basic.Io", "Main"],
-    program: {
-      metadata,
-      terms: [
-        External(println),
-        Let(initialized, Literal(I64(42))),
-        Let(
-          main,
-          Function({
-            parameters: [],
-            result_type: unit_type,
-            body: Literal(Unit),
-          }),
-        ),
-      ],
-    },
+  let linked : @module_link.LinkedProgram = {
+    module_path_texts: ["Main"],
+    program: executable_test_program(metadata, [
+      External(observe),
+      Let(initialized, Literal(I64(42))),
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Call(Ref(observe), [Ref(initialized)]),
+        }),
+      ),
+    ]),
     externals: {
       builtins: [],
       runtime_imports: [
         {
-          value: println,
-          symbol: "println",
-          signature: { parameters: [String], result: Unit },
-          type_: println_type,
+          value: observe,
+          contract: {
+            module_name: "lane.test",
+            field_name: "observe",
+            parameters: [Direct(I64)],
+            result: Unit,
+          },
         },
       ],
     },
-    entry,
-    initializers: [Value(initialized, Literal(I64(42)))],
-    execution_roots: [Initializer(0), Entry(main)],
+    entries: [entry],
   }
+  let executable = elaborate(linked, entry, test_execution_profile()).unwrap()
   inspect(
     @prettyprinter.render(executable, width=80),
     content=(
       #|executable {
-      #|  modules {
-      #|    Basic.Io
-      #|    Main
-      #|  }
-      #|  entry Main.main = value#2 : () -> Unit
+      #|  entry Main.main = value#2 : () -> Unit ! Io
       #|  externals {
-      #|    runtime_import "println" as value#0 : (String) -> Unit
-      #|  }
-      #|  initializers {
-      #|    init#0 = value#1
+      #|    runtime_import "lane.test"."observe" as value#0 : (I64) -> Unit ! Io
       #|  }
       #|  execution_order {
-      #|    init#0
+      #|    initialize value#1
       #|    entry value#2
       #|  }
       #|  program {
       #|    buslane {
       #|      metadata {
       #|        next_unique#3;
-      #|        value value#0 = "println"#0 external : (String) -> Unit;
-      #|        value value#1 = "initialized"#1 local : I64;
-      #|        value value#2 = "main"#2 function : () -> Unit;
+      #|        value value#0 = "observe"#0 external : (I64) -> Unit ! Io;
+      #|        value value#1 = "initialized"#1 value : I64;
+      #|        value value#2 = "main"#2 function : () -> Unit ! Io;
       #|      }
       #|      external value#0
       #|      let value#1 = 42
       #|      let value#2 = fn() -> Unit {
-      #|        ()
+      #|        value#0(value#1)
       #|      }
       #|    }
       #|  }

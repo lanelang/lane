@@ -87,7 +87,7 @@ fn analyze_control_flow(blocks : Array[Block]) -> ControlFlowAnalysis {
     }
     None
   })
-  { predecessors, reachable, dominators, immediate_dominators }
+  { predecessors, reachable, dominators, immediate_dominators, }
 }
 
 ///|

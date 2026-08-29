@@ -171,7 +171,7 @@ fn resolve_owner_generic_arguments(
     }
     _ => {
       let type_name = owner_type_name(owner)
-      { type_name, arguments: [] }
+      { type_name, arguments: [], }
     }
   }
 }

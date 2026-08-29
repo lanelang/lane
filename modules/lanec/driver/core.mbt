@@ -7,8 +7,8 @@ priv struct ExploreStageBuilder {
 /// Compiles and links the source closure and lists entries in deterministic link
 /// order. Compilation failure returns an empty entry list plus full diagnostics.
 pub fn list_entries(
-  root_source : @compile.SourceInput,
-  library_sources : Array[@compile.SourceInput],
+  root_source : @module_frontend.SourceInput,
+  library_sources : Array[@module_frontend.SourceInput],
 ) -> EntryReport {
   let compiled = @compile.compile({
     root: root_source,
@@ -18,11 +18,11 @@ pub fn list_entries(
     Succeeded(program, warnings) =>
       {
         schema_version: 1,
-        entries: program.entries().map(entry_summary),
+        entries: program.entries().map(entry => entry_summary(program, entry)),
         diagnostics: warnings.diagnostics(),
       }
     Failed(failure) =>
-      { schema_version: 1, entries: [], diagnostics: failure.diagnostics() }
+      { schema_version: 1, entries: [], diagnostics: failure.diagnostics(), }
   }
 }
 
@@ -36,24 +36,44 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
   let functions = ExploreFunctionGraphBuilder::new()
   let mut root_module_path_text : String? = None
   let compiled = @compile.compile_modules_observed(
-    { root: request.root_source, libraries: request.library_sources },
+    { root: request.root_source, libraries: request.library_sources, },
     observed => {
       match observed {
         Syntax(snapshot) => {
           root_module_path_text = Some(snapshot.module_path_text)
-          stages.complete(Syntax, snapshot.text, [], empty_scale())
+          stages.complete(
+            Syntax,
+            snapshot.text,
+            [],
+            compilation_snapshot_scale(snapshot.scale),
+          )
         }
         Resolved(snapshot) =>
           if root_module_path_text == Some(snapshot.module_path_text) {
-            stages.complete(Resolved, snapshot.text, [], empty_scale())
+            stages.complete(
+              Resolved,
+              snapshot.text,
+              [],
+              compilation_snapshot_scale(snapshot.scale),
+            )
           }
         Checked(snapshot) =>
           if root_module_path_text == Some(snapshot.module_path_text) {
-            stages.complete(Checked, snapshot.text, [], empty_scale())
+            stages.complete(
+              Checked,
+              snapshot.text,
+              [],
+              compilation_snapshot_scale(snapshot.scale),
+            )
           }
         BuslaneModule(snapshot) =>
           if root_module_path_text == Some(snapshot.module_path_text) {
-            stages.complete(BuslaneModule, snapshot.text, [], empty_scale())
+            stages.complete(
+              BuslaneModule,
+              snapshot.text,
+              [],
+              compilation_snapshot_scale(snapshot.scale),
+            )
           }
       }
     },
@@ -72,7 +92,10 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
       )
   }
   stages.attach_diagnostics(Checked, diagnostics)
-  let linked = @compile.link_modules(modules)
+  let mut link_retention : @module_link.LinkRetentionObservation? = None
+  let linked = @compile.link_modules_observed(modules, observation => {
+    link_retention = Some(observation)
+  })
   diagnostics.append(linked.diagnostics())
   let linked_program = match linked {
     Succeeded(program, _) => program
@@ -106,9 +129,12 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     BuslaneLinked,
     linked_program.buslane_text(),
     linked.diagnostics(),
-    empty_scale(),
+    linked_program_scale(
+      linked_program.buslane_scale(),
+      link_retention.unwrap(),
+    ),
   )
-  let selected_entry = Some(entry_summary(entry))
+  let selected_entry = Some(entry_summary(linked_program, entry))
   let executable = match
     linked_program.elaborate_entry_observed(entry, request.execution_profile, observed => {
       let observed = executable_stage(observed)
@@ -126,42 +152,50 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
   }
   stages.complete(
     Executable,
-    render_buslane_code(executable.program),
+    render_executable_code(executable),
     [],
-    buslane_scale(executable.program),
+    buslane_scale(executable.program.program()),
   )
   let image = match
-    @loisvm_lowering.lower_executable_program_to_bytecode_observed(executable, observed => {
-      match observed {
-        Anf(program) => {
-          let observed = anf_observation(program)
-          functions.observe_anf(program.metadata, observed.functions)
-          stages.complete(Anf, render_anf_code(program), [], observed.scale)
+    @physical_lowering.lower_executable_program_to_physical_observed(
+      executable,
+      observed => {
+        match observed {
+          Anf(program) => {
+            let observed = anf_observation(program)
+            functions.observe_anf(
+              executable.program.program().metadata,
+              observed.functions,
+            )
+            stages.complete(Anf, render_anf_code(program), [], observed.scale)
+          }
+          InitialVmcfg(image, provenance, runtime_abi_workers) => {
+            functions.observe_vmcfg(provenance.functions)
+            stages.complete_with_indirect_calls(
+              VmcfgInitial,
+              @vmcfg.image_to_code(image),
+              [],
+              vmcfg_scale(image, provenance.functions, runtime_abi_workers),
+              explore_indirect_calls(VmcfgInitial, provenance.indirect_calls),
+            )
+          }
+          FinalPhysicalProgram(image, provenance, runtime_abi_workers) => {
+            functions.observe_physical(provenance.functions)
+            stages.complete_with_indirect_calls(
+              PhysicalProgram,
+              @physical.physical_program_to_code(image),
+              [],
+              physical_scale(image, provenance.functions, runtime_abi_workers),
+              explore_indirect_calls(PhysicalProgram, provenance.indirect_calls),
+            )
+          }
         }
-        InitialVmcfg(image, provenance) => {
-          functions.observe_vmcfg(provenance)
-          stages.complete(
-            VmcfgInitial,
-            @vmcfg.image_to_code(image),
-            [],
-            vmcfg_scale(image, provenance),
-          )
-        }
-        FinalBytecode(image, provenance) => {
-          functions.observe_bytecode(provenance)
-          stages.complete(
-            LoisvmBytecode,
-            @bytecode.bytecode_image_to_code(image),
-            [],
-            bytecode_scale(image, provenance),
-          )
-        }
-      }
-    }) {
+      },
+    ) {
     Ok(image) => image
     Err(error) => {
       diagnostics.push(
-        exploration_error("LoisVM lowering failed", "\{Repr(error)}"),
+        exploration_error("Physical lowering failed", "\{Repr(error)}"),
       )
       return failed_report(
         request, root_module_path_text, selected_entry, stages, functions, diagnostics,
@@ -172,7 +206,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
     Ok(wasm) => wasm
     Err(error) => {
       diagnostics.push(
-        exploration_error("Wasm lowering failed", "\{Repr(error)}"),
+        exploration_error("WebAssembly lowering failed", "\{Repr(error)}"),
       )
       return failed_report(
         request, root_module_path_text, selected_entry, stages, functions, diagnostics,
@@ -204,7 +238,7 @@ pub fn explore(request : ExploreRequest) -> ExploreReport {
 ///|
 fn ExploreStageBuilder::new() -> ExploreStageBuilder {
   let states = []
-  for _ in 0..<18 {
+  for _ in explore_stage_catalog {
     states.push(Unavailable)
   }
   { states, }
@@ -224,7 +258,86 @@ fn ExploreStageBuilder::complete(
     text,
     diagnostics,
     scale,
+    indirect_calls: [],
   })
+}
+
+///|
+fn ExploreStageBuilder::complete_with_indirect_calls(
+  self : ExploreStageBuilder,
+  id : ExploreStageId,
+  text : String,
+  diagnostics : Array[@compiler_diag.CompilerDiagnostic],
+  scale : ExploreScaleObservation,
+  indirect_calls : Array[ExploreIndirectCallObservation],
+) -> Unit {
+  self.states[id.index()] = Completed({
+    domain: id.domain(),
+    text_format: id.text_format(),
+    text,
+    diagnostics,
+    scale,
+    indirect_calls,
+  })
+}
+
+///|
+fn explore_indirect_calls(
+  stage : ExploreStageId,
+  calls : Array[@physical_lowering.PhysicalIndirectCallObservation],
+) -> Array[ExploreIndirectCallObservation] {
+  calls.map(call => {
+    function: { stage, index: call.function.value, },
+    ordinal: call.ordinal,
+    origins: call.origins.map(origin => {
+      match origin {
+        SourceBound => SourceBound
+        SourceAnonymous => SourceAnonymous
+        HandlerElaboration => HandlerElaboration
+        MonadicTransformation => MonadicTransformation
+        SelectiveCps => SelectiveCps
+        CallableAdapter => CallableAdapter
+        RepresentationWorker => RepresentationWorker
+        Initialization => Initialization
+        RuntimeSupport => RuntimeSupport
+      }
+    }),
+    resolution: explore_indirect_call_resolution(stage, call.resolution),
+    boundaries: call.boundaries.map(boundary => {
+      match boundary {
+        Alias => Alias
+        BlockParameter => BlockParameter
+        FunctionParameter => FunctionParameter
+        FunctionResult => FunctionResult
+        AggregateStorage => AggregateStorage
+        GlobalStorage => GlobalStorage
+        OpaqueInput => OpaqueInput
+        OpaqueOperation => OpaqueOperation
+      }
+    }),
+  })
+}
+
+///|
+fn explore_indirect_call_resolution(
+  stage : ExploreStageId,
+  resolution : @vmcfg.IndirectCallResolution,
+) -> ExploreIndirectCallResolution {
+  match resolution {
+    ExactTarget(target, environment) =>
+      ExactTarget(
+        { stage, index: target.value, },
+        match environment {
+          CaptureFree => CaptureFree
+          Local => Local
+          Packed => Packed
+        },
+      )
+    MultipleTargets(targets) =>
+      MultipleTargets(targets.map(target => { stage, index: target.value, }))
+    UnknownTargets(targets) =>
+      UnknownTargets(targets.map(target => { stage, index: target.value, }))
+  }
 }
 
 ///|
@@ -243,10 +356,10 @@ fn ExploreStageBuilder::fail_next(
   self : ExploreStageBuilder,
   diagnostics : Array[@compiler_diag.CompilerDiagnostic],
 ) -> ExploreStageId {
-  for id in explore_stage_ids() {
-    if self.states[id.index()] is Unavailable {
-      self.states[id.index()] = Failed(diagnostics)
-      return id
+  for index, descriptor in explore_stage_catalog {
+    if self.states[index] is Unavailable {
+      self.states[index] = Failed(diagnostics)
+      return descriptor.id
     }
   }
   abort("completed exploration cannot fail at another stage")
@@ -254,50 +367,15 @@ fn ExploreStageBuilder::fail_next(
 
 ///|
 fn ExploreStageBuilder::finish(self : ExploreStageBuilder) -> ExploreStages {
-  {
-    syntax: self.states[0],
-    resolved: self.states[1],
-    checked: self.states[2],
-    buslane_module: self.states[3],
-    buslane_linked: self.states[4],
-    buslane_effect_specialized: self.states[5],
-    buslane_core_optimized: self.states[6],
-    buslane_handlers_elaborated: self.states[7],
-    buslane_monadic: self.states[8],
-    buslane_selective_cps: self.states[9],
-    buslane_open_context_resolved: self.states[10],
-    buslane_monadic_lifted: self.states[11],
-    buslane_cps_core_optimized: self.states[12],
-    executable: self.states[13],
-    anf: self.states[14],
-    vmcfg_initial: self.states[15],
-    loisvm_bytecode: self.states[16],
-    wasm: self.states[17],
+  let stages = []
+  for index, descriptor in explore_stage_catalog {
+    stages.push({
+      id: descriptor.key,
+      title: descriptor.title,
+      state: self.states[index],
+    })
   }
-}
-
-///|
-fn explore_stage_ids() -> Array[ExploreStageId] {
-  [
-    Syntax,
-    Resolved,
-    Checked,
-    BuslaneModule,
-    BuslaneLinked,
-    BuslaneEffectSpecialized,
-    BuslaneCoreOptimized,
-    BuslaneHandlersElaborated,
-    BuslaneMonadic,
-    BuslaneSelectiveCps,
-    BuslaneOpenContextResolved,
-    BuslaneMonadicLifted,
-    BuslaneCpsCoreOptimized,
-    Executable,
-    Anf,
-    VmcfgInitial,
-    LoisvmBytecode,
-    Wasm,
-  ]
+  { stages, }
 }
 
 ///|
@@ -327,7 +405,7 @@ fn failed_report(
 
 ///|
 fn explore_compiler_identity() -> ExploreCompilerIdentity {
-  { name: "Milky2018/lanec", version: "0.1.0" }
+  { name: "Milky2018/lanec", version: "0.1.0", }
 }
 
 ///|
@@ -353,60 +431,48 @@ fn executable_stage(
     EffectSpecialized(program) =>
       (
         BuslaneEffectSpecialized,
-        render_buslane_code(program),
-        buslane_scale(program),
+        render_buslane_code(program.program()),
+        buslane_scale(program.program()),
       )
-    HandlersElaborated(program) =>
-      (
-        BuslaneHandlersElaborated,
-        render_effect_lowering_code(program),
-        effect_lowering_scale(program),
-      )
-    MonadicTransformed(program) =>
-      (
-        BuslaneMonadic,
-        render_effect_lowering_code(program),
-        effect_lowering_scale(program),
-      )
-    SelectiveCpsRewritten(program) =>
-      (
-        BuslaneSelectiveCps,
-        render_effect_lowering_code(program),
-        effect_lowering_scale(program),
-      )
-    OpenContextsResolved(program) =>
-      (
-        BuslaneOpenContextResolved,
-        render_effect_lowering_code(program),
-        effect_lowering_scale(program),
-      )
+    EffectLowering(snapshot) => {
+      let stage = match snapshot.stage {
+        HandlersElaborated => BuslaneHandlersElaborated
+        MonadicTransformed => BuslaneMonadic
+        SelectiveCpsRewritten => BuslaneSelectiveCps
+        OpenContextsResolved => BuslaneOpenContextResolved
+      }
+      (stage, snapshot.text, effect_lowering_snapshot_scale(snapshot.scale))
+    }
     MonadicContinuationsLifted(program) =>
       (
         BuslaneMonadicLifted,
-        render_buslane_code(program),
-        buslane_scale(program),
+        render_buslane_code(program.program()),
+        buslane_scale(program.program()),
       )
     CpsCoreOptimized(program) =>
       (
         BuslaneCpsCoreOptimized,
-        render_buslane_code(program),
-        buslane_scale(program),
+        render_buslane_code(program.program()),
+        buslane_scale(program.program()),
       )
     CoreOptimized(program) =>
       (
         BuslaneCoreOptimized,
-        render_buslane_code(program),
-        buslane_scale(program),
+        render_buslane_code(program.program()),
+        buslane_scale(program.program()),
       )
   }
 }
 
 ///|
-fn entry_summary(entry : @compile.CompiledEntry) -> EntrySummary {
+fn entry_summary(
+  program : @compile.CompiledProgram,
+  entry : @compile.CompiledEntry,
+) -> EntrySummary {
   {
     module_path_text: entry.module_path_text(),
     name: entry.name(),
-    type_text: entry.type_text(),
+    type_text: program.entry_type_text(entry).unwrap(),
   }
 }
 

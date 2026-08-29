@@ -155,7 +155,7 @@ fn SemanticChecker::synthesize_checked_handler_computed(
         Some(body) => Some(body)
         None => None
       }
-      arm_checks.push({ table_loc: table.checked.loc, operation, body })
+      arm_checks.push({ table_loc: table.checked.loc, operation, body, })
     }
   }
   let mut complete = checked_body.expression is Some(_) &&
@@ -475,13 +475,13 @@ fn SemanticChecker::check_handler_table(
     match handled_effect {
       Some(effect) =>
         if !effect.equals(signature.effect) {
-          self.diagnostics.push({ kind: MixedHandlerEffects, loc: arm.loc })
+          self.diagnostics.push({ kind: MixedHandlerEffects, loc: arm.loc, })
           continue
         }
       None => handled_effect = Some(signature.effect)
     }
     let checked = self.check_handler_operation_arm(scope, arm, signature)
-    operations.push({ source: arm, signature, checked })
+    operations.push({ source: arm, signature, checked, })
   }
   guard handled_effect is Some(effect) else { return None }
   for entry in handled_effects {

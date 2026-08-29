@@ -281,7 +281,7 @@ fn evaluate_buslane_expr_kont(
       }
     Handle(handle) => {
       let id = handlers.length()
-      let active = ActiveBuslaneHandler::{ id, handle, environment }
+      let active = ActiveBuslaneHandler::{ id, handle, environment, }
       let next_handlers = handlers.copy()
       next_handlers.push(active)
       evaluate_buslane_expr_kont(
@@ -834,7 +834,7 @@ fn find_operation_dispatch(
     for table in handler.handle.handlers {
       for alternative in table.operations {
         if alternative.operation == operation {
-          return Some({ handler_index: index, handler, alternative })
+          return Some({ handler_index: index, handler, alternative, })
         }
       }
     }

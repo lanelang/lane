@@ -22,11 +22,11 @@ fn analyze_test_sources(
 ) -> AnalysisResult {
   let library_inputs : Array[@module_frontend.SourceInput] = []
   for index, source in libraries {
-    library_inputs.push({ source_id: "<library:\{index}>", text: source })
+    library_inputs.push({ source_id: "<library:\{index}>", text: source, })
   }
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources(
-      [{ source_id: "<root>", text: root }] + library_inputs,
+      [{ source_id: "<root>", text: root, }] + library_inputs,
     )
     is Some(snapshot) else {
     abort("expected semantic snapshot")
@@ -44,7 +44,7 @@ test "completion returns top-level semantic entries" {
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
       [],
       "file:///Main.lane",
       4,
@@ -115,15 +115,15 @@ test "completion renders external effects across semantic paths" {
   debug_inspect(
     [
       complete_test_source_inputs(
-        { source_id: "file:///Main.lane", text: imported_root },
-        [{ source_id: "file:///Lib.lane", text: imported_lib }],
+        { source_id: "file:///Main.lane", text: imported_root, },
+        [{ source_id: "file:///Lib.lane", text: imported_lib, }],
         "file:///Main.lane",
         5,
         31,
         Manual,
       ).filter(entry => entry.label == "Runtime"),
       complete_test_source_inputs(
-        { source_id: "file:///Main.lane", text: checked_source },
+        { source_id: "file:///Main.lane", text: checked_source, },
         [],
         "file:///Main.lane",
         5,
@@ -131,7 +131,7 @@ test "completion renders external effects across semantic paths" {
         Manual,
       ).filter(entry => entry.label == "Runtime"),
       complete_test_source_inputs(
-        { source_id: "file:///Main.lane", text: resolved_source },
+        { source_id: "file:///Main.lane", text: resolved_source, },
         [],
         "file:///Main.lane",
         7,
@@ -245,8 +245,8 @@ test "completion returns imported module surface entries" {
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: root },
-      [{ source_id: "file:///Lib.lane", text: lib }],
+      { source_id: "file:///Main.lane", text: root, },
+      [{ source_id: "file:///Lib.lane", text: lib, }],
       "file:///Main.lane",
       6,
       7,
@@ -376,7 +376,7 @@ test "completion keeps offeredness orthogonal to semantic binding kind" {
     #|  off
     #|}
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: source },
+    { source_id: "file:///Main.lane", text: source, },
     [],
     "file:///Main.lane",
     10,
@@ -408,8 +408,8 @@ test "module completion keeps offeredness orthogonal to interface value kind" {
     #|  1
     #|}
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: root },
-    [{ source_id: "file:///Lib.lane", text: library }],
+    { source_id: "file:///Main.lane", text: root, },
+    [{ source_id: "file:///Lib.lane", text: library, }],
     "file:///Main.lane",
     6,
     10,
@@ -439,8 +439,8 @@ test "completion uses importer revision symbol metadata" {
     #|  A.identity(1)
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///A.lane", text: source_a },
-      { source_id: "file:///B.lane", text: source_b },
+      { source_id: "file:///A.lane", text: source_a, },
+      { source_id: "file:///B.lane", text: source_b, },
     ])
     is Some(initial) else {
     abort("expected initial semantic snapshot")
@@ -464,7 +464,10 @@ test "completion uses importer revision symbol metadata" {
     #|  let unchanged = value
     #|  unchanged
     #|}
-  guard workspace.upsert_source({ source_id: "file:///A.lane", text: revised_a })
+  guard workspace.upsert_source({
+      source_id: "file:///A.lane",
+      text: revised_a,
+    })
     is Some(revised) else {
     abort("expected revised semantic snapshot")
   }
@@ -511,10 +514,10 @@ test "imported completion uses nominal tuple signature presentation" {
     #|  tuple(A, B)
     #|}
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: root },
+    { source_id: "file:///Main.lane", text: root, },
     [
-      { source_id: "file:///A.lane", text: library },
-      { source_id: "file:///Tuple.lane", text: tuple },
+      { source_id: "file:///A.lane", text: library, },
+      { source_id: "file:///Tuple.lane", text: tuple, },
     ],
     "file:///Main.lane",
     6,
@@ -561,10 +564,10 @@ test "imported nominal tuple signature does not expose private aliases" {
     #|  tuple(A, B)
     #|}
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: root },
+    { source_id: "file:///Main.lane", text: root, },
     [
-      { source_id: "file:///A.lane", text: library },
-      { source_id: "file:///Tuple.lane", text: tuple },
+      { source_id: "file:///A.lane", text: library, },
+      { source_id: "file:///Tuple.lane", text: tuple, },
     ],
     "file:///Main.lane",
     6,
@@ -631,11 +634,11 @@ test "alias normalization uses safe nominal presentation" {
   let analyzed = analyze_test_sources(library, [tuple])
   debug_inspect(analyzed.diagnostics, content="[]")
   let inputs : Array[@module_frontend.SourceInput] = [
-    { source_id: "file:///A.lane", text: library },
-    { source_id: "file:///Tuple.lane", text: tuple },
+    { source_id: "file:///A.lane", text: library, },
+    { source_id: "file:///Tuple.lane", text: tuple, },
   ]
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: root },
+    { source_id: "file:///Main.lane", text: root, },
     inputs,
     "file:///Main.lane",
     6,
@@ -691,7 +694,7 @@ test "completion returns owner members after double colon" {
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
       [],
       "file:///Main.lane",
       14,
@@ -771,10 +774,10 @@ test "owner completion preserves multi-segment paths and aliases" {
     #|  O.Option::none()
     #|}
   let sources : Array[@module_frontend.SourceInput] = [
-    { source_id: "file:///Option.lane", text: option },
+    { source_id: "file:///Option.lane", text: option, },
   ]
   let qualified_entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: qualified },
+    { source_id: "file:///Main.lane", text: qualified, },
     sources,
     "file:///Main.lane",
     4,
@@ -782,7 +785,7 @@ test "owner completion preserves multi-segment paths and aliases" {
     TriggerCharacter(":"),
   )
   let aliased_entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: aliased },
+    { source_id: "file:///Main.lane", text: aliased, },
     sources,
     "file:///Main.lane",
     4,
@@ -818,8 +821,8 @@ test "completion inserts parens for imported payloadless owner variants" {
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: root },
-      [{ source_id: "file:///Lib.lane", text: lib }],
+      { source_id: "file:///Main.lane", text: root, },
+      [{ source_id: "file:///Lib.lane", text: lib, }],
       "file:///Main.lane",
       6,
       15,
@@ -893,7 +896,7 @@ test "completion inserts parens for payloadless variants with resolved fallback"
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
       [],
       "file:///Main.lane",
       11,
@@ -970,8 +973,8 @@ test "completion returns imported owner operations after double colon" {
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: root },
-      [{ source_id: "file:///Lib.lane", text: lib }],
+      { source_id: "file:///Main.lane", text: root, },
+      [{ source_id: "file:///Lib.lane", text: lib, }],
       "file:///Main.lane",
       6,
       16,
@@ -1041,7 +1044,7 @@ test "local operation completion uses signature detail" {
     #|  Prompt::choose![I64](1, 2)
     #|}
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: source },
+    { source_id: "file:///Main.lane", text: source, },
     [],
     "file:///Main.lane",
     8,
@@ -1073,8 +1076,8 @@ test "imported operation completion includes type parameters" {
     #|  choose[A](A, A) -> A
     #|}
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: root },
-    [{ source_id: "file:///Lib.lane", text: lib }],
+    { source_id: "file:///Main.lane", text: root, },
+    [{ source_id: "file:///Lib.lane", text: lib, }],
     "file:///Main.lane",
     6,
     15,
@@ -1102,8 +1105,8 @@ test "completion returns known module paths in import declarations" {
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: root },
-      [{ source_id: "file:///Lib.lane", text: lib }],
+      { source_id: "file:///Main.lane", text: root, },
+      [{ source_id: "file:///Lib.lane", text: lib, }],
       "file:///Main.lane",
       3,
       9,
@@ -1162,7 +1165,7 @@ test "completion filters candidates by type and effect positions" {
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
       [],
       "file:///Main.lane",
       15,
@@ -1198,7 +1201,7 @@ test "completion filters candidates by type and effect positions" {
   )
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
       [],
       "file:///Main.lane",
       17,
@@ -1242,7 +1245,7 @@ test "completion classifies same-line function bodies as value space" {
     #|pub fn make() -> I64 { 1 }
     #|pub fn use() -> I64 { ma }
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: source },
+    { source_id: "file:///Main.lane", text: source, },
     [],
     "file:///Main.lane",
     4,
@@ -1268,7 +1271,7 @@ test "completion classifies struct field initializers as value space" {
     #|
     #|pub let item : make_type = make_type::{ value: ma }
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: source },
+    { source_id: "file:///Main.lane", text: source, },
     [],
     "file:///Main.lane",
     9,
@@ -1294,7 +1297,7 @@ test "completion classifies type alias bodies as type space" {
     #|
     #|pub type Alias = ma
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: source },
+    { source_id: "file:///Main.lane", text: source, },
     [],
     "file:///Main.lane",
     9,
@@ -1324,7 +1327,7 @@ test "completion classifies pattern owners as type space" {
     #|  }
     #|}
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: source },
+    { source_id: "file:///Main.lane", text: source, },
     [],
     "file:///Main.lane",
     11,
@@ -1369,7 +1372,7 @@ test "completion classifies an empty type annotation slot as type space" {
         source_id: "file:///Base.lane",
         text: "module Base\n\npub let base : I64 = 0",
       },
-      { source_id: "file:///Main.lane", text: valid_source },
+      { source_id: "file:///Main.lane", text: valid_source, },
     ])
     is Some(_) else {
     abort("expected initial semantic snapshot")
@@ -1414,7 +1417,7 @@ test "completion classifies an empty tuple type item as type space" {
     #|pub type Pair = (Thing,
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: valid_source },
+      { source_id: "file:///Main.lane", text: valid_source, },
     ])
     is Some(_) else {
     abort("expected initial semantic snapshot")
@@ -1478,7 +1481,7 @@ test "completion classifies an empty tuple expression item as value space" {
     #|  (1,
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: valid_source },
+      { source_id: "file:///Main.lane", text: valid_source, },
     ])
     is Some(_) else {
     abort("expected initial semantic snapshot")
@@ -1535,7 +1538,7 @@ test "completion preserves value space for a truncated identifier" {
     #|  (1, T
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: valid_source },
+      { source_id: "file:///Main.lane", text: valid_source, },
     ])
     is Some(_) else {
     abort("expected initial semantic snapshot")
@@ -1586,7 +1589,7 @@ test "completion classifies an empty tuple pattern item as pattern space" {
     #|    (head,
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: valid_source },
+      { source_id: "file:///Main.lane", text: valid_source, },
     ])
     is Some(_) else {
     abort("expected initial semantic snapshot")
@@ -1664,7 +1667,7 @@ test "completion classifies an empty effect annotation slot as effect space" {
     #|pub fn run() -> Unit !
   let workspace = SemanticWorkspace::new()
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: valid_source },
+      { source_id: "file:///Main.lane", text: valid_source, },
     ])
     is Some(_) else {
     abort("expected initial semantic snapshot")
@@ -1737,7 +1740,7 @@ test "completion returns checked selector fields" {
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
       [],
       "file:///Main.lane",
       9,
@@ -1805,7 +1808,7 @@ test "completion returns empty for unsupported triggers and unavailable receiver
     #|}
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
       [],
       "file:///Main.lane",
       2,
@@ -1816,7 +1819,7 @@ test "completion returns empty for unsupported triggers and unavailable receiver
   )
   debug_inspect(
     complete_test_source_inputs(
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
       [],
       "file:///Main.lane",
       4,
@@ -1844,7 +1847,7 @@ test "completion reads match binders from the semantic index" {
     #|  }
     #|}
   let entries = complete_test_source_inputs(
-    { source_id: "file:///Main.lane", text: source },
+    { source_id: "file:///Main.lane", text: source, },
     [],
     "file:///Main.lane",
     11,

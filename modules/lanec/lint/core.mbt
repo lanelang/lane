@@ -1023,7 +1023,7 @@ fn LintCollector::add_top_level_reference(
     self.top_level_declarations.any(fn(declaration) {
       declaration.symbol == target
     }) {
-    self.top_level_references.push({ from, to: target })
+    self.top_level_references.push({ from, to: target, })
   }
 }
 

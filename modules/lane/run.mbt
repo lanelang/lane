@@ -1,10 +1,10 @@
 ///|
 async fn lane_exec(path : String, no_jit? : Bool = false) -> LaneCommandOutcome {
-  let image = match read_linked_program_artifact(path) {
-    Ok(image) => image
+  let wasm = match read_wasm_executable(path) {
+    Ok(wasm) => wasm
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_loisvm_image_with_output(image, line => println(line), no_jit~)
+  execute_wasm(wasm, no_jit~)
 }
 
 ///|
@@ -64,33 +64,33 @@ fn execute_entry(
   entry : @compile.CompiledEntry,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
-  execute_entry_with_output(program, entry, line => println(line), no_jit~)
+  execute_entry_with_output(program, entry, no_jit~)
 }
 
 ///|
 fn execute_entry_with_output(
   program : @compile.CompiledProgram,
   entry : @compile.CompiledEntry,
-  write_line : (String) -> Unit,
+  write_stdout? : ((Bytes) -> Unit)? = None,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
   let executable = match elaborate_command_entry(program, entry) {
     Ok(executable) => executable
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  let image = match lower_executable_image(executable) {
-    Ok(image) => image
+  let wasm = match lower_executable_wasm(executable) {
+    Ok(wasm) => wasm
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_loisvm_image_with_output(image, write_line, no_jit~)
+  execute_wasm_with_wasi_stdout(wasm, write_stdout, no_jit~)
 }
 
 ///|
-fn lower_executable_image(
+fn lower_executable_wasm(
   executable : @executable.ExecutableProgram,
-) -> Result[@loisvm_bytecode.BytecodeImage, CliError] {
-  match @artifact.lower_executable_to_loisvm_bytecode(executable) {
-    Ok(image) => Ok(image)
+) -> Result[Bytes, CliError] {
+  match @artifact.executable_to_wasm_binary(executable) {
+    Ok(wasm) => Ok(wasm)
     Err(error) => Err(ExecutionImageLowering(message="\{Repr(error)}"))
   }
 }
@@ -112,14 +112,22 @@ fn elaborate_command_entry(
 }
 
 ///|
-fn execute_loisvm_image_with_output(
-  image : @loisvm_bytecode.BytecodeImage,
-  write_line : (String) -> Unit,
+fn execute_wasm(wasm : Bytes, no_jit? : Bool = false) -> LaneCommandOutcome {
+  execute_wasm_with_wasi_stdout(wasm, None, no_jit~)
+}
+
+///|
+fn execute_wasm_with_wasi_stdout(
+  wasm : Bytes,
+  wasi_stdout : ((Bytes) -> Unit)?,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
-  let mode = if no_jit { @loisvm_wasm.ExecutionMode::Interpreter } else { Jit }
-  let loaded = match
-    @loisvm_wasm.load(image, command_loisvm_runtime(write_line), mode~) {
+  let mode = if no_jit {
+    @lane_wasm_runtime.ExecutionMode::Interpreter
+  } else {
+    Jit
+  }
+  let loaded = match @lane_wasm_runtime.load_wasm(wasm, mode~, wasi_stdout~) {
     Ok(loaded) => loaded
     Err(error) =>
       return LaneCommandOutcome::user_error(
@@ -137,29 +145,6 @@ fn execute_loisvm_image_with_output(
     Ok(_) => Succeeded
     Err(error) => LaneCommandOutcome::user_error(ExecutionFailed(error))
   }
-}
-
-///|
-fn command_loisvm_runtime(
-  write_line : (String) -> Unit,
-) -> @loisvm_runtime.RuntimeRegistry {
-  let registry = @loisvm_runtime.RuntimeRegistry::new()
-  registry.register(
-    @loisvm_runtime.RuntimeBinding::new(
-      symbol="println",
-      abi_major=1,
-      parameters=[String],
-      result=Unit,
-      invoke=(_context, arguments) => {
-        guard arguments is [BorrowedString(line)] else {
-          raise Failure(message="println expects one String argument")
-        }
-        write_line(line.to_string())
-        Unit
-      },
-    ),
-  )
-  registry
 }
 
 ///|

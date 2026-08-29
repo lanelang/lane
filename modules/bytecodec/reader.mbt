@@ -8,7 +8,7 @@ pub struct ByteReader {
 ///|
 /// Creates a reader positioned at byte zero.
 pub fn ByteReader::from_bytes(bytes : Bytes) -> ByteReader {
-  { view: bytes[:], offset: 0 }
+  { view: bytes[:], offset: 0, }
 }
 
 ///|
@@ -216,7 +216,7 @@ pub fn ByteReader::read_section(
 ) -> ByteReader raise ByteDecodeError {
   let offset = self.offset
   let view = self.read_raw_view(length, expected~)
-  { view, offset }
+  { view, offset, }
 }
 
 ///|

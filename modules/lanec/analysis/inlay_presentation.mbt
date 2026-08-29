@@ -11,7 +11,7 @@ fn InlayHintFacts::present(self : InlayHintFacts) -> Array[InlayHintEntry] {
       hints[last_index].kind is ImplicitArgumentHint &&
       hints[last_index].position == hint.position {
       let previous = hints[last_index]
-      hints[last_index] = { ..previous, label: previous.label + hint.label }
+      hints[last_index] = { ..previous, label: previous.label + hint.label, }
     } else {
       hints.push(hint)
     }

@@ -34,50 +34,62 @@ test "ANF assigns stable identities and preserves binding provenance" {
       ]),
     ],
   }
-  let lowered = @anf.lower_buslane_program_to_anf(program)
+  let (verified, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
+  let lowered = @anf.lower_cps_core_to_runtime_anf({
+    program: verified,
+    retained_values: [outer],
+    function_origins,
+  }).unwrap()
   debug_inspect(
-    lowered.terms,
+    lowered.terms(),
     content=(
-      #|[
-      #|  LetRec(
-      #|    [
-      #|      {
-      #|        id: { index: 0 },
-      #|        rhs: Function(
-      #|          {
-      #|            id: { value: 0 },
-      #|            source: Some({ index: 0 }),
-      #|            parameters: [],
-      #|            result_type: Primitive(I64),
-      #|            body: Let(
-      #|              Value(
-      #|                id={ index: 1 },
-      #|                rhs=Atom(
-      #|                  Function(
-      #|                    {
-      #|                      id: { value: 1 },
-      #|                      source: Some({ index: 1 }),
-      #|                      parameters: [],
-      #|                      result_type: Primitive(I64),
-      #|                      body: Atom(Literal(I64(42))),
-      #|                    },
+      #|<ArrayView:
+      #|  [
+      #|    LetRec(
+      #|      [
+      #|        {
+      #|          id: { index: 0 },
+      #|          rhs: Function(
+      #|            {
+      #|              id: { value: 0 },
+      #|              source: Some({ index: 0 }),
+      #|              origin: SourceWritten,
+      #|              parameters: [],
+      #|              result_type: Scalar(I64),
+      #|              body: Let(
+      #|                Value(
+      #|                  id={ index: 1 },
+      #|                  rhs=Atom(
+      #|                    JoinPoint(
+      #|                      {
+      #|                        id: { value: 1 },
+      #|                        source: Some({ index: 1 }),
+      #|                        origin: SourceWritten,
+      #|                        parameters: [],
+      #|                        result_type: Scalar(I64),
+      #|                        body: Atom(Literal(I64(42))),
+      #|                      },
+      #|                    ),
       #|                  ),
       #|                ),
-      #|              ),
-      #|              Let(
-      #|                Temp(
-      #|                  temp={ index: 0 },
-      #|                  rhs=Call(callee=Ref({ index: 1 }), arguments=[]),
+      #|                Let(
+      #|                  Temp(
+      #|                    temp={ index: 0 },
+      #|                    type_=Scalar(I64),
+      #|                    rhs=Call(callee=Ref({ index: 1 }), arguments=[]),
+      #|                  ),
+      #|                  Atom(Temp({ index: 0 })),
       #|                ),
-      #|                Atom(Temp({ index: 0 })),
       #|              ),
-      #|            ),
-      #|          },
-      #|        ),
-      #|      },
-      #|    ],
-      #|  ),
-      #|]
+      #|            },
+      #|          ),
+      #|        },
+      #|      ],
+      #|    ),
+      #|  ]>
     ),
   )
 }

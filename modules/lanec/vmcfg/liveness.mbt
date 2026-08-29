@@ -65,7 +65,7 @@ fn analyze_liveness(
       block_index -= 1
     }
   }
-  { live_in, live_out, use_def }
+  { live_in, live_out, use_def, }
 }
 
 ///|

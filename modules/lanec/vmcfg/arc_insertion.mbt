@@ -56,10 +56,10 @@ fn insert_arc_block(
   )
   for value_index, is_live in live {
     if is_live {
-      instructions.push(Release({ value: value_index }))
+      instructions.push(Release({ value: value_index, }))
     }
   }
-  { parameters: block.parameters, instructions, terminator }
+  { parameters: block.parameters, instructions, terminator, }
 }
 
 ///|
@@ -111,8 +111,8 @@ fn borrow_value(remaining : Array[Int], value : ValueId) -> ValueId {
 ///|
 fn append_owned_value(body : FunctionBody, source : ValueId) -> ValueId {
   let metadata = body.values[source.value]
-  let value : ValueId = { value: body.values.length() }
-  body.values.push({ ..metadata, ownership: Owned })
+  let value : ValueId = { value: body.values.length(), }
+  body.values.push({ ..metadata, ownership: Owned, })
   value
 }
 
@@ -260,17 +260,21 @@ fn insert_arc_branch_edge(
   )
   for value_index, is_live in edge_live {
     if is_live {
-      instructions.push(Release({ value: value_index }))
+      instructions.push(Release({ value: value_index, }))
     }
   }
   if instructions.is_empty() {
     lowered
   } else {
-    let trampoline : @bytecode.BlockId = {
+    let trampoline : @physical.BlockId = {
       value: original_block_count + edge_blocks.length(),
     }
-    edge_blocks.push({ parameters: [], instructions, terminator: Jump(lowered) })
-    { target: trampoline, arguments: [] }
+    edge_blocks.push({
+      parameters: [],
+      instructions,
+      terminator: Jump(lowered),
+    })
+    { target: trampoline, arguments: [], }
   }
 }
 

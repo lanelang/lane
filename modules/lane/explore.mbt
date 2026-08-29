@@ -75,7 +75,7 @@ async fn write_explore_report_atomic(
 
 ///|
 fn render_explore_html(report : @driver.ExploreReport) -> String {
-  let html = StringBuilder::new()
+  let html = StringBuilder()
   let stages = report.stages.ordered()
   html <+
     #|<!doctype html>
@@ -137,6 +137,8 @@ fn render_stage_observations(
   })
   if snapshot.scale.metrics.is_empty() &&
     snapshot.scale.functions.is_empty() &&
+    snapshot.scale.modules.is_empty() &&
+    snapshot.indirect_calls.is_empty() &&
     nodes.is_empty() {
     return
   }
@@ -155,6 +157,29 @@ fn render_stage_observations(
     for function in snapshot.scale.functions {
       html <+
         "<tr><td>\{function.index}</td><td>\{function.block_count}</td><td>\{function.operation_count}</td><td>\{function.value_count}</td></tr>"
+    }
+    html <+ "</tbody></table>"
+  }
+  if !snapshot.scale.modules.is_empty() {
+    html <+
+      "<table><thead><tr><th>Module</th><th>Input top terms</th><th>Retained top terms</th><th>Input values</th><th>Retained values</th></tr></thead><tbody>"
+    for module_ in snapshot.scale.modules {
+      html <+
+        "<tr><td>\{escape_html(module_.module_path_text)}</td><td>\{module_.input_top_terms}</td><td>\{module_.retained_top_terms}</td><td>\{module_.input_value_bindings}</td><td>\{module_.retained_value_bindings}</td></tr>"
+    }
+    html <+ "</tbody></table>"
+  }
+  if !snapshot.indirect_calls.is_empty() {
+    html <+
+      "<table><thead><tr><th>Indirect call</th><th>Origin</th><th>Resolution</th><th>Flow</th></tr></thead><tbody>"
+    for call in snapshot.indirect_calls {
+      let origins = call.origins.map(indirect_call_origin_label).join(", ")
+      let resolution = indirect_call_resolution_label(call.resolution)
+      let boundaries = call.boundaries
+        .map(callable_flow_boundary_label)
+        .join(" → ")
+      html <+
+        "<tr><td>\{escape_html(function_ref_label(call.function))} call#\{call.ordinal}</td><td>\{escape_html(origins)}</td><td>\{escape_html(resolution)}</td><td>\{escape_html(boundaries)}</td></tr>"
     }
     html <+ "</tbody></table>"
   }
@@ -183,6 +208,64 @@ fn render_stage_observations(
 }
 
 ///|
+fn indirect_call_origin_label(
+  origin : @driver.ExploreIndirectCallOrigin,
+) -> String {
+  match origin {
+    SourceBound => "source-bound"
+    SourceAnonymous => "source anonymous"
+    HandlerElaboration => "handler elaboration"
+    MonadicTransformation => "monadic transformation"
+    SelectiveCps => "selective CPS"
+    CallableAdapter => "structural callable adapter"
+    RepresentationWorker => "representation worker"
+    Initialization => "initialization"
+    RuntimeSupport => "runtime support"
+  }
+}
+
+///|
+fn callable_flow_boundary_label(
+  boundary : @driver.ExploreCallableFlowBoundary,
+) -> String {
+  match boundary {
+    Alias => "alias"
+    BlockParameter => "block parameter"
+    FunctionParameter => "function parameter"
+    FunctionResult => "function result"
+    AggregateStorage => "aggregate storage"
+    GlobalStorage => "global storage"
+    OpaqueInput => "opaque input"
+    OpaqueOperation => "opaque operation"
+  }
+}
+
+///|
+fn indirect_call_resolution_label(
+  resolution : @driver.ExploreIndirectCallResolution,
+) -> String {
+  match resolution {
+    ExactTarget(target, environment) => {
+      let environment = match environment {
+        CaptureFree => "capture-free"
+        Local => "local environment"
+        Packed => "packed environment"
+      }
+      "exact \{function_ref_label(target)} (\{environment})"
+    }
+    MultipleTargets(targets) => {
+      let targets = targets.map(function_ref_label).join(", ")
+      "multiple: \{targets}"
+    }
+    UnknownTargets([]) => "unknown"
+    UnknownTargets(targets) => {
+      let targets = targets.map(function_ref_label).join(", ")
+      "unknown; candidates: \{targets}"
+    }
+  }
+}
+
+///|
 fn function_ref_label(function : @driver.ExploreFunctionRef) -> String {
   "\{function.stage.key()}#\{function.index}"
 }
@@ -190,12 +273,19 @@ fn function_ref_label(function : @driver.ExploreFunctionRef) -> String {
 ///|
 fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
   match role {
+    RuntimeAnfTopLevelRoot => "Runtime ANF top-level root"
+    RuntimeAnfEscapingClosure => "Runtime ANF escaping closure"
+    RuntimeAnfDirectFunction => "Runtime ANF direct-only function"
+    RuntimeAnfJoinPoint => "Runtime ANF join point"
     SourceFunction(value~, name~) =>
       match name {
         Some(name) => "source \{name} (value#\{value})"
         None => "source value#\{value}"
       }
-    AnonymousFunction => "anonymous function"
+    SourceAnonymousFunction => "source anonymous function"
+    HandlerElaborationFunction => "handler elaboration function"
+    MonadicTransformationFunction => "monadic transformation function"
+    SelectiveCpsFunction => "selective CPS function"
     Initializer(value~, name~) =>
       match name {
         Some(name) => "initializer for \{name} (value#\{value})"
@@ -203,26 +293,24 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
       }
     InitializerOrchestrator => "initializer orchestrator"
     IntrinsicWrapper(name~) => "intrinsic wrapper \{name}"
-    CallableAdapter => "callable adapter"
-    RepresentationWorker(value~, name~) =>
-      match (value, name) {
-        (Some(value), Some(name)) =>
-          "representation worker for \{name} (value#\{value})"
-        (Some(value), None) => "representation worker for value#\{value}"
-        (None, _) => "representation worker for anonymous function"
-      }
+    RepresentationWorker => "representation worker"
+    CallableAdapter(..) => "structural callable adapter"
     LayoutConstructor => "layout constructor"
-    RuntimeImport(value~, name~, symbol~) => {
+    RuntimeImport(value~, name~, module_name~, field_name~) => {
       let source = match name {
         Some(name) => "\{name} (value#\{value})"
         None => "value#\{value}"
       }
-      "runtime import \{symbol} for \{source}"
+      "runtime import \{module_name}.\{field_name} for \{source}"
     }
     InternalRuntimeImport(name~) => "internal runtime import \{name}"
-    PhysicalRuntimeImport(symbol~) => "physical runtime import \{symbol}"
-    WasmBytecodeFunction => "Wasm body for bytecode function"
-    RuntimeImportAdapter(symbol~) => "runtime import adapter \{symbol}"
+    WasiPreview1Import(module_name~, field_name~) =>
+      "WASI Preview 1 import \{module_name}.\{field_name}"
+    PhysicalRuntimeImport(module_name~, field_name~) =>
+      "physical runtime import \{module_name}.\{field_name}"
+    WasmPhysicalFunction => "WebAssembly body for physical function"
+    RuntimeImportAdapter(module_name~, field_name~) =>
+      "runtime import adapter \{module_name}.\{field_name}"
     WasmRuntimeFunction(name~) => "Wasm runtime function \{name}"
     WasmHelperFunction(name~, ordinal~) =>
       match ordinal {
@@ -253,7 +341,7 @@ fn explore_stage_text(state : @driver.ExploreStageState) -> String {
 
 ///|
 fn escape_html(text : String) -> String {
-  let escaped = StringBuilder::new()
+  let escaped = StringBuilder()
   for character in text {
     match character {
       '&' => escaped <+ "&amp;"

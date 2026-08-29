@@ -69,7 +69,7 @@ test "generic use classification follows substituted canonical effects" {
     arguments: [type_argument, EffectArgument(concrete_effect)],
     retained_arguments: [type_argument],
     mode: Concrete([
-      { parameter: effect_parameter, argument: EffectArgument(canonical) },
+      { parameter: effect_parameter, argument: EffectArgument(canonical), },
     ]),
   })
   let reversed = classify_effect_generic_use(metadata, definition.parameters, [
@@ -122,7 +122,7 @@ test "planner owns retained top terms in source order" {
       External(reachable_external),
       External(unreachable_external),
       Let(ordinary, Literal(Unit)),
-      LetRec([{ id: entry, rhs: entry_rhs }]),
+      LetRec([{ id: entry, rhs: entry_rhs, }]),
     ],
   }
   assert_eq(plan_effect_specializations(program, entry), {
@@ -194,12 +194,17 @@ test "phantom generic type arguments contribute nominal data demands" {
     data_demands: [
       {
         source: box,
-        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty) }],
+        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty), }],
         constructors: [make_box],
       },
     ],
   })
-  assert_eq(@buslane.verify_program(specialize(program, entry)).diagnostics, [])
+  assert_eq(
+    @buslane.verify_program(
+      specialize(program.certify().unwrap(), entry).program(),
+    ).diagnostics,
+    [],
+  )
 }
 
 ///|
@@ -266,7 +271,7 @@ test "ordinary generic type arguments contribute nominal data demands" {
     data_demands: [
       {
         source: box,
-        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty) }],
+        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty), }],
         constructors: [make_box],
       },
     ],
@@ -338,7 +343,7 @@ test "external generic type arguments contribute nominal data demands" {
   assert_eq(plan_effect_specializations(program, entry), {
     callable_demands: [
       Specialize(TopLevel(outer), ambient_bindings=[], instance_bindings=[
-        { parameter: outer_effect, argument: empty_effect },
+        { parameter: outer_effect, argument: empty_effect, },
       ]),
     ],
     retained_top_terms: [RetainedLetRec(source_index=0, values=[entry])],
@@ -346,7 +351,7 @@ test "external generic type arguments contribute nominal data demands" {
     data_demands: [
       {
         source: box,
-        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty) }],
+        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty), }],
         constructors: [make_box],
       },
     ],
@@ -381,7 +386,11 @@ test "planner records only reachable retained operations" {
     terms: [
       Let(
         entry,
-        Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
+        Function({
+          parameters: [],
+          result_type: unit_type,
+          body: Literal(Unit),
+        }),
       ),
     ],
   }
@@ -392,7 +401,7 @@ test "planner records only reachable retained operations" {
     data_demands: [
       {
         source: box,
-        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty) }],
+        bindings: [{ parameter: box_effect, argument: EffectArgument(Empty), }],
         constructors: [make_box],
       },
     ],
@@ -511,10 +520,10 @@ test "callable planner keeps generic and concrete demands independently" {
     callable_demands: [
       RetainGeneric(TopLevel(apply), []),
       Specialize(TopLevel(apply), ambient_bindings=[], instance_bindings=[
-        { parameter: apply_effect, argument: log_argument },
+        { parameter: apply_effect, argument: log_argument, },
       ]),
       Specialize(TopLevel(forward), ambient_bindings=[], instance_bindings=[
-        { parameter: forward_effect, argument: log_argument },
+        { parameter: forward_effect, argument: log_argument, },
       ]),
     ],
     retained_top_terms: [RetainedLetRec(source_index=0, values=[apply, entry])],
@@ -522,20 +531,20 @@ test "callable planner keeps generic and concrete demands independently" {
     data_demands: [],
   })
   assert_eq(plan_effect_specializations(program, entry), plan)
-  let specialized = specialize(program, entry)
-  assert_eq(@buslane.verify_program(specialized).diagnostics, [])
-  guard specialized.terms
+  let specialized = specialize(program.certify().unwrap(), entry)
+  assert_eq(@buslane.verify_program(specialized.program()).diagnostics, [])
+  guard specialized.program().terms
     is [
       LetRec(
         [
-          { id: concrete_apply, rhs: Function(_) },
-          { id: concrete_forward, rhs: Function(_) },
+          { id: concrete_apply, rhs: Function(_), },
+          { id: concrete_forward, rhs: Function(_), },
         ]
       ),
       LetRec(
         [
-          { id: retained_apply, rhs: TypeLambda(_, _) },
-          { id: retained_entry, rhs: Function({ body: entry_body, .. }) },
+          { id: retained_apply, rhs: TypeLambda(_, _), },
+          { id: retained_entry, rhs: Function({ body: entry_body, .. }), },
         ]
       ),
     ] &&
@@ -663,14 +672,14 @@ test "callable planner reaches a local recursive group with lexical bindings" {
         Local(owner=outer, value=first),
         ambient_bindings=[outer_binding],
         instance_bindings=[
-          { parameter: first_effect, argument: empty_argument },
+          { parameter: first_effect, argument: empty_argument, },
         ],
       ),
       Specialize(
         Local(owner=outer, value=second),
         ambient_bindings=[outer_binding],
         instance_bindings=[
-          { parameter: second_effect, argument: empty_argument },
+          { parameter: second_effect, argument: empty_argument, },
         ],
       ),
     ],
@@ -738,7 +747,7 @@ test "callable planner retains and specializes one local definition" {
       Specialize(
         Local(owner=entry, value=local_function),
         ambient_bindings=[],
-        instance_bindings=[{ parameter: local_effect, argument: log_argument }],
+        instance_bindings=[{ parameter: local_effect, argument: log_argument, }],
       ),
     ],
     retained_top_terms: [RetainedLet(source_index=0, value=entry)],

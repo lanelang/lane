@@ -354,8 +354,13 @@ fn expression_doc(expression : CheckedExpr) -> Document {
     Value(name~, symbol~, ..) => value_name_doc(name, symbol)
     CompilerIntrinsic(intrinsic~, ..) =>
       text("builtin") + text("(") + quoted_doc(intrinsic.name()) + text(")")
-    ExternBinding(name~, ..) =>
-      text("extern") + text("(") + quoted_doc(name) + text(")")
+    ExternBinding(contract~, ..) =>
+      text("extern") +
+      text("(") +
+      quoted_doc(contract.module_name) +
+      text(", ") +
+      quoted_doc(contract.field_name) +
+      text(")")
     ErrorRecovery(_) => text("<error>")
     FunctionLiteral(type_parameters~, parameters~, return_type~, body~, ..) =>
       text("fn") +

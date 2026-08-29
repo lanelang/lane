@@ -1,11 +1,12 @@
 ///|
 test "parse extern expression as a distinct source form" {
   let result = parse_string(
-    "module Test\nlet host : (String) -> Unit ! Io = extern(\"println\")",
+    "module Test\nlet host : (I64) -> Unit ! Io = extern(\"lane.test\", \"println\")",
   )
   guard result.syntax() is Some(file) else { abort("expected parsed source") }
-  guard file.declarations[0] is Let({ initializer: Extern(name, ..), .. }) else {
+  guard file.declarations[0]
+    is Let({ initializer: Extern(module_name~, field_name~, ..), .. }) else {
     abort("expected extern initializer")
   }
-  inspect(name, content="println")
+  assert_eq((module_name, field_name), ("lane.test", "println"))
 }

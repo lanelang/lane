@@ -10,7 +10,7 @@ fn @bytecodec.ByteWriter::write_type_symbol_id(
 fn @bytecodec.ByteReader::read_type_symbol_id(
   self : @bytecodec.ByteReader,
 ) -> @symbol.TypeSymbolId raise {
-  { index: self.read_u32_le_int() }
+  { index: self.read_u32_le_int(), }
 }
 
 ///|
@@ -25,7 +25,7 @@ fn @bytecodec.ByteWriter::write_type_alias_symbol_id(
 fn @bytecodec.ByteReader::read_type_alias_symbol_id(
   self : @bytecodec.ByteReader,
 ) -> @symbol.TypeAliasSymbolId raise {
-  { index: self.read_u32_le_int() }
+  { index: self.read_u32_le_int(), }
 }
 
 ///|
@@ -40,7 +40,7 @@ fn @bytecodec.ByteWriter::write_type_parameter_symbol_id(
 fn @bytecodec.ByteReader::read_type_parameter_symbol_id(
   self : @bytecodec.ByteReader,
 ) -> @symbol.TypeParameterId raise {
-  { index: self.read_u32_le_int() }
+  { index: self.read_u32_le_int(), }
 }
 
 ///|
@@ -55,7 +55,7 @@ fn @bytecodec.ByteWriter::write_type_member_symbol_id(
 fn @bytecodec.ByteReader::read_type_member_symbol_id(
   self : @bytecodec.ByteReader,
 ) -> @symbol.TypeMemberSymbolId raise {
-  { index: self.read_u32_le_int() }
+  { index: self.read_u32_le_int(), }
 }
 
 ///|
@@ -70,7 +70,7 @@ fn @bytecodec.ByteWriter::write_value_symbol_id(
 fn @bytecodec.ByteReader::read_value_symbol_id(
   self : @bytecodec.ByteReader,
 ) -> @symbol.ValueSymbolId raise {
-  { index: self.read_u32_le_int() }
+  { index: self.read_u32_le_int(), }
 }
 
 ///|
@@ -85,7 +85,7 @@ fn @bytecodec.ByteWriter::write_field_symbol_id(
 fn @bytecodec.ByteReader::read_field_symbol_id(
   self : @bytecodec.ByteReader,
 ) -> @symbol.FieldSymbolId raise {
-  { index: self.read_u32_le_int() }
+  { index: self.read_u32_le_int(), }
 }
 
 ///|
@@ -100,7 +100,7 @@ fn @bytecodec.ByteWriter::write_variant_symbol_id(
 fn @bytecodec.ByteReader::read_variant_symbol_id(
   self : @bytecodec.ByteReader,
 ) -> @symbol.VariantSymbolId raise {
-  { index: self.read_u32_le_int() }
+  { index: self.read_u32_le_int(), }
 }
 
 ///|
@@ -115,7 +115,7 @@ fn @bytecodec.ByteWriter::write_effect_symbol_id(
 fn @bytecodec.ByteReader::read_effect_symbol_id(
   self : @bytecodec.ByteReader,
 ) -> @symbol.EffectSymbolId raise {
-  { index: self.read_u32_le_int() }
+  { index: self.read_u32_le_int(), }
 }
 
 ///|
@@ -130,7 +130,7 @@ fn @bytecodec.ByteWriter::write_operation_symbol_id(
 fn @bytecodec.ByteReader::read_operation_symbol_id(
   self : @bytecodec.ByteReader,
 ) -> @symbol.OperationSymbolId raise {
-  { index: self.read_u32_le_int() }
+  { index: self.read_u32_le_int(), }
 }
 
 ///|

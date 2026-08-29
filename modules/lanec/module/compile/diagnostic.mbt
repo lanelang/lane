@@ -61,20 +61,3 @@ fn compile_report(
     helps=[help],
   )
 }
-
-///|
-fn resolve_diagnostic(
-  diagnostic_ : @resolve.ResolveDiagnostic,
-  _display : @typecheck.TypeDisplayContext,
-) -> CompilerDiagnostic {
-  ignore(_display)
-  diagnostic_.to_compiler_diagnostic(DiagnosticContext())
-}
-
-///|
-fn typecheck_diagnostic(
-  diagnostic_ : @typecheck.TypeCheckDiagnostic,
-  display : @typecheck.TypeDisplayContext,
-) -> CompilerDiagnostic {
-  diagnostic_.with_display(display).to_compiler_diagnostic(DiagnosticContext())
-}

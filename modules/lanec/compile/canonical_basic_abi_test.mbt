@@ -36,8 +36,8 @@ test "canonical Basic ABI rejects malformed tuple and list providers once" {
   for case in cases {
     let (root, provider, provider_name, reason) = case
     let outcome = check({
-      root: { source_id: "main", text: root },
-      libraries: [{ source_id: "provider", text: provider }],
+      root: { source_id: "main", text: root, },
+      libraries: [{ source_id: "provider", text: provider, }],
     })
     guard outcome is Failed(failure) else {
       fail("malformed canonical Basic provider unexpectedly typechecked")

@@ -17,13 +17,13 @@ pub(all) struct ModuleInterfaceArtifact {
 pub let module_interface_artifact_schema_version = 14
 
 ///|
-pub let module_object_artifact_schema_version = 21
+pub let module_object_artifact_schema_version = 25
 
 ///|
 pub let compiled_module_artifact_schema_version = 2
 
 ///|
-pub let compiled_module_set_artifact_schema_version = 2
+pub let compiled_module_set_artifact_schema_version = 3
 
 ///|
 /// Persisted, independently linkable module implementation. Its schema and
@@ -47,20 +47,11 @@ pub(all) struct ModuleObjectArtifact {
 } derive(Debug, Eq)
 
 ///|
-/// Complete LoisVM image at the linked-program persistence boundary. The
-/// artifact codec owns the persisted schema version; it is not caller state.
-/// Encoding and decoding both pass through the LoisVM-owned semantic verifier.
-pub(all) struct LinkedProgramArtifact {
-  bytecode : @loisvm_bytecode.BytecodeImage
-} derive(Debug, Eq)
-
-///|
-/// Reports which compiler-owned phase prevented a LoisVM binary from being
-/// produced. A verification failure is a compiler defect, not an unsupported
-/// source program.
-pub(all) enum LoisvmBinaryError {
-  Lowering(@loisvm_lowering.LoisvmLoweringError)
-  BytecodeVerificationCompilerDefect(@loisvm_bytecode.BytecodeVerificationError)
+/// Reports which compiler-owned phase prevented a Wasm executable from being
+/// produced. The Wasm compiler consumes only verifier-accepted physical input.
+pub(all) enum WasmExecutableError {
+  Lowering(@physical_lowering.PhysicalLoweringError)
+  WasmCompilation(@wasm_compiler.WasmCompileError)
 } derive(Debug, Eq)
 
 ///|
@@ -75,7 +66,6 @@ pub(all) struct CompiledModuleSetArtifact {
   schema_version : Int
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
-  reachable_module_path_texts : Array[String]
 } derive(Debug, Eq)
 
 ///|
@@ -86,7 +76,7 @@ pub fn link_module_object_artifacts(
   objects : Array[ModuleObjectArtifact],
 ) -> @module_link.LinkResult {
   match link_modules_from_object_artifacts(objects) {
-    Err(diagnostics) => { program: None, diagnostics }
+    Err(diagnostics) => { program: None, diagnostics, }
     Ok(modules) => @module_link.link_modules(modules)
   }
 }
@@ -98,7 +88,7 @@ pub fn link_module_artifacts(
   artifact : CompiledModuleSetArtifact,
 ) -> @module_link.LinkResult {
   match artifact.validate_schema() {
-    Some(diagnostic) => { program: None, diagnostics: [diagnostic] }
+    Some(diagnostic) => { program: None, diagnostics: [diagnostic], }
     None =>
       @module_link.link_reachable_modules(
         artifact.modules.map(CompiledModuleArtifact::to_link_object),
@@ -266,8 +256,7 @@ fn ModuleObjectArtifact::to_link_object(
     interface: None,
     interface_fingerprint: self.interface_fingerprint,
     canonical_basic_abi: self.canonical_basic_abi,
-    metadata: self.metadata,
-    terms: self.terms,
+    program: { metadata: self.metadata, terms: self.terms, },
     externals: self.externals,
     entries: self.entries,
     exports: self.exports,
@@ -282,5 +271,5 @@ fn ModuleObjectArtifact::to_link_object(
 fn CompiledModuleArtifact::to_link_object(
   self : CompiledModuleArtifact,
 ) -> @module_link.LinkModuleObject {
-  { ..self.object.to_link_object(), interface: Some(self.interface.interface) }
+  { ..self.object.to_link_object(), interface: Some(self.interface.interface), }
 }

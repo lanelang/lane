@@ -11,8 +11,7 @@ using @compiler_diag {
 }
 
 ///|
-priv enum ModuleFrontendDiagnosticKind {
-  NoRootSourceModule
+pub(all) enum ModuleDependencyFailureKind {
   DuplicateModuleInput(String)
   MissingImportWithCandidates(
     module_~ : String,
@@ -20,6 +19,26 @@ priv enum ModuleFrontendDiagnosticKind {
     interface_modules~ : Array[String]
   )
   ImportCycle(String)
+} derive(Debug, Eq)
+
+///|
+pub(all) enum ModuleDependencyProvenance {
+  SourceInput(source_id~ : String, span~ : @basic.SourceSpan?)
+  InterfaceArtifact(
+    source_id~ : String,
+    importer_module_path_text~ : String,
+    span~ : @basic.SourceSpan?
+  )
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ModuleDependencyFailure {
+  kind : ModuleDependencyFailureKind
+  provenance : ModuleDependencyProvenance
+} derive(Debug, Eq)
+
+///|
+priv enum ModuleFrontendDiagnosticKind {
   ParserProducedNoSourceFile
 }
 
@@ -67,11 +86,87 @@ fn module_frontend_diagnostic(
   kind : ModuleFrontendDiagnosticKind,
   span : @basic.SourceSpan?,
 ) -> CompilerDiagnostic {
-  let diagnostic : ModuleFrontendDiagnostic = { kind, span }
+  let diagnostic : ModuleFrontendDiagnostic = { kind, span, }
   @compiler_diag.ToCompilerDiagnostic::to_compiler_diagnostic(
     diagnostic,
     DiagnosticContext(),
   )
+}
+
+///|
+pub fn ModuleDependencyFailure::duplicate_module(
+  module_path_text : String,
+  provenance : ModuleDependencyProvenance,
+) -> ModuleDependencyFailure {
+  { kind: DuplicateModuleInput(module_path_text), provenance, }
+}
+
+///|
+pub fn ModuleDependencyFailure::missing_import(
+  module_path_text : String,
+  source_modules~ : Array[String],
+  interface_modules~ : Array[String],
+  provenance~ : ModuleDependencyProvenance,
+) -> ModuleDependencyFailure {
+  {
+    kind: MissingImportWithCandidates(
+      module_=module_path_text,
+      source_modules~,
+      interface_modules~,
+    ),
+    provenance,
+  }
+}
+
+///|
+pub fn ModuleDependencyFailure::import_cycle(
+  module_path_text : String,
+  provenance : ModuleDependencyProvenance,
+) -> ModuleDependencyFailure {
+  { kind: ImportCycle(module_path_text), provenance, }
+}
+
+///|
+pub fn ModuleDependencyFailure::diagnostic(
+  self : ModuleDependencyFailure,
+) -> CompilerDiagnostic {
+  let (source_id, span) = match self.provenance {
+    SourceInput(source_id~, span~) => (Some(source_id), span)
+    InterfaceArtifact(source_id~, span~, ..) => (Some(source_id), span)
+  }
+  let diagnostic = match self.kind {
+    DuplicateModuleInput(module_) =>
+      module_frontend_report(
+        "duplicate module input `\{module_}`",
+        span,
+        code="E4001",
+        label="this module was supplied more than once",
+        note="a module input set cannot contain two sources with the same module name",
+        help="remove one source file or rename one of the modules",
+      )
+    MissingImportWithCandidates(module_~, source_modules~, interface_modules~) =>
+      missing_import_diagnostic(
+        module_, span, source_modules, interface_modules,
+      )
+    ImportCycle(module_) =>
+      module_frontend_report(
+        "import cycle involving `\{module_}`",
+        span,
+        code="E4003",
+        label="module imports must form an acyclic graph",
+        note="cyclic module dependencies cannot be typechecked in a stable order",
+        help="move shared declarations into a separate module imported by both sides",
+      )
+  }
+  match source_id {
+    Some(source_id) => diagnostic.with_source_id(source_id)
+    None => diagnostic
+  }
+}
+
+///|
+fn parser_produced_no_source_file_diagnostic() -> CompilerDiagnostic {
+  module_frontend_diagnostic(ParserProducedNoSourceFile, None)
 }
 
 ///|
@@ -80,40 +175,6 @@ impl @compiler_diag.ToCompilerDiagnostic for ModuleFrontendDiagnostic with fn to
   _context : @compiler_diag.DiagnosticContext,
 ) -> CompilerDiagnostic {
   match diagnostic_.kind {
-    NoRootSourceModule =>
-      module_frontend_report(
-        "no root source module",
-        diagnostic_.span,
-        code="E4000",
-        label="the compiler did not receive a root Lane module",
-        note="Lane compile/check needs exactly one root source module",
-        help="pass a source file that starts with a `module` declaration",
-      )
-    DuplicateModuleInput(module_) =>
-      module_frontend_report(
-        "duplicate module input `\{module_}`",
-        diagnostic_.span,
-        code="E4001",
-        label="this module was supplied more than once",
-        note="a module input set cannot contain two sources with the same module name",
-        help="remove one source file or rename one of the modules",
-      )
-    MissingImportWithCandidates(module_~, source_modules~, interface_modules~) =>
-      missing_import_diagnostic(
-        module_,
-        diagnostic_.span,
-        source_modules,
-        interface_modules,
-      )
-    ImportCycle(module_) =>
-      module_frontend_report(
-        "import cycle involving `\{module_}`",
-        diagnostic_.span,
-        code="E4003",
-        label="module imports must form an acyclic graph",
-        note="cyclic module dependencies cannot be typechecked in a stable order",
-        help="move shared declarations into a separate module imported by both sides",
-      )
     ParserProducedNoSourceFile =>
       module_frontend_report(
         "parser produced no source file",

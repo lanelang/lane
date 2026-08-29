@@ -4,9 +4,10 @@ package "Milky2018/lanec/executable"
 import {
   "Milky2018/buslane",
   "Milky2018/lanec/core_opt",
-  "Milky2018/lanec/effect_lowering/core",
+  "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/effect_specialization",
   "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/function_origin",
   "Milky2018/lanec/module/link",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
@@ -25,9 +26,11 @@ pub(all) suberror ExecutableElaborationError {
   UnsupportedEffectSpecialization(detail~ : String)
   EffectSpecializationCompilerDefect(@effect_specialization.SpecializationError)
   CoreOptimizationError(@core_opt.CoreOptimizeError)
-  EffectLoweringError(@core.SynthesisError)
-  UnverifiedProgram(stage~ : String, result~ : @buslane.VerifyResult)
+  EffectLoweringError(@effect_lowering.SynthesisError)
 } derive(Eq, @debug.Debug)
+pub fn ExecutableElaborationError::equal(Self, Self) -> Bool
+pub fn ExecutableElaborationError::not_equal(Self, Self) -> Bool
+pub fn ExecutableElaborationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum EntryAdmissionFailure {
@@ -36,42 +39,38 @@ pub(all) enum EntryAdmissionFailure {
   ReturnsNonUnit(result~ : @buslane.Type)
   HasUnsupportedEffects(effects~ : Array[@buslane.Effect])
 } derive(Eq, @debug.Debug)
+pub fn EntryAdmissionFailure::equal(Self, Self) -> Bool
+pub fn EntryAdmissionFailure::not_equal(Self, Self) -> Bool
+pub fn EntryAdmissionFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExecutableElaborationStage {
-  EffectSpecialized(@buslane.Program)
-  CoreOptimized(@buslane.Program)
-  HandlersElaborated(@core.Program)
-  MonadicTransformed(@core.Program)
-  SelectiveCpsRewritten(@core.Program)
-  OpenContextsResolved(@core.Program)
-  MonadicContinuationsLifted(@buslane.Program)
-  CpsCoreOptimized(@buslane.Program)
+  EffectSpecialized(@buslane.VerifiedProgram)
+  CoreOptimized(@buslane.VerifiedProgram)
+  EffectLowering(@effect_lowering.EffectLoweringSnapshot)
+  MonadicContinuationsLifted(@buslane.VerifiedProgram)
+  CpsCoreOptimized(@buslane.VerifiedProgram)
 }
 
 pub(all) struct ExecutableProgram {
-  module_path_texts : Array[String]
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   externals : @buslane_lowering.BuslaneExternalMap
   entry : @buslane_lowering.BuslaneEntry
-  initializers : Array[TopLevelInitializer]
-  execution_roots : Array[ExecutionRoot]
+  retained_values : Array[@buslane.ValueId]
+  function_origins : @function_origin.FunctionOriginCatalog
 } derive(Eq, @debug.Debug)
+pub fn ExecutableProgram::equal(Self, Self) -> Bool
+pub fn ExecutableProgram::not_equal(Self, Self) -> Bool
+pub fn ExecutableProgram::pretty(Self) -> @prettyprinter.Document
+pub fn ExecutableProgram::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ExecutableProgram
 
 pub struct ExecutionProfile {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn ExecutionProfile::equal(Self, Self) -> Bool
 pub fn ExecutionProfile::new(builtin_effects~ : Array[@buslane.BuiltinEffect], supports_external_effects~ : Bool) -> Self
-
-pub(all) enum ExecutionRoot {
-  Initializer(Int)
-  Entry(@buslane.ValueId)
-} derive(Eq, @debug.Debug)
-
-pub(all) enum TopLevelInitializer {
-  Value(@buslane.ValueId, @buslane.Expr)
-  Recursive(Array[@buslane.RecursiveBinding])
-} derive(Eq, @debug.Debug)
+pub fn ExecutionProfile::not_equal(Self, Self) -> Bool
+pub fn ExecutionProfile::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

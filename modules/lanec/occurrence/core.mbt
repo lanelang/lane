@@ -42,7 +42,7 @@ pub fn analyze(input : OccurrenceInput) -> OccurrenceSummary {
   let analyzer = OccurrenceAnalyzer::from_program(input.program)
   analyzer.record_occurrences()
   analyzer.record_reachability([input.entry] + input.roots)
-  { entry: input.entry, roots: input.roots, facts: analyzer.facts }
+  { entry: input.entry, roots: input.roots, facts: analyzer.facts, }
 }
 
 ///|
@@ -80,7 +80,7 @@ pub fn analyze_program(
   program : @buslane.Program,
   entry : @buslane.ValueId,
 ) -> OccurrenceSummary {
-  analyze({ program, entry, roots: [] })
+  analyze({ program, entry, roots: [], })
 }
 
 ///|
@@ -105,7 +105,7 @@ fn OccurrenceAnalyzer::from_program(
       External(_) => ()
     }
   }
-  { program, top_definitions, facts }
+  { program, top_definitions, facts, }
 }
 
 ///|
@@ -258,7 +258,7 @@ fn OccurrenceAnalyzer::ensure_fact(
 ) -> Unit {
   guard self.facts.get(id.index) is None else { return }
   while self.facts.length() <= id.index {
-    self.facts.push(ValueOccurrenceFact::empty({ index: self.facts.length() }))
+    self.facts.push(ValueOccurrenceFact::empty({ index: self.facts.length(), }))
   }
 }
 
@@ -271,7 +271,7 @@ fn OccurrenceAnalyzer::mark_reachable(
   if fact.reachable_from_entry {
     return
   }
-  self.facts[id.index] = { ..fact, reachable_from_entry: true }
+  self.facts[id.index] = { ..fact, reachable_from_entry: true, }
   if self.top_definition(id) is Some(rhs) {
     self.mark_reachable_expr(rhs, 0)
   }
@@ -377,7 +377,7 @@ fn OccurrenceAnalyzer::record_reachable_type_application(
   guard self.facts.get(id.index) is Some(fact) else { return }
   guard self.program.metadata.value_info(id) is Some(info) else { return }
   if applied_argument_count < forall_parameter_count(info.type_) {
-    self.facts[id.index] = { ..fact, has_incomplete_type_application: true }
+    self.facts[id.index] = { ..fact, has_incomplete_type_application: true, }
   }
 }
 
@@ -398,7 +398,7 @@ fn OccurrenceAnalyzer::mark_reachable_value(
   self.ensure_fact(id)
   guard self.facts.get(id.index) is Some(fact) else { return }
   if !fact.reachable_from_entry {
-    self.facts[id.index] = { ..fact, reachable_from_entry: true }
+    self.facts[id.index] = { ..fact, reachable_from_entry: true, }
   }
 }
 

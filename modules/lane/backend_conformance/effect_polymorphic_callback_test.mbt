@@ -19,7 +19,7 @@ test "pure callback through effect-polymorphic field preserves its result" {
       #|  42
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let apply = Apply::{ call: apply_call }
@@ -55,8 +55,8 @@ test "effectful callback through effect-polymorphic field invokes and resumes on
       #|  Tick::tick!(value)
       #|}
       #|
-      #|let record_callback : () -> Unit ! Io = extern("lane.test.callback")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let record_callback : () -> Unit ! Io = extern("lane.test", "lane.test.callback")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let apply = Apply::{ call: apply_call }
@@ -102,7 +102,7 @@ test "pure callback through higher-kinded mappable field preserves its result" {
       #|  42
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let mappable : Mappable[Box] = Mappable::{ map: box_map }
@@ -151,8 +151,8 @@ test "effectful callback through nested mappable implementation preserves its re
       #|  }
       #|}
       #|
-      #|let record_callback : () -> Unit ! Io = extern("lane.test.callback")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let record_callback : () -> Unit ! Io = extern("lane.test", "lane.test.callback")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn observed_callback(value : I64) -> I64 ! Io {
       #|  record_callback()
@@ -200,7 +200,7 @@ test "type-lambda mappable instance beta-reduces callback parameter types" {
       #|  value
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let mapped = identity_mappable.map[Bool, Bool, {}](true, keep_bool)
@@ -253,7 +253,7 @@ test "partially applied type-lambda mappable verifies inline implementation" {
       #|  value
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let mapped = partial_result_mappable.map[Bool, Bool, {}](
@@ -289,7 +289,7 @@ test "phantom generic call plans its effect-parameterized nominal argument" {
       #|}
     ),
   )
-  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+  let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
     result: Ok(()),
     i64_values: [],
@@ -334,14 +334,14 @@ test "higher-kinded mappable factory forwards its callback effect" {
       #|  }
       #|}
       #|
-      #|let record_callback : () -> Unit ! Io = extern("lane.test.callback")
+      #|let record_callback : () -> Unit ! Io = extern("lane.test", "lane.test.callback")
       #|
       #|fn increment(value : I64) -> I64 ! Io {
       #|  record_callback()
       #|  builtin("%i64_add")(value, 1)
       #|}
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let mappable = partial_result_impl_map[String]()
@@ -363,7 +363,7 @@ test "inlined nonempty arguments execute once in source order" {
     (
       #|module Main
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn first() -> Unit ! Io {
       #|  observe(1)
@@ -382,7 +382,7 @@ test "inlined nonempty arguments execute once in source order" {
       #|}
     ),
   )
-  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+  let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
     result: Ok(()),
     i64_values: [1L, 2L],
@@ -398,7 +398,7 @@ test "inlining preserves a pure callable parameter adaptation" {
     (
       #|module Main
       #|
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn invoke(action : () -> Unit ! Io) -> Unit ! Io {
       #|  action()
@@ -414,7 +414,7 @@ test "inlining preserves a pure callable parameter adaptation" {
       #|}
     ),
   )
-  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+  let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
     result: Ok(()),
     i64_values: [42L],
@@ -425,10 +425,9 @@ test "inlining preserves a pure callable parameter adaptation" {
 }
 
 ///|
-/// The same generic definition is demanded in two ways: `main` applies it to
+/// The same generic definition is applied in two ways: `main` applies it to
 /// `Io` directly, while `forward` passes its still-symbolic effect parameter.
-/// Both paths must execute identically regardless of whether specialization
-/// keeps the generic body, creates a concrete clone, or does both.
+/// Both paths must execute identically through the canonical generic ABI.
 test "direct and symbolically forwarded effect applications agree" {
   let actual = execute_compiler_test_matrix(
     (
@@ -448,8 +447,8 @@ test "direct and symbolically forwarded effect applications agree" {
       #|  apply[T, R, Eff](value, callback)
       #|}
       #|
-      #|let record_callback : () -> Unit ! Io = extern("lane.test.callback")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let record_callback : () -> Unit ! Io = extern("lane.test", "lane.test.callback")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn increment(value : I64) -> I64 ! Io {
       #|  record_callback()
@@ -462,7 +461,7 @@ test "direct and symbolically forwarded effect applications agree" {
       #|}
     ),
   )
-  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+  let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
     result: Ok(()),
     i64_values: [42L, 42L],
@@ -521,8 +520,8 @@ test "direct and forwarded elaboration agree across effect representations" {
       #|  mappable.map(value, callback)
       #|}
       #|
-      #|let record_callback : () -> Unit ! Io = extern("lane.test.callback")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let record_callback : () -> Unit ! Io = extern("lane.test", "lane.test.callback")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|fn increment(value : I64) -> I64 {
       #|  builtin("%i64_add")(value, 1)
@@ -587,7 +586,7 @@ test "direct and forwarded elaboration agree across effect representations" {
       #|}
     ),
   )
-  let expected = [DirectInterpreter, WasmInterpreter, WasmJit].map(backend => {
+  let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
     result: Ok(()),
     i64_values: [42L, 42L, 42L, 42L, 42L, 42L, 42L, 42L, 42L, 42L],

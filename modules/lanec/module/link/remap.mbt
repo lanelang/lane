@@ -5,27 +5,23 @@ fn BuslaneLinker::remap_module_object(
 ) -> RemappedModuleObject raise @buslane.MetadataAllocationError {
   {
     module_path_text: object.module_path_text,
-    terms: object.terms.map(term => self.remap_top_term(object, term)),
+    terms: object.program.terms.map(term => self.remap_top_term(object, term)),
     externals: {
       builtins: object.externals.builtins.map(builtin => {
         @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
           self.remap_value_id(object, builtin.value()),
           builtin.intrinsic(),
-          self.remap_type(object, builtin.type_()),
         )
       }),
       runtime_imports: object.externals.runtime_imports.map(import_ => {
         value: self.remap_value_id(object, import_.value),
-        symbol: import_.symbol,
-        signature: import_.signature,
-        type_: self.remap_type(object, import_.type_),
+        contract: import_.contract,
       }),
     },
     entries: object.entries.map(entry => {
       module_path_text: entry.module_path_text,
       name: entry.name,
       value: self.remap_value_id(object, entry.value),
-      type_: self.remap_type(object, entry.type_),
     }),
     exports: object.exports.map(item => {
       name: item.name,
@@ -294,7 +290,7 @@ fn BuslaneLinker::remap_type_parameter_id(
     is Some(target) {
     return target
   }
-  guard object.metadata.type_parameter_info(source) is Some(info) else {
+  guard object.program.metadata.type_parameter_info(source) is Some(info) else {
     abort("unknown Buslane type parameter id")
   }
   let target = self.metadata.define_type_parameter(
@@ -313,7 +309,7 @@ fn BuslaneLinker::remap_type_id(
   if self.identities.find_type(object.module_path_text, source) is Some(target) {
     return target
   }
-  guard object.metadata.type_info(source) is Some(info) else {
+  guard object.program.metadata.type_info(source) is Some(info) else {
     abort("unknown Buslane type id")
   }
   let target = self.metadata.define_type(
@@ -338,7 +334,7 @@ fn BuslaneLinker::remap_effect_id(
     is Some(target) {
     return target
   }
-  guard object.metadata.effect_info(source) is Some(info) else {
+  guard object.program.metadata.effect_info(source) is Some(info) else {
     abort("unknown Buslane effect id")
   }
   let target = self.metadata.define_effect(
@@ -363,7 +359,7 @@ fn BuslaneLinker::remap_operation_id(
     is Some(target) {
     return target
   }
-  guard object.metadata.operation_info(source) is Some(info) else {
+  guard object.program.metadata.operation_info(source) is Some(info) else {
     abort("unknown Buslane operation id")
   }
   let owner = self.remap_effect_id(object, info.owner)
@@ -392,7 +388,7 @@ fn BuslaneLinker::remap_value_id(
   if self.identities.find_value(object.module_path_text, source) is Some(target) {
     return target
   }
-  guard object.metadata.value_info(source) is Some(info) else {
+  guard object.program.metadata.value_info(source) is Some(info) else {
     abort("unknown Buslane value id")
   }
   let target = self.metadata.define_value(
@@ -413,7 +409,7 @@ fn BuslaneLinker::remap_data_constructor_id(
     is Some(target) {
     return target
   }
-  guard object.metadata.data_constructor_info(source) is Some(info) else {
+  guard object.program.metadata.data_constructor_info(source) is Some(info) else {
     abort("unknown Buslane data constructor id")
   }
   let owner = self.remap_type_id(object, info.owner)

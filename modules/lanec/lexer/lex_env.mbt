@@ -41,7 +41,7 @@ fn LexEnv::add_token(
   let gap = self.tokens.length()
   for item in self.pending_trivia {
     let (kind, span) = item
-    self.trivia.push({ kind, span, gap })
+    self.trivia.push({ kind, span, gap, })
   }
   self.pending_trivia.clear()
   self.tokens.push((token, self.span(start~, end~)))
@@ -66,7 +66,7 @@ fn LexEnv::add_error(
   start~ : Int,
   end~ : Int,
 ) -> Unit {
-  self.errors.push({ error, span: self.span(start~, end~) })
+  self.errors.push({ error, span: self.span(start~, end~), })
 }
 
 ///|

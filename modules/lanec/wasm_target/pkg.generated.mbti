@@ -1,0 +1,183 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/wasm_target"
+
+import {
+  "Milky2018/lane_runtime/wasm_abi",
+  "Milky2018/lane_wasm_abi",
+  "Milky2018/lanec/physical",
+  "Milky2018/wasm_core/types",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn compile(@physical.VerifiedPhysicalProgram) -> Result[@types.Module, WasmCompileError]
+
+pub fn compile_observed(@physical.VerifiedPhysicalProgram) -> Result[WasmCompileObservation, WasmCompileError]
+
+pub fn failure_code_global() -> Int
+
+pub fn max_call_depth_global() -> Int
+
+pub fn max_live_heap_bytes_global() -> Int
+
+pub fn maximum_function_control_depth(@types.Module) -> Int
+
+pub fn module_to_wat(@types.Module) -> String
+
+pub fn physical_runtime_parameters_for_import(@lane_wasm_abi.ImportContract) -> Array[@types.ValueType]
+
+pub fn runtime_results_for_import(@lane_wasm_abi.ImportContract) -> Array[@types.ValueType]
+
+// Errors
+pub(all) suberror WasmCompileError {
+  UnsupportedInstruction(function_id~ : Int, instruction~ : String)
+  InvalidBlockTarget(function_id~ : Int, target~ : Int)
+  InvalidEdgeArity(function_id~ : Int, target~ : Int, expected~ : Int, actual~ : Int)
+  MissingByteSequenceLayout
+  InvalidFunctionCatalog(detail~ : String)
+  ValidationFailure(detail~ : String)
+} derive(Eq, @debug.Debug)
+pub fn WasmCompileError::equal(Self, Self) -> Bool
+pub fn WasmCompileError::not_equal(Self, Self) -> Bool
+pub fn WasmCompileError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) struct WasmCompileObservation {
+  module_ : @types.Module
+  functions : Array[WasmFunctionProvenance]
+  scale : WasmModuleScale
+} derive(@debug.Debug)
+pub fn WasmCompileObservation::to_repr(Self) -> @debug.Repr
+
+pub(all) enum WasmExpansionCategory {
+  FunctionAbi
+  PhysicalStorage
+  PhysicalOpcode(WasmPhysicalOpcodeFamily)
+  ControlFlow
+  RuntimeGuard
+  ArcFrameState
+  ArcUnwind
+  ArcCleanupSupport
+  RuntimeImportAdapter
+  RuntimeSupport
+  HelperSupport
+  EntryLifecycle
+} derive(Eq, @debug.Debug)
+pub fn WasmExpansionCategory::equal(Self, Self) -> Bool
+pub fn WasmExpansionCategory::key(Self) -> String
+pub fn WasmExpansionCategory::not_equal(Self, Self) -> Bool
+pub fn WasmExpansionCategory::to_repr(Self) -> @debug.Repr
+
+pub(all) struct WasmExpansionScale {
+  category : WasmExpansionCategory
+  mut instruction_count : Int
+  mut local_count : Int
+} derive(Eq, @debug.Debug)
+pub fn WasmExpansionScale::equal(Self, Self) -> Bool
+pub fn WasmExpansionScale::not_equal(Self, Self) -> Bool
+pub fn WasmExpansionScale::to_repr(Self) -> @debug.Repr
+
+pub(all) enum WasmFunctionOrigin {
+  InternalRuntimeImport(@wasm_abi.InternalRuntimeFunction)
+  WasiPreview1Import(@lane_wasm_abi.WasiPreview1Import)
+  PhysicalRuntimeImport(function~ : @physical.FunctionId, module_name~ : String, field_name~ : String)
+  PhysicalFunction(function~ : @physical.FunctionId)
+  RuntimeImportAdapter(function~ : @physical.FunctionId, module_name~ : String, field_name~ : String)
+  RuntimeFunction(WasmRuntimeFunctionRole)
+  HelperFunction(WasmHelperFunctionRole)
+  EntryWrapper
+} derive(Eq, @debug.Debug)
+pub fn WasmFunctionOrigin::equal(Self, Self) -> Bool
+pub fn WasmFunctionOrigin::not_equal(Self, Self) -> Bool
+pub fn WasmFunctionOrigin::to_repr(Self) -> @debug.Repr
+
+pub(all) struct WasmFunctionProvenance {
+  index : Int
+  origin : WasmFunctionOrigin
+} derive(Eq, @debug.Debug)
+pub fn WasmFunctionProvenance::equal(Self, Self) -> Bool
+pub fn WasmFunctionProvenance::not_equal(Self, Self) -> Bool
+pub fn WasmFunctionProvenance::to_repr(Self) -> @debug.Repr
+
+pub(all) struct WasmFunctionScale {
+  index : Int
+  instruction_count : Int
+  local_count : Int
+  expansions : Array[WasmExpansionScale]
+} derive(Eq, @debug.Debug)
+pub fn WasmFunctionScale::equal(Self, Self) -> Bool
+pub fn WasmFunctionScale::not_equal(Self, Self) -> Bool
+pub fn WasmFunctionScale::to_repr(Self) -> @debug.Repr
+
+pub(all) enum WasmHelperFunctionRole {
+  CallableAbiGuard
+  NoopErased
+  RetainReferenceErased
+  ReleaseReferenceErased
+  RetainCallable
+  ReleaseCallable
+  CleanupLiveReference
+  CleanupLiveCallable
+  CleanupLiveErased
+  DestroyNoop
+  DestroyShape(shape~ : Int)
+  ByteSequenceSizer
+} derive(Eq, @debug.Debug)
+pub fn WasmHelperFunctionRole::equal(Self, Self) -> Bool
+pub fn WasmHelperFunctionRole::not_equal(Self, Self) -> Bool
+pub fn WasmHelperFunctionRole::to_repr(Self) -> @debug.Repr
+
+pub(all) struct WasmModuleScale {
+  imported_function_count : Int
+  defined_function_count : Int
+  instruction_count : Int
+  local_count : Int
+  table_entry_count : Int
+  if_count : Int
+  unreachable_count : Int
+  unreachable_support_role_count : Int
+  expansions : Array[WasmExpansionScale]
+  functions : Array[WasmFunctionScale]
+} derive(Eq, @debug.Debug)
+pub fn WasmModuleScale::equal(Self, Self) -> Bool
+pub fn WasmModuleScale::not_equal(Self, Self) -> Bool
+pub fn WasmModuleScale::to_repr(Self) -> @debug.Repr
+
+pub(all) enum WasmPhysicalOpcodeFamily {
+  Ownership
+  Callable
+  Object
+  ByteSequence
+  Scalar
+  Erasure
+  Global
+  ControlTransfer
+} derive(Eq, @debug.Debug)
+pub fn WasmPhysicalOpcodeFamily::equal(Self, Self) -> Bool
+pub fn WasmPhysicalOpcodeFamily::not_equal(Self, Self) -> Bool
+pub fn WasmPhysicalOpcodeFamily::to_repr(Self) -> @debug.Repr
+
+pub(all) enum WasmRuntimeFunctionRole {
+  Allocate
+  Free
+  RetainReference
+  ReleaseReference
+  ByteSequenceNew
+  RequireByteSequenceLayout
+  ByteSequenceEqual
+  ByteSequenceConcat
+  ByteSequenceSlice
+  ByteSequenceMake
+  ByteSequenceIndex
+  ByteSequenceGet
+  ByteSequenceSet
+  ByteSequenceIsValidUtf8
+  InstanceGlobalCleanup
+} derive(Eq, @debug.Debug)
+pub fn WasmRuntimeFunctionRole::equal(Self, Self) -> Bool
+pub fn WasmRuntimeFunctionRole::not_equal(Self, Self) -> Bool
+pub fn WasmRuntimeFunctionRole::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

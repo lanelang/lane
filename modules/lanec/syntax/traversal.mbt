@@ -1,5 +1,5 @@
 ///|
-fn Expr::for_each_child_expr(self : Expr, visit : (Expr) -> Unit) -> Unit {
+pub fn Expr::for_each_child_expr(self : Expr, visit : (Expr) -> Unit) -> Unit {
   match self {
     IntegerLiteral(_)
     | FloatingLiteral(_)
@@ -9,7 +9,7 @@ fn Expr::for_each_child_expr(self : Expr, visit : (Expr) -> Unit) -> Unit {
     | UnitLiteral(_)
     | Var(_)
     | Builtin(_)
-    | Extern(_) => ()
+    | Extern(..) => ()
     QualifiedVariant(arguments~, ..)
     | ListLiteral(items=arguments, ..)
     | TupleLiteral(items=arguments, ..) =>
@@ -102,7 +102,7 @@ fn CallArgument::for_each_child_expr(
 /// Returns the first authored `derive` expression location, including
 /// expressions nested inside declarations.
 pub fn SourceFile::first_derive_loc(self : SourceFile) -> SourceSpan? {
-  let found : Ref[SourceSpan?] = { val: None }
+  let found : Ref[SourceSpan?] = { val: None, }
   fn visit(expression : Expr, found : Ref[SourceSpan?]) -> Unit {
     if found.val is Some(_) {
       return

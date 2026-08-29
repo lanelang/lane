@@ -40,9 +40,9 @@ test "expression facts survive direct function effect widening" {
     External,
     Function([Function([], unit_type, Builtin(Io))], unit_type, Empty),
   )
-  let program : Program = { metadata, terms: [External(invoke)] }
+  let program : Program = { metadata, terms: [External(invoke)], }
   let expression = Expr::Call(Ref(invoke), [
-    Function({ parameters: [], result_type: unit_type, body: Literal(Unit) }),
+    Function({ parameters: [], result_type: unit_type, body: Literal(Unit), }),
   ])
   debug_inspect(
     ExpressionFactsQuery::new(program).synthesize(expression),

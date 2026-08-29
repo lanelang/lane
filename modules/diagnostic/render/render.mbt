@@ -6,7 +6,7 @@ pub(all) struct RenderConfig {
 
 ///|
 pub fn RenderConfig::plain(width? : Int = 100) -> RenderConfig {
-  { color: false, width }
+  { color: false, width, }
 }
 
 ///|

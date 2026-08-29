@@ -17,6 +17,9 @@ pub(all) enum ServerTermination {
   PrematureExit
   TransportClosed
 } derive(Eq, @debug.Debug)
+pub fn ServerTermination::equal(Self, Self) -> Bool
+pub fn ServerTermination::not_equal(Self, Self) -> Bool
+pub fn ServerTermination::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

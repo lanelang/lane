@@ -1,6 +1,19 @@
-# RFC: Pure generic Array values
+# Deprecated RFC: Pure generic Array values
 
-Status: Draft
+Status: Deprecated and withdrawn on 2026-08-29
+
+This proposal is not part of the Lane language. Its experimental implementation
+was removed because it made a specific pure copy-on-write collection policy a
+compiler-wide semantic and runtime primitive without an indispensable current
+consumer. In particular, it introduced Array-specific identities, intrinsic
+contracts, evidence projection, ownership operations, physical instructions,
+layout recipes, and Wasm runtime helpers across otherwise independent IR
+boundaries.
+
+This document is retained only as a historical design record. A future
+collection proposal must start from demonstrated program requirements and
+reconsider the smallest storage primitive and library boundary; it must not
+treat this RFC as an accepted compatibility contract.
 
 ## Summary
 
@@ -18,7 +31,7 @@ pub let array_get : [T](Array[T], I64) -> T = builtin("%array_get")
 pub let array_set : [T](Array[T], I64, T) -> Array[T] = builtin("%array_set")
 ```
 
-These builtins are ordinary first-class polymorphic values. The compiler extends its intrinsic signature model from monomorphic primitive signatures to closed polymorphic type schemes and lowers generic intrinsic calls through Lane's existing representation-erasure and layout-witness machinery. LoisVM and the Wasm tier implement Array as internal instructions and helpers; Array does not extend the external host runtime-import ABI.
+These builtins are ordinary first-class polymorphic values. The compiler extends its intrinsic signature model from monomorphic primitive signatures to closed polymorphic type schemes and lowers generic intrinsic calls through Lane's existing representation-erasure and layout-witness machinery. Physical Lowering and the Wasm target implement Array as internal instructions and helpers; Array does not extend the external host runtime-import ABI.
 
 ## Motivation
 
@@ -31,7 +44,7 @@ Lane therefore needs a generic runtime collection with these properties:
 - ordinary pure value semantics;
 - correct generic ownership for scalar, reference, callable, nominal, and nested Array elements;
 - no runtime type reflection, `Any`, or source-visible mutation;
-- the same behavior in the LoisVM interpreter and Wasm compiled tier.
+- the same behavior in the WebAssembly interpreter and JIT.
 
 This representation cannot be implemented entirely in Basic. Ordinary Lane code cannot allocate a variable-size runtime object, erase and unerase arbitrary `T`, access the layout witness for `T`, perform descriptor-directed ARC, inspect reference-count uniqueness, or manipulate raw contiguous storage. Basic can own the safe public library interface, but the primitive storage and operations belong to the compiler and runtime.
 
@@ -229,7 +242,7 @@ The first version deliberately uses the same eight-byte slot for every element, 
 
 ### Array Layout Recipe
 
-LoisVM adds a portable `Array` Layout Recipe. It is the object-header layout of a Runtime Array Object: it describes an owned variable-size reference whose size is calculated from the stored `length` and whose destructor reads the stored `element_layout_id` before releasing the element slots.
+The Physical Program adds a portable `Array` Layout Recipe. It is the object-header layout of a Runtime Array Object: it describes an owned variable-size reference whose size is calculated from the stored `length` and whose destructor reads the stored `element_layout_id` before releasing the element slots.
 
 The same Array Layout Recipe appears in the object header for every `Array[T]`; Lane does not dynamically construct one new descriptor for each instantiation. The Runtime Array Object stores the separate element witness required for its contents. This preserves the existing rule that layout descriptors are static image metadata rather than dynamically allocated runtime type objects.
 
@@ -324,7 +337,7 @@ array_get(result_layout:i32, array_ref:i32, index:i64) -> payload:i64
 array_set(array_ref:i32, index:i64, value:(layout:i32, payload:i64)) -> array_ref:i32
 ```
 
-The actual bytecode uses erased-slot companion metadata and result witness destinations rather than publishing this conceptual ABI as a host-call contract. Each operation has one authoritative runtime source for the element layout:
+The actual Physical Program uses erased-slot companion metadata and result witness destinations rather than publishing this conceptual ABI as a host-call contract. Each operation has one authoritative runtime source for the element layout:
 
 - `%array_empty` uses its explicit element Layout Operand because it has neither an Array object nor an element value;
 - `%array_make` obtains the layout from the consumed fill slot's erased companion and stores it in the new object;
@@ -332,13 +345,13 @@ The actual bytecode uses erased-slot companion metadata and result witness desti
 - `%array_set` obtains the authoritative layout from the Array object and requires the consumed value's erased companion to contain the same LayoutId;
 - `%array_length` has no element-layout input or result.
 
-No operation reconstructs a runtime layout from a substituted source type. A malformed bytecode mismatch between an object-stored layout and an erased companion is an internal execution failure, not another layout-selection path.
+No operation reconstructs a runtime layout from a substituted source type. A malformed Physical Program mismatch between an object-stored layout and an erased companion is a compiler defect, not another layout-selection path.
 
 ### First-class generic builtin values
 
 A builtin expression is an ordinary value. The implementation must therefore support exported, stored, and indirectly called polymorphic intrinsic values rather than recognizing only direct call syntax.
 
-When an Array intrinsic must be materialized as a callable, the compiler generates an ordinary bytecode wrapper whose inputs contain the required hidden layout witnesses and whose element parameters or result use erased slots. An in-scope `T` witness initializes erased argument and result companions through the existing generic-call ABI; it is an expected-layout contract, not a second layout-selection source. Array operations use object-stored or value-companion layouts as specified above and fail on disagreement. The wrapper executes the same Array instruction used by direct lowering. Existing generic direct-call and generic value-call adaptation remains authoritative.
+When an Array intrinsic must be materialized as a callable, the compiler generates an ordinary physical wrapper whose inputs contain the required hidden layout witnesses and whose element parameters or result use erased slots. An in-scope `T` witness initializes erased argument and result companions through the existing generic-call ABI; it is an expected-layout contract, not a second layout-selection source. Array operations use object-stored or value-companion layouts as specified above and fail on disagreement. The wrapper executes the same Array instruction used by direct lowering. Existing generic direct-call and generic value-call adaptation remains authoritative.
 
 The compiler must consequently support type application of intrinsic values and remove the current restriction that intrinsic wrappers have no type parameters. A direct-call-only `TypeApplied(Intrinsic)` special case would violate the ordinary value semantics of `builtin("%array_get")` and is not sufficient.
 
@@ -362,9 +375,14 @@ Module interfaces and module objects encode `Array[T]` in exported types and enc
 
 Array adds no provider module identity. Importing or omitting Basic does not change the meaning or identity of `Array[T]`.
 
-### Checked core and Buslane
+### Checked core, Buslane, and Runtime ANF
 
-Checked expressions represent Array intrinsics with their complete polymorphic type. Buslane preserves the Array type constructor until execution-image lowering needs physical representation facts.
+Checked expressions represent Array intrinsics with their complete polymorphic
+type. Buslane preserves the compiler-owned Array constructor as source-semantic
+type structure. Runtime ANF projects an applied `Array[T]` to one explicit
+`Array(element: RuntimeArgument)` representation fact carrying the element
+layout evidence needed by intrinsic application. Runtime ANF does not retain
+the source constructor syntax or make Array a nominal declaration.
 
 For physical lowering, `Array[T]` has natural representation `I32 + OwnedRef`. A value that is exactly a representation-polymorphic parameter continues to use `I64 + OwnedErased` with a companion layout witness. Existing erasure bridges adapt between these forms.
 
@@ -376,9 +394,13 @@ The ABI package extends `IntrinsicSignature` from a list of monomorphic `Intrins
 
 The external `RuntimeValueKind` and Lane extern-binding rules remain unchanged. Array is not added to the host ABI merely because compiler intrinsics can mention it.
 
-### ANF and call lowering
+### Runtime ANF and call lowering
 
-ANF retains type application on intrinsic atoms until LoisVM lowering can select the concrete or generic representation adaptation. LoisVM call lowering gains the intrinsic counterpart of its existing generic direct-call path:
+Runtime ANF retains evidence application on intrinsic atoms until Physical
+Lowering can select the concrete or generic representation adaptation. The
+generic-call projection is shared with ordinary callables: Array builtins do
+not introduce a second type-application representation. Physical call lowering
+gains the intrinsic counterpart of its existing generic direct-call path:
 
 - substitute source type parameters with explicit type arguments;
 - materialize every required `LayoutId` witness;
@@ -386,7 +408,10 @@ ANF retains type application on intrinsic atoms until LoisVM lowering can select
 - emit the Array VMCFG operation;
 - unerase an element result according to the actual result type.
 
-Materializing a polymorphic intrinsic produces a generic wrapper with witness inputs. Wrapper planning, reachability, deduplication, callable adaptation, and function-table assignment treat it as an ordinary compiler-generated function body.
+Materializing a polymorphic intrinsic produces a generic wrapper with witness
+inputs. Wrapper planning, reachability, complete-runtime-ABI deduplication,
+callable adaptation, and function-table assignment treat it as an ordinary
+compiler-generated function body.
 
 ### VMCFG
 
@@ -400,7 +425,7 @@ VMCFG adds five typed instructions. A proposed contract is:
 | `ArrayGet` | owned `I64 + OwnedErased` payload with an already initialized companion | borrowed Array, `I64` index |
 | `ArraySet` | `I32 + OwnedRef` | consumed Array, `I64` index, consumed `I64 + OwnedErased` value and its companion |
 
-Only `ArrayEmpty` needs an element Layout Operand; it is immediate for a statically known element layout and witness-based inside generic code. `ArrayMake` stores the fill companion. `ArrayGet` uses the object-stored layout and requires the preinitialized result companion to agree before establishing its payload owner. `ArraySet` likewise uses the object-stored layout and requires the value companion to agree. Bytecode validation enforces the required companions, and both execution tiers must fail safely if malformed bytecode supplies an invalid LayoutId, a non-Array object, or a mismatched companion.
+Only `ArrayEmpty` needs an element Layout Operand; it is immediate for a statically known element layout and witness-based inside generic code. `ArrayMake` stores the fill companion. `ArrayGet` uses the object-stored layout and requires the preinitialized result companion to agree before establishing its payload owner. `ArraySet` likewise uses the object-stored layout and requires the value companion to agree. Physical Program validation enforces the required companions, and both Wasm engine modes must fail safely if a compiler defect supplies an invalid LayoutId, a non-Array object, or a mismatched companion.
 
 VMCFG use analysis, ownership, simplification, cloning, pretty printing, finalization, verification, and dead-code handling must model the instruction contracts directly. Ownership must not be reconstructed later from an intrinsic name.
 
@@ -410,27 +435,27 @@ Intrinsic calls remain pure empty-effect expressions. Ordinary dead-code elimina
 
 The first implementation does not require monomorphization or element-width specialization. Later optimizations may inline wrappers, remove redundant erase/unerase bridges, constant-fold `length`, share empty arrays, eliminate redundant bounds checks, or specialize concrete element layouts without changing observable behavior.
 
-## LoisVM changes
+## Physical Program and WebAssembly changes
 
-### Bytecode model
+### Physical Program model
 
-LoisVM adds the `Array` Layout Recipe and five fixed-shape bytecode instructions corresponding to the VMCFG operations. Their operands encode destinations and source slots explicitly; only `ArrayEmpty` additionally encodes a Layout Operand. New tags append to the current closed namespaces and advance the enclosing linked-program schema version; decoders do not add legacy compatibility branches.
+The Physical Program adds the `Array` Layout Recipe and five fixed-shape instructions corresponding to the VMCFG operations. Their operands encode destinations and source slots explicitly; only `ArrayEmpty` additionally encodes a Layout Operand. These compiler-private forms are not persisted and do not change an artifact schema.
 
-The bytecode instruction contract contains runtime representation and ownership facts but no source type. An Array source or result is `I32 + OwnedRef`; an element source or result is `I64 + OwnedErased` with its required companion; `ArrayEmpty` uses the existing immediate-or-witness Layout Operand form.
+The physical instruction contract contains runtime representation and ownership facts but no source type. An Array source or result is `I32 + OwnedRef`; an element source or result is `I64 + OwnedErased` with its required companion; `ArrayEmpty` uses the existing immediate-or-witness Layout Operand form.
 
-Codec round trips, disassembly, slot validation, companion validation, instruction use sets, and bytecode documentation must cover every new tag.
+Pretty rendering, slot validation, companion validation, instruction use sets, and Physical Program documentation must cover every new form.
 
-### Interpreter heap
+### WebAssembly heap
 
-The interpreter adds a Runtime Array Object payload containing a portable nonnegative length, an element `LayoutId`, and contiguous erased `I64` values. It implements descriptor-directed retain and release through the same layout table used for other erased generic values.
+The Wasm target adds a Runtime Array Object payload containing a portable nonnegative length, an element `LayoutId`, and contiguous erased `I64` values. It implements descriptor-directed retain and release through the same layout table used for other erased generic values.
 
 Array destruction iterates over all elements, releases each erased owner with the stored element layout, and then frees the object shell. Destruction of trivial elements performs no ownership work beyond the loop; an implementation may provide specialized no-op or bulk paths internally.
 
-The interpreter implements the same uniqueness and copy-on-write rules as the Wasm tier. White-box tests may observe reuse to validate the optimization, but Lane tests must assert only pure value behavior.
+The Wasm interpreter and JIT implement the same uniqueness and copy-on-write rules. White-box tests may observe reuse to validate the optimization, but Lane tests must assert only pure value behavior.
 
 ### Runtime imports
 
-Array operations are not `RuntimeImport` entries. Runtime imports remain witness-free host bindings over their existing closed direct-value domain. The interpreter executes Array bytecode directly, and the Wasm compiler lowers it to generated code or module-internal helpers.
+Array operations are not `RuntimeImport` entries. Runtime imports remain witness-free host bindings over their existing closed direct-value domain. The Wasm compiler lowers Physical Program operations to generated code or module-internal helpers.
 
 ## Wasm implementation
 
@@ -523,11 +548,11 @@ The collection roles are intentionally distinct:
 
 ### Serialization and execution
 
-- Interfaces, module objects, linked artifacts, semantic fingerprints, and inspection output preserve `Array[T]` and polymorphic intrinsic types.
-- Array Layout Recipe and instruction encode, decode, disassemble, and validation tests round-trip.
+- Interfaces, module objects, semantic fingerprints, and inspection output preserve `Array[T]` and polymorphic intrinsic types; linked executables are raw WebAssembly modules.
+- Physical validation and WebAssembly emission tests cover the Array Layout Recipe and instructions; the compiler-private Physical Program has no codec.
 - Compiler-generated slots have the documented representation, cleanup, ownership, and companion metadata.
-- Interpreter and Wasm execution agree for every valid semantic case.
-- Malformed bytecode with a zero or out-of-range element LayoutId, a non-Array object, a missing or uninitialized result companion, or a value/result companion that disagrees with the object-stored layout fails safely as an internal error rather than becoming source-level reflection, a cast, or another layout-selection path.
+- Wasm interpreter and JIT execution agree for every valid semantic case.
+- A malformed Physical Program with a zero or out-of-range element LayoutId, a non-Array object, a missing or uninitialized result companion, or a value/result companion that disagrees with the object-stored layout is rejected as a compiler defect rather than becoming source-level reflection, a cast, or another layout-selection path.
 
 ### Tooling
 
@@ -537,12 +562,20 @@ The collection roles are intentionally distinct:
 
 ## Implementation sequence
 
-1. Add the semantic Array type constructor and closed polymorphic intrinsic signature templates, with typechecker and artifact round-trip tests.
-2. Extend checked core, Buslane, ANF, generic intrinsic type application, erased argument/result adaptation, and first-class intrinsic wrapper lowering.
-3. Add VMCFG operations, ownership/use contracts, the Array Layout Recipe, bytecode instructions, codecs, disassembly, and schema updates.
-4. Implement Runtime Array Objects, descriptor-directed element ownership, bounds checks, destruction, and copy-on-write in the LoisVM interpreter.
-5. Implement the static Array descriptor, variable-size helpers, element loops, bounds checks, and copy-on-write in the Wasm compiled tier.
-6. Add `Basic.Builtins` bindings, `Basic.Data.Array` checked wrappers and initial algorithms, tooling presentation, examples, and complete cross-tier tests.
+1. Add the semantic Array type constructor and closed polymorphic intrinsic
+   signature templates, with typechecker and artifact round-trip tests.
+2. Project Array and polymorphic intrinsic applications into verified Runtime
+   ANF without retaining source type syntax or introducing an Array-only generic
+   call path.
+3. Add VMCFG operations, ownership/use contracts, the Array Layout Recipe,
+   Physical Program instructions, first-class intrinsic wrapper lowering,
+   rendering, and verification.
+4. Implement Runtime Array Objects, descriptor-directed element ownership,
+   bounds checks, destruction, and copy-on-write in the sole Wasm target.
+5. Verify the same emitted Wasm through Wasmoon interpreter and JIT modes.
+6. Add `Basic.Builtins` bindings, `Basic.Data.Array` checked wrappers and initial
+   algorithms, tooling presentation, examples, and complete source-to-Wasm
+   tests.
 
 Each step must preserve the ordinary generic function model. No intermediate implementation should route element values through `Any`, expose raw layout witnesses to Lane code, or support only direct intrinsic calls.
 
@@ -558,7 +591,7 @@ The feature is complete when:
 6. `get` establishes an independently owned result and destruction releases all owned elements correctly;
 7. `set` preserves pure alias semantics and performs unique-owner reuse or shared-owner copying according to ARC state;
 8. generic intrinsics use ordinary layout witnesses and representation erasure without runtime reflection, `Any`, or external generic runtime imports;
-9. interpreter and Wasm results agree for valid calls, and defensive failure paths publish no partial owner;
+9. Wasm interpreter and JIT results agree for valid calls, and defensive failure paths publish no partial owner;
 10. Basic supplies checked policy without becoming a compiler-recognized provider of the primitive type.
 
 ## Deferred work

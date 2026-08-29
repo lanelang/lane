@@ -23,32 +23,40 @@ pub fn compile_module_graph(@frontend.ModuleGraph) -> Result[CompiledModuleSet, 
 
 pub fn compile_module_graph_observed(@frontend.ModuleGraph, (String, ModuleCompileStage) -> Unit) -> Result[CompiledModuleSet, Array[@diagnostic.CompilerDiagnostic]]
 
+pub fn compiled_module_set_missing_root_diagnostic() -> @diagnostic.CompilerDiagnostic
+
 pub fn find_compiled_module(Array[CompiledModule], String) -> CompiledModule?
 
 pub fn link_compiled_module_set(CompiledModuleSet) -> @link.LinkResult
 
-pub fn link_compiled_modules(Array[CompiledModule]) -> @link.LinkResult
+pub fn link_compiled_module_set_observed(CompiledModuleSet, (@link.LinkRetentionObservation) -> Unit) -> @link.LinkResult
 
-pub fn no_root_source_module_diagnostic() -> @diagnostic.CompilerDiagnostic
+pub fn link_compiled_modules(Array[CompiledModule]) -> @link.LinkResult
 
 // Errors
 
 // Types and methods
 pub struct CompiledModule {
+  checked : @checked.CheckedSourceFile
   interface : @module.ModuleInterface
   object : ModuleObject
 } derive(Eq, @debug.Debug)
+pub fn CompiledModule::equal(Self, Self) -> Bool
+pub fn CompiledModule::not_equal(Self, Self) -> Bool
 pub fn CompiledModule::to_artifact(Self) -> @artifact.CompiledModuleArtifact
 pub fn CompiledModule::to_interface_artifact(Self) -> @artifact.ModuleInterfaceArtifact
 pub fn CompiledModule::to_object_artifact(Self) -> @artifact.ModuleObjectArtifact
+pub fn CompiledModule::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompiledModuleSet {
   root_module_path_text : String
   modules : Array[CompiledModule]
-  reachable_module_path_texts : Array[String]
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn CompiledModuleSet::equal(Self, Self) -> Bool
+pub fn CompiledModuleSet::not_equal(Self, Self) -> Bool
 pub fn CompiledModuleSet::to_artifact(Self) -> @artifact.CompiledModuleSetArtifact
+pub fn CompiledModuleSet::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ModuleCompileStage {
   Resolved(@resolve.ResolvedSourceFile)
@@ -58,11 +66,9 @@ pub(all) enum ModuleCompileStage {
 
 pub(all) struct ModuleObject {
   module_path_text : String
-  checked : @checked.CheckedSourceFile
   interface_fingerprint : @model.CompilationFingerprint
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
-  metadata : @buslane.MetadataRegistry
-  terms : Array[@buslane.TopTerm]
+  program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
@@ -71,6 +77,9 @@ pub(all) struct ModuleObject {
   object_fingerprint : @model.CompilationFingerprint
   imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
+pub fn ModuleObject::equal(Self, Self) -> Bool
+pub fn ModuleObject::not_equal(Self, Self) -> Bool
+pub fn ModuleObject::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

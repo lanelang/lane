@@ -5,41 +5,15 @@ test "explorer HTML escaping covers markup and attributes" {
 
 ///|
 test "explorer HTML renders stage navigation and escaped code" {
-  let report : @driver.ExploreReport = {
-    schema_version: 4,
-    compiler: { name: "Milky2018/lanec", version: "0.1.0" },
-    root: { source_id: "<root>", module_path_text: Some("Main") },
-    selected_entry: None,
-    status: Failed(Resolved),
-    diagnostics: [],
-    functions: { nodes: [], edges: [] },
-    stages: {
-      syntax: Completed({
-        domain: Compiler,
-        text_format: Lane,
-        text: "let answer = 42\n<&>",
-        diagnostics: [],
-        scale: { metrics: [], functions: [] },
-      }),
-      resolved: Failed([]),
-      checked: Unavailable,
-      buslane_module: Unavailable,
-      buslane_linked: Unavailable,
-      buslane_effect_specialized: Unavailable,
-      buslane_handlers_elaborated: Unavailable,
-      buslane_monadic: Unavailable,
-      buslane_selective_cps: Unavailable,
-      buslane_open_context_resolved: Unavailable,
-      buslane_monadic_lifted: Unavailable,
-      buslane_core_optimized: Unavailable,
-      buslane_cps_core_optimized: Unavailable,
-      executable: Unavailable,
-      anf: Unavailable,
-      vmcfg_initial: Unavailable,
-      loisvm_bytecode: Unavailable,
-      wasm: Unavailable,
+  let report = @driver.explore({
+    root_source: {
+      source_id: "<root>",
+      text: "module Main\npub fn main() -> Unit { missing(\"<&>\") }",
     },
-  }
+    library_sources: [],
+    entry: "main",
+    execution_profile: lane_command_execution_profile(),
+  })
   inspect(
     render_explore_html(report),
     content=(
@@ -62,8 +36,11 @@ test "explorer HTML renders stage navigation and escaped code" {
       #|</style>
       #|</head>
       #|<body>
-      #|<main><nav><button type="button" role="tab" aria-selected="true" data-stage="syntax" data-status="completed">Syntax AST</button><button type="button" role="tab" aria-selected="false" data-stage="resolved" data-status="failed">Resolved AST</button><button type="button" role="tab" aria-selected="false" data-stage="checked" data-status="unavailable">Checked Source AST</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.module" data-status="unavailable">Buslane (Module Lowering)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.linked" data-status="unavailable">Buslane (Linking)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.effect-specialized" data-status="unavailable">Buslane (Reachable Effect Specialization)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.core-optimized" data-status="unavailable">Buslane (Effect-Aware Core Optimization)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.handlers-elaborated" data-status="unavailable">Buslane (Handler Elaboration)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.monadic" data-status="unavailable">Buslane (Monadic Transformation)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.selective-cps" data-status="unavailable">Buslane (Selective CPS)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.open-context-resolved" data-status="unavailable">Buslane (Open Context Resolution)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.monadic-lifted" data-status="unavailable">Buslane (Monadic Lift)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.cps-core-optimized" data-status="unavailable">Buslane (CPS Core Optimized)</button><button type="button" role="tab" aria-selected="false" data-stage="executable" data-status="unavailable">Executable Program (Effect-Aware CPS Core)</button><button type="button" role="tab" aria-selected="false" data-stage="anf" data-status="unavailable">Runtime ANF (Effect Projection)</button><button type="button" role="tab" aria-selected="false" data-stage="vmcfg.initial" data-status="unavailable">VM CFG (Initial Lowering)</button><button type="button" role="tab" aria-selected="false" data-stage="loisvm.bytecode" data-status="unavailable">LoisVM Bytecode (ARC and Slot Finalization)</button><button type="button" role="tab" aria-selected="false" data-stage="wasm" data-status="unavailable">Wasm (LoisVM Backend Lowering)</button></nav><div class="content"><section class="stage active" data-stage="syntax"><pre>let answer = 42
-      #|&lt;&amp;&gt;</pre></section><section class="stage" data-stage="resolved"><pre>Stage failed. See compiler diagnostics.</pre></section><section class="stage" data-stage="checked"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.module"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.linked"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.effect-specialized"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.core-optimized"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.handlers-elaborated"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.monadic"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.selective-cps"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.open-context-resolved"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.monadic-lifted"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.cps-core-optimized"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="executable"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="anf"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="vmcfg.initial"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="loisvm.bytecode"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="wasm"><pre>Unavailable because an earlier stage failed.</pre></section></div></main>
+      #|<main><nav><button type="button" role="tab" aria-selected="true" data-stage="syntax" data-status="completed">Syntax AST</button><button type="button" role="tab" aria-selected="false" data-stage="resolved" data-status="failed">Resolved AST</button><button type="button" role="tab" aria-selected="false" data-stage="checked" data-status="unavailable">Checked Source AST</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.module" data-status="unavailable">Buslane (Module Lowering)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.linked" data-status="unavailable">Buslane (Linking)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.effect-specialized" data-status="unavailable">Buslane (Reachable Effect Specialization)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.core-optimized" data-status="unavailable">Buslane (Effect-Aware Core Optimization)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.handlers-elaborated" data-status="unavailable">Buslane (Handler Elaboration)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.monadic" data-status="unavailable">Buslane (Monadic Transformation)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.selective-cps" data-status="unavailable">Buslane (Selective CPS)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.open-context-resolved" data-status="unavailable">Buslane (Open Context Resolution)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.monadic-lifted" data-status="unavailable">Buslane (Monadic Lift)</button><button type="button" role="tab" aria-selected="false" data-stage="buslane.cps-core-optimized" data-status="unavailable">Buslane (CPS Core Optimized)</button><button type="button" role="tab" aria-selected="false" data-stage="executable" data-status="unavailable">Executable Program (Effect-Aware CPS Core)</button><button type="button" role="tab" aria-selected="false" data-stage="anf" data-status="unavailable">Runtime ANF (Effect Projection)</button><button type="button" role="tab" aria-selected="false" data-stage="vmcfg.initial" data-status="unavailable">VM CFG (Initial Lowering)</button><button type="button" role="tab" aria-selected="false" data-stage="physical" data-status="unavailable">Physical Program (ARC and Slot Finalization)</button><button type="button" role="tab" aria-selected="false" data-stage="wasm" data-status="unavailable">WebAssembly</button></nav><div class="content"><section class="stage active" data-stage="syntax"><div class="observations"><div class="metrics"><span class="metric">declarationCount: 1</span><span class="metric">importCount: 0</span><span class="metric">functionCount: 1</span><span class="metric">nodeCount: 5</span><span class="metric">callCount: 1</span><span class="metric">sourceGenericBinderCount: 0</span><span class="metric">sourceTypeApplicationCount: 0</span></div></div><pre>module Main
+      #|
+      #|pub fn main() -&gt; Unit {
+      #|  missing(&quot;&lt;&amp;&gt;&quot;)
+      #|}</pre></section><section class="stage" data-stage="resolved"><pre>Stage failed. See compiler diagnostics.</pre></section><section class="stage" data-stage="checked"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.module"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.linked"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.effect-specialized"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.core-optimized"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.handlers-elaborated"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.monadic"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.selective-cps"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.open-context-resolved"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.monadic-lifted"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="buslane.cps-core-optimized"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="executable"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="anf"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="vmcfg.initial"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="physical"><pre>Unavailable because an earlier stage failed.</pre></section><section class="stage" data-stage="wasm"><pre>Unavailable because an earlier stage failed.</pre></section></div></main>
       #|<script>
       #|const buttons=[...document.querySelectorAll('button[data-stage]')];
       #|const stages=[...document.querySelectorAll('.stage[data-stage]')];
@@ -77,7 +54,7 @@ test "explorer HTML renders stage navigation and escaped code" {
 
 ///|
 test "explorer renders typed metrics and explicit function lineage" {
-  let html = StringBuilder::new()
+  let html = StringBuilder()
   let stage : @driver.ExploreStage = {
     id: "anf",
     title: "ANF",
@@ -87,24 +64,42 @@ test "explorer renders typed metrics and explicit function lineage" {
       text: "",
       diagnostics: [],
       scale: {
-        metrics: [{ id: FunctionCount, value: 1 }],
+        metrics: [{ id: FunctionCount, value: 1, }],
         functions: [
-          { index: 7, block_count: 0, operation_count: 3, value_count: 1 },
+          { index: 7, block_count: 0, operation_count: 3, value_count: 1, },
+        ],
+        modules: [
+          {
+            module_path_text: "Main",
+            input_top_terms: 2,
+            retained_top_terms: 1,
+            input_value_bindings: 3,
+            retained_value_bindings: 1,
+          },
         ],
       },
+      indirect_calls: [
+        {
+          function: { stage: Anf, index: 7, },
+          ordinal: 0,
+          origins: [SourceBound],
+          resolution: UnknownTargets([]),
+          boundaries: [FunctionParameter],
+        },
+      ],
     }),
   }
-  let source : @driver.ExploreFunctionRef = { stage: Anf, index: 7 }
+  let source : @driver.ExploreFunctionRef = { stage: Anf, index: 7, }
   render_stage_observations(html, stage, {
     nodes: [
-      { function: source, roles: [SourceFunction(value=4, name=Some("main"))] },
+      { function: source, roles: [SourceFunction(value=4, name=Some("main"))], },
     ],
-    edges: [{ source: { stage: Executable, index: 4 }, target: source }],
+    edges: [{ source: { stage: Executable, index: 4, }, target: source, }],
   })
   inspect(
     html.to_string(),
     content=(
-      #|<div class="observations"><div class="metrics"><span class="metric">functionCount: 1</span></div><table><thead><tr><th>Function</th><th>Blocks</th><th>Operations</th><th>Values/locals</th></tr></thead><tbody><tr><td>7</td><td>0</td><td>3</td><td>1</td></tr></tbody></table><table><thead><tr><th>Function lineage</th><th>Role</th><th>From</th></tr></thead><tbody><tr><td>anf#7</td><td>source main (value#4)</td><td>executable#4</td></tr></tbody></table></div>
+      #|<div class="observations"><div class="metrics"><span class="metric">functionCount: 1</span></div><table><thead><tr><th>Function</th><th>Blocks</th><th>Operations</th><th>Values/locals</th></tr></thead><tbody><tr><td>7</td><td>0</td><td>3</td><td>1</td></tr></tbody></table><table><thead><tr><th>Module</th><th>Input top terms</th><th>Retained top terms</th><th>Input values</th><th>Retained values</th></tr></thead><tbody><tr><td>Main</td><td>2</td><td>1</td><td>3</td><td>1</td></tr></tbody></table><table><thead><tr><th>Indirect call</th><th>Origin</th><th>Resolution</th><th>Flow</th></tr></thead><tbody><tr><td>anf#7 call#0</td><td>source-bound</td><td>unknown</td><td>function parameter</td></tr></tbody></table><table><thead><tr><th>Function lineage</th><th>Role</th><th>From</th></tr></thead><tbody><tr><td>anf#7</td><td>source main (value#4)</td><td>executable#4</td></tr></tbody></table></div>
     ),
   )
 }

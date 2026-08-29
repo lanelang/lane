@@ -14,7 +14,7 @@ fn Resolver::operator_target(
   let reference = scope.value_reference(name)
   self.record_import_use(scope.value_import_origin(reference), loc)
   self.report_unresolved_value(reference, loc)
-  { name, reference }
+  { name, reference, }
 }
 
 ///|
@@ -371,7 +371,7 @@ fn ModuleNamespaceSource::type_binding(
                   kind: NominalType(
                     symbol=declaration.symbol,
                     variants=declaration.variants.map(fn(variant) {
-                      { name: variant.name, symbol: variant.symbol }
+                      { name: variant.name, symbol: variant.symbol, }
                     }),
                   ),
                   import_origins,
@@ -532,7 +532,7 @@ fn Resolver::scope(
   self : Resolver,
   type_parameters : Array[ResolvedTypeParameter],
 ) -> ResolveScope {
-  { values: self.top_values.copy(), type_parameters: type_parameters.copy() }
+  { values: self.top_values.copy(), type_parameters: type_parameters.copy(), }
 }
 
 ///|
@@ -824,7 +824,13 @@ fn Resolver::publish_effect_binding(
   operations? : Array[OperationBinding] = [],
   import_origin : Int?,
 ) -> Unit {
-  self.effects.push({ name, symbol, parameter_kinds, operations, import_origin })
+  self.effects.push({
+    name,
+    symbol,
+    parameter_kinds,
+    operations,
+    import_origin,
+  })
   self.record_import_symbol(import_origin, EffectSymbol(symbol))
 }
 
@@ -1062,9 +1068,9 @@ fn Resolver::variant_candidate(
   match self.registry.variant_metadata(symbol) {
     Some(variant) =>
       match self.registry.type_metadata(variant.owner) {
-        Some(owner) => { owner: owner.name, variant: variant.name }
-        None => { owner: "<unknown>", variant: variant.name }
+        Some(owner) => { owner: owner.name, variant: variant.name, }
+        None => { owner: "<unknown>", variant: variant.name, }
       }
-    None => { owner: "<unknown>", variant: "<unknown>" }
+    None => { owner: "<unknown>", variant: "<unknown>", }
   }
 }

@@ -104,7 +104,7 @@ fn lane_command_spec() -> Command {
         options=[
           link_entry_option(),
           output_option(
-            "Write the linked program artifact here, conventionally `.lbp`.",
+            "Write the linked WebAssembly module here, conventionally `.wasm`.",
           ),
         ],
         flags=[verbose_flag()],
@@ -118,10 +118,10 @@ fn lane_command_spec() -> Command {
       ),
       Command(
         "exec",
-        about="Run a linked Lane program artifact.",
+        about="Run a linked Lane WebAssembly module.",
         flags=[no_jit_flag()],
         positionals=[
-          artifact_positional_arg("program", "Linked program artifact to run."),
+          artifact_positional_arg("program", "WebAssembly module to run."),
         ],
       ),
       Command(
@@ -265,7 +265,7 @@ fn parse_run_target(target : String) -> Result[RunTarget, CliError] {
   if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
     return Err(InvalidRunTarget(target~))
   }
-  Ok({ file: parts[0].to_owned(), entry: parts[1].to_owned() })
+  Ok({ file: parts[0].to_owned(), entry: parts[1].to_owned(), })
 }
 
 ///|
@@ -281,7 +281,7 @@ fn parse_public_entry_name(name : String) -> Result[PublicEntryName, Unit] {
   }
   let value_name = parts[parts.length() - 1]
   let module_path = parts[:parts.length() - 1].join(".")
-  Ok({ module_path_text: module_path, value_name })
+  Ok({ module_path_text: module_path, value_name, })
 }
 
 ///|

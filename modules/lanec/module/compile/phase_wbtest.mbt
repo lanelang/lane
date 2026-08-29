@@ -29,15 +29,10 @@ fn module_phase_test_graph() -> @module_frontend.ModuleGraph {
       #|}
     ),
   }
-  let inputs = match
-    @module_frontend.parse_module_input_set_from_inputs(root, [
+  match
+    @module_frontend.parse_import_reachable_module_graph_from_inputs(root, [
       library, dependency,
     ]) {
-    Ok(inputs) => inputs
-    Err(diagnostics) =>
-      abort("unexpected parse diagnostics: \{Repr(diagnostics)}")
-  }
-  match @module_frontend.build_module_graph(inputs) {
     Ok(graph) => graph
     Err(diagnostics) =>
       abort("unexpected graph diagnostics: \{Repr(diagnostics)}")
@@ -61,8 +56,8 @@ test "checked modules lower into complete compiled modules" {
     compiled.map(fn(module_) {
       (
         module_.object.module_path_text,
-        module_.object.metadata.types.length(),
-        module_.object.terms.length(),
+        module_.object.program.metadata.types.length(),
+        module_.object.program.terms.length(),
         module_.object.exports.length(),
       )
     }),

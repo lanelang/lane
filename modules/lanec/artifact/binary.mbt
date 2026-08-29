@@ -8,13 +8,6 @@ let artifact_binary_kind_interface = 1
 let artifact_binary_kind_object = 2
 
 ///|
-let artifact_binary_kind_program = 3
-
-///|
-/// Selects the only linked-program payload accepted or emitted by this codec.
-let linked_program_artifact_schema_version = 16
-
-///|
 priv struct BinaryArtifactPayload {
   kind : Int
   payload : Bytes
@@ -48,10 +41,6 @@ pub fn artifact_binary_to_inspect_text(bytes : Bytes) -> Result[String, String] 
       kind if kind == artifact_binary_kind_object =>
         artifact_to_inspect_text(
           decode_module_object_artifact_payload(decoded.payload),
-        )
-      kind if kind == artifact_binary_kind_program =>
-        artifact_to_inspect_text(
-          decode_linked_program_artifact_payload(decoded.payload),
         )
       kind => raise InvalidKind(kind~)
     }
@@ -116,39 +105,6 @@ pub fn parse_module_object_artifact_binary(
 }
 
 ///|
-/// Verifies and deterministically encodes a linked-program artifact.
-pub fn linked_program_artifact_to_binary(
-  artifact : LinkedProgramArtifact,
-) -> Result[Bytes, @loisvm_bytecode.BytecodeVerificationError] {
-  match @loisvm_bytecode.bytecode_image_to_binary(artifact.bytecode) {
-    Ok(bytecode) => {
-      let writer = @bytecodec.ByteWriter::new()
-      writer.write_u32_le_int(linked_program_artifact_schema_version)
-      writer.write_raw_bytes(bytecode)
-      Ok(
-        artifact_payload_to_binary(
-          artifact_binary_kind_program,
-          writer.to_bytes(),
-        ),
-      )
-    }
-    Err(error) => Err(error)
-  }
-}
-
-///|
-/// Decodes linked-program framing and returns only verifier-accepted bytecode.
-pub fn parse_linked_program_artifact_binary(
-  bytes : Bytes,
-) -> Result[LinkedProgramArtifact, String] {
-  artifact_binary_decode_result(fn() raise {
-    decode_linked_program_artifact_payload(
-      binary_artifact_payload(bytes, expected_kind=artifact_binary_kind_program),
-    )
-  })
-}
-
-///|
 fn artifact_payload_to_binary(kind : Int, payload : Bytes) -> Bytes {
   let writer = @bytecodec.ByteWriter::new()
   writer.write_raw_bytes(artifact_binary_magic())
@@ -176,8 +132,7 @@ fn decode_artifact_container(bytes : Bytes) -> BinaryArtifactPayload raise {
   }
   let kind = header.kind
   if kind != artifact_binary_kind_interface &&
-    kind != artifact_binary_kind_object &&
-    kind != artifact_binary_kind_program {
+    kind != artifact_binary_kind_object {
     raise InvalidKind(kind~)
   }
   if header.payload_length < 0 || header.body.length() < header.payload_length {
@@ -199,7 +154,7 @@ fn decode_artifact_container(bytes : Bytes) -> BinaryArtifactPayload raise {
     )
   }
   let payload = header.body[:header.payload_length].to_owned()
-  { kind, payload }
+  { kind, payload, }
 }
 
 ///|
@@ -260,8 +215,6 @@ fn artifact_binary_kind_name(kind : Int) -> String {
     "interface"
   } else if kind == artifact_binary_kind_object {
     "object"
-  } else if kind == artifact_binary_kind_program {
-    "program"
   } else {
     "unknown(\{kind})"
   }
@@ -364,21 +317,4 @@ fn decode_module_object_artifact_payload(
   }
   reader.expect_end()
   artifact
-}
-
-///|
-fn decode_linked_program_artifact_payload(
-  payload : Bytes,
-) -> LinkedProgramArtifact raise {
-  let reader = @bytecodec.ByteReader::from_bytes(payload)
-  let schema_version = reader.read_u32_le_int()
-  if schema_version != linked_program_artifact_schema_version {
-    raise UnsupportedArtifactSchema(kind="program", version=schema_version)
-  }
-  let bytes = reader.read_raw_bytes(reader.remaining())
-  let bytecode = match @loisvm_bytecode.parse_bytecode_image_binary(bytes) {
-    Ok(bytecode) => bytecode
-    Err(error) => raise LoisvmBytecodeError(error)
-  }
-  { bytecode, }
 }

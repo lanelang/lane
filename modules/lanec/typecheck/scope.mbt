@@ -42,7 +42,7 @@ priv struct TypeScope {
 
 ///|
 fn TypeKindScope::empty() -> TypeKindScope {
-  { bindings: [] }
+  { bindings: [], }
 }
 
 ///|
@@ -83,7 +83,7 @@ fn TypeScope::bind(
   name : String,
   type_ : @types.Type,
 ) -> Unit {
-  self.values.push({ symbol, type_, parameters: None })
+  self.values.push({ symbol, type_, parameters: None, })
   self.offers.hide(name)
 }
 
@@ -95,7 +95,7 @@ fn TypeScope::bind_function(
   type_ : @types.Type,
   parameters : Array[@checked.CheckedValueParameter],
 ) -> Unit {
-  self.values.push({ symbol, type_, parameters: Some(parameters) })
+  self.values.push({ symbol, type_, parameters: Some(parameters), })
   self.offers.hide(name)
 }
 
@@ -188,7 +188,7 @@ fn TypeScope::bind_resolved_type_parameter_kinds(
 
 ///|
 fn TypeKindScope::copy(self : TypeKindScope) -> TypeKindScope {
-  { bindings: self.bindings.copy() }
+  { bindings: self.bindings.copy(), }
 }
 
 ///|
@@ -207,7 +207,7 @@ fn TypeKindScope::bind(
   symbol : TypeParameterId,
   kind : @types.Kind,
 ) -> Unit {
-  self.bindings.push({ symbol, kind })
+  self.bindings.push({ symbol, kind, })
 }
 
 ///|
@@ -321,7 +321,7 @@ fn contextual_offer(
     reference=Symbol(symbol),
     loc~,
   )
-  { symbol, name, expression, type_, source_id, loc }
+  { symbol, name, expression, type_, source_id, loc, }
 }
 
 ///|
@@ -338,14 +338,14 @@ fn contextual_offer_diagnostic_candidate(
 
 ///|
 fn ContextualOfferScope::ContextualOfferScope() -> ContextualOfferScope {
-  { visible_by_name: Map([]) }
+  { visible_by_name: Map([]), }
 }
 
 ///|
 fn ContextualOfferScope::copy(
   self : ContextualOfferScope,
 ) -> ContextualOfferScope {
-  { visible_by_name: self.visible_by_name.copy() }
+  { visible_by_name: self.visible_by_name.copy(), }
 }
 
 ///|

@@ -1,6 +1,6 @@
 ///|
 test "compiler-owned fatal control has the canonical callable ABI" {
-  let image = compile_test_loisvm_image(
+  let image = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -26,12 +26,12 @@ test "compiler-owned fatal control has the canonical callable ABI" {
       ),
     ],
   )
-  assert_eq(@bytecode.verify_bytecode_image(image), Ok(()))
+  assert_eq(@physical.verify_physical_program(image), Ok(()))
   let mut fatal_count = 0
   let mut runtime_import_count = 0
   for entry in image.functions {
     match entry {
-      BytecodeBody(body) =>
+      PhysicalBody(body) =>
         for block in body.blocks {
           if block.terminator is Fatal(message) {
             fatal_count += 1

@@ -7,7 +7,7 @@ pub struct ByteWriter {
 ///|
 /// Creates an empty writer.
 pub fn ByteWriter::new() -> ByteWriter {
-  { bytes: [] }
+  { bytes: [], }
 }
 
 ///|

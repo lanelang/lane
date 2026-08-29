@@ -11,6 +11,7 @@ import {
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/syntax",
   "Milky2018/lanec/types",
+  "Milky2018/lane_wasm_abi" @wasm_abi,
   "moonbit-community/prettyprinter",
   "moonbitlang/core/bigint",
   "moonbitlang/core/string",

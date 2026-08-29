@@ -262,8 +262,8 @@ test "diagnostic access is isolated from nested mutation" {
   first.labels.push(label)
   first.notes.push("mutated note")
   first.helps.push("mutated help")
-  first.facts.push({ name: "mutated", value: "fact", span: first.span })
-  suggestion.edits.push({ span: label.span, replacement: "mutated" })
+  first.facts.push({ name: "mutated", value: "fact", span: first.span, })
+  suggestion.edits.push({ span: label.span, replacement: "mutated", })
   first.suggestions.push(suggestion)
   guard failure.diagnostics() is [second] else {
     abort("expected one isolated diagnostic")
@@ -369,11 +369,39 @@ test "module compilation and linking expose facade-owned results" {
       program.module_path_texts(),
       program
       .entries()
-      .map(entry => (entry.module_path_text(), entry.name(), entry.type_text())),
+      .map(entry => {
+        (entry.module_path_text(), entry.name(), program.entry_type_text(entry))
+      }),
       linking_warnings.diagnostics(),
     ),
     content=(
-      #|(["Lib", "Main"], [("Main", "main", "() -> I64")], [])
+      #|(["Lib", "Main"], [("Main", "main", Some("() -> I64"))], [])
     ),
   )
+}
+
+///|
+test "compiled module sets reject the previous reachable-path schema" {
+  let compiled = compile_modules({
+    root: {
+      source_id: "Main.lane",
+      text: "module Main\npub let answer : I64 = 42",
+    },
+    libraries: [],
+  })
+  guard compiled is Succeeded(modules, _) else {
+    abort("expected module compilation to succeed")
+  }
+  let artifact = modules.artifact()
+  let linked = @artifact.link_module_artifacts({
+    ..artifact,
+    schema_version: 2,
+  })
+  debug_inspect(
+    linked.diagnostics.map(diagnostic => (diagnostic.code, diagnostic.message)),
+    content=(
+      #|[(Some("E4301"), "unsupported compiled module artifact schema")]
+    ),
+  )
+  assert_true(linked.program is None)
 }

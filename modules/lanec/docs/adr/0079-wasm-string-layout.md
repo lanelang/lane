@@ -1,5 +1,9 @@
 # Wasm String layout
 
+> **Partially superseded.** The WASI Preview 1 WebAssembly Target RFC deletes
+> semantic String host transport and runtime allocation services. The internal
+> linear-memory String layout remains compiler-owned.
+
 Lane Strings are immutable ARC objects in canonical wasm32 linear memory. A String reference points to the common 8-byte ARC header. The payload word at object offset eight is `byte_length:u32`, and ASCII bytes begin immediately at object offset twelve. Total allocation size is `align_up(12 + byte_length, 8)`.
 
 Strings store no capacity, cached hash, trailing NUL, or pointer to a parent String. Dynamic Strings begin with one owner. The image-global v1 constant pool deduplicates exact ASCII bytes, including empty String. Pooled Strings use the same physical layout with the immortal count and receive deterministic zero-based `ConstantId` values.

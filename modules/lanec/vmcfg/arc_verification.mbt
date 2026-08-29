@@ -17,7 +17,7 @@ fn verify_arc_final_body(
 ) -> ArcFinalBody raise FinalizeError {
   let use_def = verify_arc_final_structure(body)
   verify_arc_final_flow(body)
-  { body, use_def }
+  { body, use_def, }
 }
 
 ///|
@@ -42,12 +42,12 @@ fn verify_arc_final_structure(
     if metadata.erased_companion is Some(companion) {
       require_arc_value(body, companion)
       if body.values[companion.value].ownership is Owned {
-        arc_final_fail(InvalidValue({ value: index }))
+        arc_final_fail(InvalidValue({ value: index, }))
       }
     }
   }
   for source_index, block in body.blocks {
-    let source : @bytecode.BlockId = { value: source_index }
+    let source : @physical.BlockId = { value: source_index, }
     for parameter in block.parameters {
       require_arc_value(body, parameter)
     }
@@ -69,13 +69,7 @@ fn verify_arc_final_structure(
   let use_def = analyze_use_def(body)
   for value_index, uses in use_def.uses {
     if !uses.is_empty() && use_def.definitions[value_index] is None {
-      arc_final_fail(MissingDefinition({ value: value_index }))
-    }
-  }
-  for metadata in body.values {
-    if metadata.erased_companion is Some(companion) &&
-      use_def.definitions[companion.value] is None {
-      arc_final_fail(MissingDefinition(companion))
+      arc_final_fail(MissingDefinition({ value: value_index, }))
     }
   }
   let reachable = Array::make(body.blocks.length(), false)
@@ -93,7 +87,7 @@ fn verify_arc_final_structure(
   }
   for block_index, is_reachable in reachable {
     if !is_reachable {
-      arc_final_fail(UnreachableBlock({ value: block_index }))
+      arc_final_fail(UnreachableBlock({ value: block_index, }))
     }
   }
   use_def
@@ -126,7 +120,7 @@ fn block_edges(terminator : Terminator) -> Array[Edge] {
 ///|
 fn verify_arc_edge(
   body : FunctionBody,
-  source : @bytecode.BlockId,
+  source : @physical.BlockId,
   edge : Edge,
 ) -> Unit raise FinalizeError {
   if edge.target.value < 0 || edge.target.value >= body.blocks.length() {
@@ -202,7 +196,7 @@ fn verify_arc_final_flow(body : FunctionBody) -> Unit raise FinalizeError {
     }
     let state = entry.copy()
     let block = body.blocks[block_index]
-    let block_id : @bytecode.BlockId = { value: block_index }
+    let block_id : @physical.BlockId = { value: block_index, }
     for instruction in block.instructions {
       apply_arc_instruction(body, block_id, state, instruction)
     }
@@ -243,7 +237,7 @@ fn initial_arc_state(
 ///|
 fn apply_arc_instruction(
   body : FunctionBody,
-  block : @bytecode.BlockId,
+  block : @physical.BlockId,
   state : Array[ArcValueState],
   instruction : Instruction,
 ) -> Unit raise FinalizeError {
@@ -274,7 +268,7 @@ fn apply_arc_instruction(
 ///|
 fn apply_arc_operand(
   body : FunctionBody,
-  block : @bytecode.BlockId,
+  block : @physical.BlockId,
   state : Array[ArcValueState],
   value : ValueId,
   mode : ArcOperandMode,
@@ -298,7 +292,7 @@ fn apply_arc_operand(
 ///|
 fn define_arc_destination(
   body : FunctionBody,
-  block : @bytecode.BlockId,
+  block : @physical.BlockId,
   state : Array[ArcValueState],
   instruction : Instruction,
   destination : ValueId,
@@ -398,10 +392,10 @@ fn first_uncovered_arc_root(
 ///|
 fn apply_arc_terminator(
   body : FunctionBody,
-  block : @bytecode.BlockId,
+  block : @physical.BlockId,
   state : Array[ArcValueState],
   terminator : Terminator,
-) -> Array[(@bytecode.BlockId, Array[ArcValueState])] raise FinalizeError {
+) -> Array[(@physical.BlockId, Array[ArcValueState])] raise FinalizeError {
   match terminator {
     Jump(edge) => [apply_arc_edge(body, block, state, edge)]
     BranchBool(condition, if_true, if_false) => {
@@ -438,10 +432,10 @@ fn apply_arc_terminator(
 ///|
 fn apply_arc_edge(
   body : FunctionBody,
-  block : @bytecode.BlockId,
+  block : @physical.BlockId,
   initial : Array[ArcValueState],
   edge : Edge,
-) -> (@bytecode.BlockId, Array[ArcValueState]) raise FinalizeError {
+) -> (@physical.BlockId, Array[ArcValueState]) raise FinalizeError {
   let state = initial
   let arguments = edge.arguments.map(value => state[value.value])
   for value in edge.arguments {
@@ -460,11 +454,11 @@ fn apply_arc_edge(
 ///|
 fn require_arc_ownership_empty(
   state : Array[ArcValueState],
-  block : @bytecode.BlockId,
+  block : @physical.BlockId,
 ) -> Unit raise FinalizeError {
   for index, value_state in state {
     if value_state is LiveOwned(_) {
-      arc_final_fail(OwnedValueEscapes({ value: index }, block))
+      arc_final_fail(OwnedValueEscapes({ value: index, }, block))
     }
   }
 }
@@ -473,7 +467,7 @@ fn require_arc_ownership_empty(
 fn merge_arc_entry(
   destination : Array[ArcValueState],
   incoming : Array[ArcValueState],
-  block : @bytecode.BlockId,
+  block : @physical.BlockId,
 ) -> Bool raise FinalizeError {
   let mut changed = false
   for index in 0..<destination.length() {
@@ -498,7 +492,7 @@ fn merge_arc_entry(
         }
       }
       (LiveOwned(_), _) | (_, LiveOwned(_)) =>
-        arc_final_fail(InconsistentOwnershipAtJoin({ value: index }, block))
+        arc_final_fail(InconsistentOwnershipAtJoin({ value: index, }, block))
       _ =>
         if !(destination[index] is Unavailable) {
           destination[index] = Unavailable

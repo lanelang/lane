@@ -1,0 +1,120 @@
+///|
+fn physical_opcode_family(
+  instruction : @physical.Instruction,
+) -> WasmPhysicalOpcodeFamily {
+  match instruction {
+    Copy(_, _) | Move(_, _) | RetainCopy(_, _) | Release(_) => Ownership
+    ConstFunction(_, _)
+    | CallDirect(_, _, _, _, _)
+    | CallValue(_, _, _, _, _)
+    | MakeClosure(_, _, _) => Callable
+    MakeData(_, _, _, _, _)
+    | LoadTag(_, _)
+    | LoadObjectWitness(_, _, _, _)
+    | BorrowField(_, _, _, _)
+    | ConsumeFields(_, _, _)
+    | MakeEnv(_, _, _, _, _)
+    | BorrowCapture(_, _, _, _)
+    | ConsumeCaptures(_, _, _) => Object
+    ConstString(_, _)
+    | ByteSequenceMake(_, _, _)
+    | ByteSequenceLength(_, _)
+    | ByteSequenceGet(_, _, _)
+    | ByteSequenceSet(_, _, _, _)
+    | ByteSequenceEqual(_, _, _)
+    | ByteSequenceConcat(_, _, _)
+    | ByteSequenceSlice(_, _, _, _)
+    | ByteSequenceIsValidUtf8(_, _)
+    | F32ToString(_, _)
+    | F64ToString(_, _) => ByteSequence
+    WasiFdWrite(_, _, _) => ByteSequence
+    EraseI32(_, _)
+    | UneraseI32(_, _)
+    | EraseI64(_, _)
+    | UneraseI64(_, _)
+    | EraseF64(_, _)
+    | UneraseF64(_, _)
+    | EraseF32(_, _)
+    | UneraseF32(_, _)
+    | EraseUnit(_)
+    | UneraseUnit(_) => Erasure
+    InitGlobal(_, _) | BorrowGlobal(_, _) => Global
+    ConstI64(_, _)
+    | ConstI32(_, _)
+    | ConstChar(_, _)
+    | ConstF64(_, _)
+    | ConstF32(_, _)
+    | ConstBool(_, _)
+    | ConstLayout(_, _)
+    | ByteToI64(_, _)
+    | I64ToByte(_, _)
+    | I32Add(_, _, _)
+    | I32Sub(_, _, _)
+    | I32Mul(_, _, _)
+    | I32Neg(_, _)
+    | I32Div(_, _, _)
+    | I32Rem(_, _, _)
+    | I32Eq(_, _, _)
+    | I32Lt(_, _, _)
+    | I32ToI64(_, _)
+    | I64ToI32(_, _)
+    | I64Add(_, _, _)
+    | I64Sub(_, _, _)
+    | I64Mul(_, _, _)
+    | I64Neg(_, _)
+    | I64Div(_, _, _)
+    | I64Rem(_, _, _)
+    | I64And(_, _, _)
+    | I64Or(_, _, _)
+    | I64Xor(_, _, _)
+    | I64Not(_, _)
+    | I64Shl(_, _, _)
+    | I64ShrS(_, _, _)
+    | I64Eq(_, _, _)
+    | I64Ne(_, _, _)
+    | I64Lt(_, _, _)
+    | I64Le(_, _, _)
+    | I64Gt(_, _, _)
+    | I64Ge(_, _, _)
+    | BoolNot(_, _)
+    | BoolEq(_, _, _)
+    | BoolNe(_, _, _)
+    | F64Add(_, _, _)
+    | F64Sub(_, _, _)
+    | F64Mul(_, _, _)
+    | F64Div(_, _, _)
+    | F64Neg(_, _)
+    | F64Eq(_, _, _)
+    | F64Ne(_, _, _)
+    | F64Lt(_, _, _)
+    | F64Le(_, _, _)
+    | F64Gt(_, _, _)
+    | F64Ge(_, _, _)
+    | I64ToF64(_, _)
+    | F64ToI64(_, _)
+    | F32Add(_, _, _)
+    | F32Sub(_, _, _)
+    | F32Mul(_, _, _)
+    | F32Div(_, _, _)
+    | F32Neg(_, _)
+    | F32Eq(_, _, _)
+    | F32Ne(_, _, _)
+    | F32Lt(_, _, _)
+    | F32Le(_, _, _)
+    | F32Gt(_, _, _)
+    | F32Ge(_, _, _)
+    | I64ToF32(_, _)
+    | F32ToI64(_, _)
+    | F32ToF64(_, _)
+    | F64ToF32(_, _) => Scalar
+  }
+}
+
+///|
+fn FunctionCompilationContext::record_expansion_count(
+  self : FunctionCompilationContext,
+  category : WasmExpansionCategory,
+  instruction_count : Int,
+) -> Unit {
+  add_expansion(self.expansions, category, instruction_count, 0)
+}

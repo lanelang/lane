@@ -1,6 +1,6 @@
 # Whole-program elaboration and instance globals
 
-Lane inserts Whole-Program Elaboration between linked Buslane and LoisVM execution-image lowering. It accepts a linked program and selected entry and produces one Executable Program that owns the complete top-level initialization plan, closed effect-aware CPS Core, externals, and explicit Execution Root Set. LoisVM lowering consumes this product rather than the linked program, entry, and external map as parallel inputs.
+Lane inserts Whole-Program Elaboration between linked Buslane and LoisVM execution-image lowering. It accepts a linked program and selected entry and produces one Executable Program containing closed effect-aware CPS Core, externals, the selected entry, and an Initializer Retention Root Set. CPS Core terms remain the sole owner of initializer bodies and source order. LoisVM lowering consumes this product rather than the linked program, entry, and external map as parallel inputs.
 
 The target-independent `lanec/executable` package owns Whole-Program Elaboration and the Executable Program model. Execution-image targets such as `lanec/loisvm_lowering` depend on this package. The executable package does not depend on LoisVM bytecode, VM CFG, Wasm, or another execution-image target.
 
@@ -10,7 +10,7 @@ The resulting dependency direction is `module/compile -> module/link`, `executab
 
 Lane type checking requires the empty effect for top-level `let` initializers. Whole-Program Elaboration treats the selected entry as the semantic root and retains only the transitive top-level initializer dependencies reachable from that entry. Required initializers remain in linked declaration order. Unreachable pure initialization is not part of the selected executable instance, so its allocation, divergence, resource exhaustion, or fatal primitive condition is not observed by that instance.
 
-Whole-Program Elaboration computes selected-entry reachability while effect and top-level binding information remain available, records the retained initializers as ordered execution roots, and then runs effect-aware core optimization. Execution Image Reachability Collection belongs to the subsequent lowering pipeline. It traverses those roots and retains only the functions, externals, and runtime imports needed by them. This keeps startup semantics in the Buslane-level Executable Program while leaving code-generation selection with the execution-image target.
+Whole-Program Elaboration computes selected-entry reachability while effect and top-level binding information remain available, records only the retained initializer ValueIds, and then runs effect-aware core optimization. The selected entry remains its own typed field and is not repeated in a root variant. Execution Image Reachability Collection belongs to the subsequent lowering pipeline. LoisVM lowering supplies those roots to occurrence analysis and scans Runtime ANF terms once in canonical term order to produce initializer steps. It does not reconstruct a second schedule or copy initializer expressions. This keeps startup semantics in the Buslane-level Executable Program while leaving scheduling and code-generation selection with the execution-image target.
 
 LoisVM bytecode contains an ordered Instance Global table and an optional Instance Initializer `FunctionId`. A dynamic Instance Global requires an initializer. The initializer is a bytecode body with no context, layout witnesses, user parameters, or result value. It initializes non-companion globals in table order; an `OwnedErased` owner initializes its immediately preceding companion atomically. Execution runs the initializer exactly once before the selected entry; an image without dynamic globals may omit it.
 
@@ -34,8 +34,9 @@ ADR-0114 records the historical introduction of the exact table order, GlobalId 
 - The independent `lanec/module/link` package owns Linked Program construction and the link model.
 - Compilation orchestration, executable elaboration, and LoisVM lowering follow a one-way dependency graph.
 - Whole-Program Elaboration retains only selected-entry-reachable initializer dependencies.
+- Executable Program stores initializer ValueIds but no copied initializer bodies, indices, or entry root.
 - Execution Image Lowering owns transitive function, external, and runtime-import reachability collection.
-- Retained top-level initializers preserve declaration-order execution.
+- Runtime ANF term order is the sole source of retained top-level initializer execution order.
 - Instance Globals are immutable after one consuming initialization.
 - Global reads borrow; ARC insertion owns any required retained copies.
 - Initialized globals are roots outside ordinary call frames and are released in reverse initialization order.

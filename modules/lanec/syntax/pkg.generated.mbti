@@ -31,8 +31,12 @@ pub(all) enum BinaryOperator {
   And
   Or
 } derive(Eq, @debug.Debug)
+pub fn BinaryOperator::equal(Self, Self) -> Bool
 pub fn BinaryOperator::minimum_precedence() -> Int
+pub fn BinaryOperator::not_equal(Self, Self) -> Bool
 pub fn BinaryOperator::precedence(Self) -> Int
+pub fn BinaryOperator::pretty(Self) -> @source_prettyprinter.Document
+pub fn BinaryOperator::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for BinaryOperator
 pub impl @prettyprinter.Pretty for BinaryOperator
 
@@ -40,7 +44,11 @@ pub(all) enum CallArgument {
   Positional(value~ : Expr, loc~ : @basic.SourceSpan)
   Named(name~ : String, value~ : Expr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn CallArgument::equal(Self, Self) -> Bool
 pub fn CallArgument::loc(Self) -> @basic.SourceSpan
+pub fn CallArgument::not_equal(Self, Self) -> Bool
+pub fn CallArgument::pretty(Self) -> @source_prettyprinter.Document
+pub fn CallArgument::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for CallArgument
 pub impl @prettyprinter.Pretty for CallArgument
 
@@ -48,6 +56,9 @@ pub(all) enum CallArgumentProvenance {
   Authored
   Synthetic
 } derive(Eq, @debug.Debug)
+pub fn CallArgumentProvenance::equal(Self, Self) -> Bool
+pub fn CallArgumentProvenance::not_equal(Self, Self) -> Bool
+pub fn CallArgumentProvenance::to_repr(Self) -> @debug.Repr
 
 pub(all) struct EffectDeclaration {
   is_public : Bool
@@ -57,6 +68,10 @@ pub(all) struct EffectDeclaration {
   operations : Array[EffectOperationDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn EffectDeclaration::equal(Self, Self) -> Bool
+pub fn EffectDeclaration::not_equal(Self, Self) -> Bool
+pub fn EffectDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn EffectDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for EffectDeclaration
 pub impl @prettyprinter.Pretty for EffectDeclaration
 
@@ -68,6 +83,10 @@ pub(all) struct EffectOperationDeclaration {
   result : Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn EffectOperationDeclaration::equal(Self, Self) -> Bool
+pub fn EffectOperationDeclaration::not_equal(Self, Self) -> Bool
+pub fn EffectOperationDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn EffectOperationDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for EffectOperationDeclaration
 pub impl @prettyprinter.Pretty for EffectOperationDeclaration
 
@@ -75,13 +94,19 @@ pub(all) enum EffectOperationName {
   Qualified(owner~ : Type, operation~ : String, operation_loc~ : @basic.SourceSpan)
   Unqualified(operation~ : String, operation_loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn EffectOperationName::equal(Self, Self) -> Bool
+pub fn EffectOperationName::not_equal(Self, Self) -> Bool
+pub fn EffectOperationName::to_repr(Self) -> @debug.Repr
 
 pub(all) enum EffectTerm {
   Empty(loc~ : @basic.SourceSpan)
   Term(type_~ : Type, loc~ : @basic.SourceSpan)
   Union(items~ : Array[Type], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn EffectTerm::equal(Self, Self) -> Bool
 pub fn EffectTerm::loc(Self) -> @basic.SourceSpan
+pub fn EffectTerm::not_equal(Self, Self) -> Bool
+pub fn EffectTerm::to_repr(Self) -> @debug.Repr
 
 pub(all) struct EnumDeclaration {
   is_public : Bool
@@ -91,6 +116,10 @@ pub(all) struct EnumDeclaration {
   variants : Array[EnumVariant]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn EnumDeclaration::equal(Self, Self) -> Bool
+pub fn EnumDeclaration::not_equal(Self, Self) -> Bool
+pub fn EnumDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn EnumDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for EnumDeclaration
 pub impl @prettyprinter.Pretty for EnumDeclaration
 
@@ -101,6 +130,10 @@ pub(all) struct EnumVariant {
   payload : Array[Type]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn EnumVariant::equal(Self, Self) -> Bool
+pub fn EnumVariant::not_equal(Self, Self) -> Bool
+pub fn EnumVariant::pretty(Self) -> @source_prettyprinter.Document
+pub fn EnumVariant::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for EnumVariant
 pub impl @prettyprinter.Pretty for EnumVariant
 
@@ -118,7 +151,7 @@ pub(all) enum Expr {
   TupleLiteral(items~ : Array[Expr], loc~ : @basic.SourceSpan)
   Derive(capability~ : Type, target~ : Type, arguments~ : Array[CallArgument], source~ : @basic.DeriveSourceSite)
   Builtin(String, loc~ : @basic.SourceSpan)
-  Extern(String, loc~ : @basic.SourceSpan)
+  Extern(module_name~ : String, field_name~ : String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[TypeParameter], parameters~ : Array[FunctionLiteralParameter], return_type~ : Type?, effect~ : EffectTerm?, body~ : Expr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : EffectOperationName, type_witnesses~ : Array[GenericArgument], arguments~ : Array[Expr], loc~ : @basic.SourceSpan)
   TypeApplication(callee~ : Expr, arguments~ : Array[GenericArgument], loc~ : @basic.SourceSpan)
@@ -133,7 +166,12 @@ pub(all) enum Expr {
   Pipeline(left~ : Expr, right~ : Expr, loc~ : @basic.SourceSpan)
   Grouped(expression~ : Expr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn Expr::equal(Self, Self) -> Bool
+pub fn Expr::for_each_child_expr(Self, (Self) -> Unit) -> Unit
 pub fn Expr::loc(Self) -> @basic.SourceSpan
+pub fn Expr::not_equal(Self, Self) -> Bool
+pub fn Expr::pretty(Self) -> @source_prettyprinter.Document
+pub fn Expr::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for Expr
 pub impl @prettyprinter.Pretty for Expr
 
@@ -145,6 +183,10 @@ pub(all) struct ExternalTypeDeclaration {
   result_kind : ExternalTypeKind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ExternalTypeDeclaration::equal(Self, Self) -> Bool
+pub fn ExternalTypeDeclaration::not_equal(Self, Self) -> Bool
+pub fn ExternalTypeDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn ExternalTypeDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for ExternalTypeDeclaration
 pub impl @prettyprinter.Pretty for ExternalTypeDeclaration
 
@@ -152,6 +194,9 @@ pub(all) enum ExternalTypeKind {
   Type(loc~ : @basic.SourceSpan)
   Effect(loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ExternalTypeKind::equal(Self, Self) -> Bool
+pub fn ExternalTypeKind::not_equal(Self, Self) -> Bool
+pub fn ExternalTypeKind::to_repr(Self) -> @debug.Repr
 
 pub(all) struct FieldDeclaration {
   name : String
@@ -159,6 +204,10 @@ pub(all) struct FieldDeclaration {
   type_ : Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn FieldDeclaration::equal(Self, Self) -> Bool
+pub fn FieldDeclaration::not_equal(Self, Self) -> Bool
+pub fn FieldDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn FieldDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for FieldDeclaration
 pub impl @prettyprinter.Pretty for FieldDeclaration
 
@@ -174,6 +223,10 @@ pub(all) struct FunctionDeclaration {
   body : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn FunctionDeclaration::equal(Self, Self) -> Bool
+pub fn FunctionDeclaration::not_equal(Self, Self) -> Bool
+pub fn FunctionDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn FunctionDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for FunctionDeclaration
 pub impl @prettyprinter.Pretty for FunctionDeclaration
 
@@ -184,6 +237,10 @@ pub(all) struct FunctionLiteralParameter {
   type_annotation : Type?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn FunctionLiteralParameter::equal(Self, Self) -> Bool
+pub fn FunctionLiteralParameter::not_equal(Self, Self) -> Bool
+pub fn FunctionLiteralParameter::pretty(Self) -> @source_prettyprinter.Document
+pub fn FunctionLiteralParameter::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for FunctionLiteralParameter
 pub impl @prettyprinter.Pretty for FunctionLiteralParameter
 
@@ -191,7 +248,11 @@ pub(all) enum GenericArgument {
   TypeTerm(Type)
   EffectTerm(EffectTerm)
 } derive(Eq, @debug.Debug)
+pub fn GenericArgument::equal(Self, Self) -> Bool
 pub fn GenericArgument::loc(Self) -> @basic.SourceSpan
+pub fn GenericArgument::not_equal(Self, Self) -> Bool
+pub fn GenericArgument::pretty(Self) -> @source_prettyprinter.Document
+pub fn GenericArgument::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for GenericArgument
 pub impl @prettyprinter.Pretty for GenericArgument
 
@@ -201,6 +262,9 @@ pub(all) struct HandlerFinalBranch {
   body : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn HandlerFinalBranch::equal(Self, Self) -> Bool
+pub fn HandlerFinalBranch::not_equal(Self, Self) -> Bool
+pub fn HandlerFinalBranch::to_repr(Self) -> @debug.Repr
 
 pub(all) struct HandlerOperationArm {
   name : EffectOperationName
@@ -211,18 +275,28 @@ pub(all) struct HandlerOperationArm {
   body : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn HandlerOperationArm::equal(Self, Self) -> Bool
+pub fn HandlerOperationArm::not_equal(Self, Self) -> Bool
+pub fn HandlerOperationArm::to_repr(Self) -> @debug.Repr
 
 pub(all) struct HandlerWithBlock {
   arms : Array[HandlerOperationArm]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn HandlerWithBlock::equal(Self, Self) -> Bool
+pub fn HandlerWithBlock::not_equal(Self, Self) -> Bool
+pub fn HandlerWithBlock::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ImportDeclaration {
   Qualified(module_path~ : ModulePath, module_alias~ : ModuleAlias?, loc~ : @basic.SourceSpan)
   Open(module_path~ : ModulePath, loc~ : @basic.SourceSpan)
   Selective(module_path~ : ModulePath, items~ : Array[ImportItem], is_public~ : Bool, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ImportDeclaration::equal(Self, Self) -> Bool
 pub fn ImportDeclaration::loc(Self) -> @basic.SourceSpan
+pub fn ImportDeclaration::not_equal(Self, Self) -> Bool
+pub fn ImportDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn ImportDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for ImportDeclaration
 pub impl @prettyprinter.Pretty for ImportDeclaration
 
@@ -230,6 +304,10 @@ pub(all) struct ImportItem {
   name : String
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ImportItem::equal(Self, Self) -> Bool
+pub fn ImportItem::not_equal(Self, Self) -> Bool
+pub fn ImportItem::pretty(Self) -> @source_prettyprinter.Document
+pub fn ImportItem::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for ImportItem
 pub impl @prettyprinter.Pretty for ImportItem
 
@@ -239,7 +317,11 @@ pub(all) enum Kind {
   Function(parameters~ : Array[Kind], result~ : Kind, loc~ : @basic.SourceSpan)
   Grouped(kind~ : Kind, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn Kind::equal(Self, Self) -> Bool
 pub fn Kind::loc(Self) -> @basic.SourceSpan
+pub fn Kind::not_equal(Self, Self) -> Bool
+pub fn Kind::pretty(Self) -> @source_prettyprinter.Document
+pub fn Kind::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for Kind
 pub impl @prettyprinter.Pretty for Kind
 
@@ -252,6 +334,10 @@ pub(all) struct LetDeclaration {
   initializer : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn LetDeclaration::equal(Self, Self) -> Bool
+pub fn LetDeclaration::not_equal(Self, Self) -> Bool
+pub fn LetDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn LetDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for LetDeclaration
 pub impl @prettyprinter.Pretty for LetDeclaration
 
@@ -261,6 +347,10 @@ pub(all) enum LocalItem {
   Function(FunctionDeclaration)
   Expression(expression~ : Expr)
 } derive(Eq, @debug.Debug)
+pub fn LocalItem::equal(Self, Self) -> Bool
+pub fn LocalItem::not_equal(Self, Self) -> Bool
+pub fn LocalItem::pretty(Self) -> @source_prettyprinter.Document
+pub fn LocalItem::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for LocalItem
 pub impl @prettyprinter.Pretty for LocalItem
 
@@ -269,6 +359,10 @@ pub(all) struct MatchArm {
   body : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn MatchArm::equal(Self, Self) -> Bool
+pub fn MatchArm::not_equal(Self, Self) -> Bool
+pub fn MatchArm::pretty(Self) -> @source_prettyprinter.Document
+pub fn MatchArm::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for MatchArm
 pub impl @prettyprinter.Pretty for MatchArm
 
@@ -277,11 +371,18 @@ pub(all) struct ModuleAlias {
   name_loc : @basic.SourceSpan
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModuleAlias::equal(Self, Self) -> Bool
+pub fn ModuleAlias::not_equal(Self, Self) -> Bool
+pub fn ModuleAlias::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModulePath {
   components : Array[String]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ModulePath::equal(Self, Self) -> Bool
+pub fn ModulePath::not_equal(Self, Self) -> Bool
+pub fn ModulePath::pretty(Self) -> @source_prettyprinter.Document
+pub fn ModulePath::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for ModulePath
 pub impl @prettyprinter.Pretty for ModulePath
 
@@ -292,17 +393,26 @@ pub(all) enum NumericLiteralSuffix {
   F64Suffix
 } derive(Eq, @debug.Debug)
 pub fn NumericLiteralSuffix::canonical_text(Self) -> String
+pub fn NumericLiteralSuffix::equal(Self, Self) -> Bool
+pub fn NumericLiteralSuffix::not_equal(Self, Self) -> Bool
 pub fn NumericLiteralSuffix::parse(String, floating~ : Bool) -> Result[Self?, NumericLiteralSuffixParseError]
+pub fn NumericLiteralSuffix::to_repr(Self) -> @debug.Repr
 
 pub(all) enum NumericLiteralSuffixParseError {
   UnknownSuffix
   IntegerSuffixForFloatingBody
 } derive(Eq, @debug.Debug)
+pub fn NumericLiteralSuffixParseError::equal(Self, Self) -> Bool
+pub fn NumericLiteralSuffixParseError::not_equal(Self, Self) -> Bool
+pub fn NumericLiteralSuffixParseError::to_repr(Self) -> @debug.Repr
 
 pub(all) struct NumericLiteralToken {
   body : String
   suffix : NumericLiteralSuffix?
 } derive(Eq, @debug.Debug)
+pub fn NumericLiteralToken::equal(Self, Self) -> Bool
+pub fn NumericLiteralToken::not_equal(Self, Self) -> Bool
+pub fn NumericLiteralToken::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Parameter {
   is_auto : Bool
@@ -312,6 +422,10 @@ pub(all) struct Parameter {
   type_ : Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn Parameter::equal(Self, Self) -> Bool
+pub fn Parameter::not_equal(Self, Self) -> Bool
+pub fn Parameter::pretty(Self) -> @source_prettyprinter.Document
+pub fn Parameter::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for Parameter
 pub impl @prettyprinter.Pretty for Parameter
 
@@ -319,6 +433,9 @@ pub(all) struct ParameterModifiers {
   is_auto : Bool
   is_offered : Bool
 } derive(Eq, @debug.Debug)
+pub fn ParameterModifiers::equal(Self, Self) -> Bool
+pub fn ParameterModifiers::not_equal(Self, Self) -> Bool
+pub fn ParameterModifiers::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Pattern {
   Wildcard(@basic.SourceSpan)
@@ -333,7 +450,11 @@ pub(all) enum Pattern {
   Struct(owner~ : Type, fields~ : Array[StructPatternField], loc~ : @basic.SourceSpan)
   Tuple(items~ : Array[Pattern], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn Pattern::equal(Self, Self) -> Bool
 pub fn Pattern::loc(Self) -> @basic.SourceSpan
+pub fn Pattern::not_equal(Self, Self) -> Bool
+pub fn Pattern::pretty(Self) -> @source_prettyprinter.Document
+pub fn Pattern::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for Pattern
 pub impl @prettyprinter.Pretty for Pattern
 
@@ -343,6 +464,10 @@ pub(all) struct PatternLetDeclaration {
   initializer : Expr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn PatternLetDeclaration::equal(Self, Self) -> Bool
+pub fn PatternLetDeclaration::not_equal(Self, Self) -> Bool
+pub fn PatternLetDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn PatternLetDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for PatternLetDeclaration
 pub impl @prettyprinter.Pretty for PatternLetDeclaration
 
@@ -352,8 +477,12 @@ pub(all) struct SourceFile {
   declarations : Array[TopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn SourceFile::equal(Self, Self) -> Bool
 pub fn SourceFile::first_derive_loc(Self) -> @basic.SourceSpan?
+pub fn SourceFile::not_equal(Self, Self) -> Bool
+pub fn SourceFile::pretty(Self) -> @source_prettyprinter.Document
 pub fn SourceFile::syntactic_identifier_index(Self) -> SyntacticIdentifierIndex
+pub fn SourceFile::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for SourceFile
 pub impl @prettyprinter.Pretty for SourceFile
 
@@ -380,6 +509,10 @@ pub(all) struct StructDeclaration {
   members : Array[StructMember]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn StructDeclaration::equal(Self, Self) -> Bool
+pub fn StructDeclaration::not_equal(Self, Self) -> Bool
+pub fn StructDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn StructDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for StructDeclaration
 pub impl @prettyprinter.Pretty for StructDeclaration
 
@@ -387,6 +520,10 @@ pub(all) enum StructLiteralField {
   Value(name~ : String, value~ : Expr?, loc~ : @basic.SourceSpan)
   TypeWitness(name~ : String, witness~ : GenericArgument, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn StructLiteralField::equal(Self, Self) -> Bool
+pub fn StructLiteralField::not_equal(Self, Self) -> Bool
+pub fn StructLiteralField::pretty(Self) -> @source_prettyprinter.Document
+pub fn StructLiteralField::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for StructLiteralField
 pub impl @prettyprinter.Pretty for StructLiteralField
 
@@ -394,6 +531,10 @@ pub(all) enum StructMember {
   TypeMember(TypeMemberDeclaration)
   Field(FieldDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn StructMember::equal(Self, Self) -> Bool
+pub fn StructMember::not_equal(Self, Self) -> Bool
+pub fn StructMember::pretty(Self) -> @source_prettyprinter.Document
+pub fn StructMember::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for StructMember
 pub impl @prettyprinter.Pretty for StructMember
 
@@ -402,6 +543,10 @@ pub(all) enum StructPatternField {
   TypeBinder(name~ : String, loc~ : @basic.SourceSpan)
   TypeWildcard(loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn StructPatternField::equal(Self, Self) -> Bool
+pub fn StructPatternField::not_equal(Self, Self) -> Bool
+pub fn StructPatternField::pretty(Self) -> @source_prettyprinter.Document
+pub fn StructPatternField::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for StructPatternField
 pub impl @prettyprinter.Pretty for StructPatternField
 
@@ -409,8 +554,11 @@ pub struct SyntacticIdentifierIndex {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn SyntacticIdentifierIndex::empty() -> Self
+pub fn SyntacticIdentifierIndex::equal(Self, Self) -> Bool
 pub fn SyntacticIdentifierIndex::expected_identifier(@basic.SourceSpan, SyntacticIdentifierRole) -> Self
+pub fn SyntacticIdentifierIndex::not_equal(Self, Self) -> Bool
 pub fn SyntacticIdentifierIndex::role_at(Self, Int) -> SyntacticIdentifierRole?
+pub fn SyntacticIdentifierIndex::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SyntacticIdentifierRole {
   TypeIdentifier
@@ -418,6 +566,9 @@ pub(all) enum SyntacticIdentifierRole {
   ValueIdentifier
   PatternIdentifier
 } derive(Eq, @debug.Debug)
+pub fn SyntacticIdentifierRole::equal(Self, Self) -> Bool
+pub fn SyntacticIdentifierRole::not_equal(Self, Self) -> Bool
+pub fn SyntacticIdentifierRole::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TopLevelDeclaration {
   Struct(StructDeclaration)
@@ -428,6 +579,10 @@ pub(all) enum TopLevelDeclaration {
   Function(FunctionDeclaration)
   Let(LetDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn TopLevelDeclaration::equal(Self, Self) -> Bool
+pub fn TopLevelDeclaration::not_equal(Self, Self) -> Bool
+pub fn TopLevelDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn TopLevelDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for TopLevelDeclaration
 pub impl @prettyprinter.Pretty for TopLevelDeclaration
 
@@ -440,7 +595,11 @@ pub(all) enum Type {
   Tuple(items~ : Array[Type], loc~ : @basic.SourceSpan)
   Grouped(type_~ : Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn Type::equal(Self, Self) -> Bool
 pub fn Type::loc(Self) -> @basic.SourceSpan
+pub fn Type::not_equal(Self, Self) -> Bool
+pub fn Type::pretty(Self) -> @source_prettyprinter.Document
+pub fn Type::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for Type
 pub impl @prettyprinter.Pretty for Type
 
@@ -448,7 +607,11 @@ pub(all) enum TypeAliasBody {
   TypeBody(Type)
   EffectBody(EffectTerm)
 } derive(Eq, @debug.Debug)
+pub fn TypeAliasBody::equal(Self, Self) -> Bool
 pub fn TypeAliasBody::loc(Self) -> @basic.SourceSpan
+pub fn TypeAliasBody::not_equal(Self, Self) -> Bool
+pub fn TypeAliasBody::pretty(Self) -> @source_prettyprinter.Document
+pub fn TypeAliasBody::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for TypeAliasBody
 pub impl @prettyprinter.Pretty for TypeAliasBody
 
@@ -461,6 +624,10 @@ pub(all) struct TypeAliasDeclaration {
   body : TypeAliasBody
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn TypeAliasDeclaration::equal(Self, Self) -> Bool
+pub fn TypeAliasDeclaration::not_equal(Self, Self) -> Bool
+pub fn TypeAliasDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn TypeAliasDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for TypeAliasDeclaration
 pub impl @prettyprinter.Pretty for TypeAliasDeclaration
 
@@ -468,6 +635,9 @@ pub(all) struct TypeBinder {
   name : String
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn TypeBinder::equal(Self, Self) -> Bool
+pub fn TypeBinder::not_equal(Self, Self) -> Bool
+pub fn TypeBinder::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TypeMemberDeclaration {
   name : String
@@ -475,6 +645,10 @@ pub(all) struct TypeMemberDeclaration {
   kind : Kind?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn TypeMemberDeclaration::equal(Self, Self) -> Bool
+pub fn TypeMemberDeclaration::not_equal(Self, Self) -> Bool
+pub fn TypeMemberDeclaration::pretty(Self) -> @source_prettyprinter.Document
+pub fn TypeMemberDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for TypeMemberDeclaration
 pub impl @prettyprinter.Pretty for TypeMemberDeclaration
 
@@ -484,6 +658,10 @@ pub(all) struct TypeParameter {
   kind : Kind?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn TypeParameter::equal(Self, Self) -> Bool
+pub fn TypeParameter::not_equal(Self, Self) -> Bool
+pub fn TypeParameter::pretty(Self) -> @source_prettyprinter.Document
+pub fn TypeParameter::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for TypeParameter
 pub impl @prettyprinter.Pretty for TypeParameter
 
@@ -491,6 +669,10 @@ pub(all) enum UnaryOperator {
   Neg
   Not
 } derive(Eq, @debug.Debug)
+pub fn UnaryOperator::equal(Self, Self) -> Bool
+pub fn UnaryOperator::not_equal(Self, Self) -> Bool
+pub fn UnaryOperator::pretty(Self) -> @source_prettyprinter.Document
+pub fn UnaryOperator::to_repr(Self) -> @debug.Repr
 pub impl @source_prettyprinter.Pretty for UnaryOperator
 pub impl @prettyprinter.Pretty for UnaryOperator
 

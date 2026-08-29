@@ -246,12 +246,12 @@ fn location_matches(
 
 ///|
 fn location(source_id : String, span : @basic.SourceSpan) -> AnalysisLocation {
-  { source_id, span }
+  { source_id, span, }
 }
 
 ///|
 fn InlayHintFacts::new() -> InlayHintFacts {
-  { facts: [], next_semantic_order: 0 }
+  { facts: [], next_semantic_order: 0, }
 }
 
 ///|
@@ -262,7 +262,7 @@ fn InlayHintFacts::add(
   label : String,
 ) -> Unit {
   self.facts.push({
-    hint: { position, kind, label },
+    hint: { position, kind, label, },
     semantic_order: self.next_semantic_order,
   })
   self.next_semantic_order += 1
@@ -313,7 +313,7 @@ fn position_at_start(
   source_id : String,
   span : @basic.SourceSpan,
 ) -> AnalysisPosition {
-  { source_id, line: span.start_line, column: span.start_column }
+  { source_id, line: span.start_line, column: span.start_column, }
 }
 
 ///|
@@ -321,7 +321,7 @@ fn position_at_end(
   source_id : String,
   span : @basic.SourceSpan,
 ) -> AnalysisPosition {
-  { source_id, line: span.end_line, column: span.end_column }
+  { source_id, line: span.end_line, column: span.end_column, }
 }
 
 ///|
@@ -335,8 +335,8 @@ fn add_definition(
   detail : String,
 ) -> Unit {
   let loc = location(source_id, span)
-  definitions.push({ symbol, location: loc, label, detail })
-  hovers.push({ location: loc, contents: detail })
+  definitions.push({ symbol, location: loc, label, detail, })
+  hovers.push({ location: loc, contents: detail, })
 }
 
 ///|
@@ -349,9 +349,9 @@ fn add_reference(
   hover : String?,
 ) -> Unit {
   let loc = location(source_id, span)
-  references.push({ location: loc, symbol, hover })
+  references.push({ location: loc, symbol, hover, })
   match hover {
-    Some(contents) => hovers.push({ location: loc, contents })
+    Some(contents) => hovers.push({ location: loc, contents, })
     None => ()
   }
 }

@@ -16,6 +16,8 @@ pub fn link_modules(Array[LinkModuleObject]) -> LinkResult
 
 pub fn link_reachable_modules(Array[LinkModuleObject], String) -> LinkResult
 
+pub fn link_reachable_modules_observed(Array[LinkModuleObject], String, (LinkRetentionObservation) -> Unit) -> LinkResult
+
 // Errors
 
 // Types and methods
@@ -24,8 +26,7 @@ pub(all) struct LinkModuleObject {
   interface : @module.ModuleInterface?
   interface_fingerprint : @model.CompilationFingerprint
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
-  metadata : @buslane.MetadataRegistry
-  terms : Array[@buslane.TopTerm]
+  program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
@@ -34,18 +35,45 @@ pub(all) struct LinkModuleObject {
   object_fingerprint_valid : Bool
   imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
+pub fn LinkModuleObject::equal(Self, Self) -> Bool
+pub fn LinkModuleObject::not_equal(Self, Self) -> Bool
+pub fn LinkModuleObject::to_repr(Self) -> @debug.Repr
 
 pub(all) struct LinkResult {
   program : LinkedProgram?
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn LinkResult::equal(Self, Self) -> Bool
+pub fn LinkResult::not_equal(Self, Self) -> Bool
+pub fn LinkResult::to_repr(Self) -> @debug.Repr
+
+pub(all) struct LinkRetentionObservation {
+  modules : Array[LinkedModuleRetention]
+} derive(Eq, @debug.Debug)
+pub fn LinkRetentionObservation::equal(Self, Self) -> Bool
+pub fn LinkRetentionObservation::not_equal(Self, Self) -> Bool
+pub fn LinkRetentionObservation::to_repr(Self) -> @debug.Repr
+
+pub(all) struct LinkedModuleRetention {
+  module_path_text : String
+  input_top_terms : Int
+  retained_top_terms : Int
+  input_value_bindings : Int
+  retained_value_bindings : Int
+} derive(Eq, @debug.Debug)
+pub fn LinkedModuleRetention::equal(Self, Self) -> Bool
+pub fn LinkedModuleRetention::not_equal(Self, Self) -> Bool
+pub fn LinkedModuleRetention::to_repr(Self) -> @debug.Repr
 
 pub(all) struct LinkedProgram {
   module_path_texts : Array[String]
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
 } derive(Eq, @debug.Debug)
+pub fn LinkedProgram::equal(Self, Self) -> Bool
+pub fn LinkedProgram::not_equal(Self, Self) -> Bool
+pub fn LinkedProgram::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

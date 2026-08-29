@@ -1,5 +1,9 @@
 # Single-shot execution instances and runtime limits
 
+> **Partially superseded.** Execution remains single-shot, but linked inputs are
+> raw WebAssembly modules and host imports are supplied through WASI or the
+> Wasmoon linker rather than a semantic Runtime Registry.
+
 LoisVM separates a reusable Loaded Executable Image from a single-shot
 Execution Instance. A loaded image contains the decoded bytecode image,
 resolved runtime bindings, and any reusable backend product such as a compiled

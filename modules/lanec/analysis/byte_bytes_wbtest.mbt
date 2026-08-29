@@ -13,7 +13,7 @@ test "semantic hover preserves Byte and Bytes primitive names" {
     #|  ()
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: source },
+      { source_id: "file:///Main.lane", text: source, },
     ])
     is Some(snapshot) else {
     fail("expected semantic snapshot")

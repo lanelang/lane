@@ -63,23 +63,6 @@ pub impl @prettyprinter.Pretty for ModuleObjectArtifact with fn pretty(
 }
 
 ///|
-pub impl @prettyprinter.Pretty for LinkedProgramArtifact with fn pretty(
-  artifact : LinkedProgramArtifact,
-) -> Document {
-  let disassembly = @loisvm_bytecode.bytecode_image_to_disassembly(
-      artifact.bytecode,
-    )
-    .split("\n")
-    .map(StringView::to_owned)
-    .collect()
-  ignore(disassembly.pop())
-  text(
-    "Lane program artifact\nschema: \{linked_program_artifact_schema_version}\n\n" +
-    disassembly.join("\n"),
-  )
-}
-
-///|
 fn artifact_header_doc(
   kind : String,
   schema_version : Int,
@@ -175,7 +158,7 @@ fn interface_export_text(
 
 ///|
 fn object_summary_doc(artifact : ModuleObjectArtifact) -> Document {
-  let buslane = BuslaneInspectContext::{ metadata: artifact.metadata }
+  let buslane = BuslaneInspectContext::{ metadata: artifact.metadata, }
   text("object:") +
   @prettyprinter.hardline +
   separate(@prettyprinter.hardline, [
@@ -213,7 +196,7 @@ fn buslane_program_doc(
   terms : Array[@buslane.TopTerm],
 ) -> Document {
   let program_text = @prettyprinter.render(
-    @buslane.Program::{ metadata, terms },
+    @buslane.Program::{ metadata, terms, },
     width=100,
   )
   text("buslane:") +
@@ -611,7 +594,7 @@ fn BuslaneInspectContext::entry_text(
   self : BuslaneInspectContext,
   entry : @buslane_lowering.BuslaneEntry,
 ) -> String {
-  "\{entry_display_name(entry)} : \{self.type_text(entry.type_)}"
+  "\{entry_display_name(entry)} : \{self.source_type_text(entry.value)}"
 }
 
 ///|
@@ -619,7 +602,7 @@ fn BuslaneInspectContext::intrinsic_text(
   self : BuslaneInspectContext,
   external : @buslane_lowering.BuslaneBuiltinExternal,
 ) -> String {
-  "\{external.intrinsic().name()} : \{self.type_text(external.type_())}"
+  "\{external.intrinsic().name()} : \{self.source_type_text(external.value())}"
 }
 
 ///|
@@ -627,7 +610,17 @@ fn BuslaneInspectContext::runtime_import_text(
   self : BuslaneInspectContext,
   import_ : @buslane_lowering.BuslaneRuntimeImport,
 ) -> String {
-  "\{import_.symbol} : \{self.type_text(import_.type_)}"
+  "\{import_.contract.module_name}.\{import_.contract.field_name} : \{self.source_type_text(import_.value)}"
+}
+
+///|
+fn BuslaneInspectContext::source_type_text(
+  self : BuslaneInspectContext,
+  value : @buslane.ValueId,
+) -> String {
+  self.type_text(@buslane_lowering.source_value_type(self.metadata, value)) catch {
+    MissingValueMetadata(_) => "<missing value metadata>"
+  }
 }
 
 ///|

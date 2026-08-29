@@ -71,7 +71,7 @@ fn parse_f32_decimal(raw : String) -> Float? {
 
 ///|
 fn parse_decimal(raw : String) -> ParsedDecimal? {
-  let digits = StringBuilder::new()
+  let digits = StringBuilder()
   // Once an exponent exceeds the source length by this margin, no coefficient
   // in the same source can bring binary32 back into range. Saturation prevents
   // an arbitrarily long exponent spelling from overflowing `Int`.

@@ -20,7 +20,7 @@ pub let panic : (String) -> Void ! Panic = builtin("%panic")
 - `Panic` makes possible fatal behavior visible to effect-sensitive passes;
 - the verified intrinsic contract implements `%panic` as
   `Fatal(message_parameter=0)`;
-- `Fatal(message)` ends VM CFG and bytecode control with no successor.
+- `Fatal(message)` ends VM CFG and Physical Program control with no successor.
 
 Lane has no built-in bottom type, implicit bottom conversion, no-result callable
 ABI, or special representation for empty enums. A value context uses the
@@ -48,7 +48,7 @@ implementation = Fatal(message_parameter=0)
 ```
 
 Type checking materializes the resolved function type once. Buslane lowering,
-module objects, linking, function planning, and LoisVM lowering carry that full
+module objects, linking, function planning, and Physical Lowering carry that full
 verified type rather than reconstructing it from the intrinsic name. Module
 objects persist the resolved type with the intrinsic identity.
 
@@ -81,17 +81,18 @@ Unit context.
 
 ## Backend and persistence contract
 
-Both interpreter and Wasm/JIT execution preserve the message, perform fatal
+Both Wasm interpreter and JIT execution preserve the message, perform fatal
 cleanup, skip the normal continuation, and return the typed
-`ExecutionError::Fatal(message)` outcome. Runtime import failures remain a
-separate typed error.
+`ExecutionError::Fatal(message)` outcome. Failures in direct core Wasm host
+imports are engine traps at the Wasmoon linkage or execution boundary.
 
 The Void-result migration advances module-interface schema 12 to 13,
 module-object schema 19 to 20, and linked-program schema 15 to 16. Persisting
 the Canonical Basic ABI runtime contract subsequently advances the module-object
-schema from 20 to 21. The bytecode instruction language does not change:
-`Fatal` and ordinary value result ABIs already express the required execution
-contract. Decoders reject the immediately preceding schema versions.
+schema from 20 to 21. The later WebAssembly-only target migration removes the
+linked-program container entirely: linked executables are raw WebAssembly
+modules, while module-interface and module-object decoders continue to reject
+stale schema versions.
 
 ## Optimization
 
@@ -113,5 +114,5 @@ After `%panic` becomes `Fatal`, CFG analyses consume its empty successor set.
 - Direct and first-class panic calls never execute their continuation.
 - `Panic` on another function does not imply terminal control.
 - CLI entry admission is owned by an explicit profile.
-- interpreter and Wasm/JIT expose the same typed fatal outcome.
+- Wasm interpreter and JIT expose the same typed fatal outcome.
 - stale interface, object, and linked schemas are rejected.

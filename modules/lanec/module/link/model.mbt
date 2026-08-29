@@ -7,8 +7,7 @@ pub(all) struct LinkModuleObject {
   interface : @module_interface.ModuleInterface?
   interface_fingerprint : @artifact_model.CompilationFingerprint
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
-  metadata : @buslane.MetadataRegistry
-  terms : Array[@buslane.TopTerm]
+  program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
@@ -30,9 +29,23 @@ priv struct ValidatedLinkModuleObject {
 /// linker order and whose metadata identities have been remapped exactly once.
 pub(all) struct LinkedProgram {
   module_path_texts : Array[String]
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LinkedModuleRetention {
+  module_path_text : String
+  input_top_terms : Int
+  retained_top_terms : Int
+  input_value_bindings : Int
+  retained_value_bindings : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LinkRetentionObservation {
+  modules : Array[LinkedModuleRetention]
 } derive(Debug, Eq)
 
 ///|

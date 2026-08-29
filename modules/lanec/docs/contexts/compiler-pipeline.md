@@ -43,7 +43,7 @@ _Avoid_: pure desugaring, Buslane lowering
 
 **Semantic Lowering**:
 The transformation from Checked Source AST into Buslane Core Language.
-_Avoid_: source elaboration, parsing, bytecode generation
+_Avoid_: source elaboration, parsing, execution-image generation
 
 **Compiler Facade**:
 The stable compiler-library entry package consumed by tools instead of importing internal pipeline packages directly.
@@ -51,7 +51,7 @@ _Avoid_: CLI command, compiler process boundary, Buslane package
 
 **Buslane Core Language**:
 The typed expression-tree core language produced from Checked Source AST before ANF normalization.
-_Avoid_: source AST, checked source AST, ANF IR, bytecode, VM instruction format
+_Avoid_: source AST, checked source AST, ANF IR, Physical Program, VM instruction format
 
 **Buslane Program**:
 The self-contained Buslane root containing a metadata registry and a term declaration sequence.
@@ -219,11 +219,11 @@ _Avoid_: source token text, escaped string spelling
 
 **ANF Lowering**:
 The transformation from Buslane Core Language into ANF IR.
-_Avoid_: semantic lowering, source elaboration, bytecode generation
+_Avoid_: semantic lowering, source elaboration, physical lowering
 
 **ANF IR**:
 The typed Structured ANF representation produced from Buslane Core Language while preserving Lane/Core semantics.
-_Avoid_: source AST, checked source AST, bytecode, VM instruction format
+_Avoid_: source AST, checked source AST, Physical Program, VM instruction format
 
 **ANF Node**:
 A typed ANF expression, binding, atom, or right-hand side whose type is explicitly available after type checking.
@@ -231,7 +231,7 @@ _Avoid_: Buslane node, re-inferred node, untyped expression
 
 **Administrative Normal Form**:
 An intermediate representation shape where non-trivial computations are named so that evaluation order is explicit.
-_Avoid_: CPS, bytecode
+_Avoid_: CPS, Physical Program
 
 **Structured ANF**:
 An Administrative Normal Form that keeps structured conditionals and matches while requiring their inputs and calls to use atomic values.
@@ -325,19 +325,22 @@ _Avoid_: current pretty output, implicit stable ABI
 
 **Canonical Core Artifact**:
 The authoritative semantic payload of compiler and linker artifacts, expressed as Buslane/core plus the side metadata needed for linking, inspection, verification, and lowering.
-_Avoid_: ANF cache, bytecode image, runtime execution layout
+_Avoid_: ANF cache, Physical Program, runtime execution layout
 
 **Execution Image Lowering**:
 The transformation from a linked and optimized canonical core program into a target-specific execution image.
 _Avoid_: semantic lowering, source elaboration, interface generation
 
-**Bytecode Image**:
-A portable execution image for the future bytecode VM, produced after core linking and optimization.
-_Avoid_: Buslane program, ANF IR, module interface
+**Physical Program**:
+The verified compiler-private result of VM CFG finalization and physical-slot
+allocation. It is consumed only by the WebAssembly target and is never a
+persisted artifact or independently executable VM language.
+_Avoid_: linked artifact, persisted instruction format, second runtime target
 
-**Per-Module Bytecode Cache**:
-An optional cached bytecode section in a module object, guarded by compiler version, target, options, and core fingerprint.
-_Avoid_: canonical artifact payload, interface fingerprint source, cross-module semantic record
+**WebAssembly Execution Image**:
+The sole persisted and executable Lane target image: a standards-valid raw
+WebAssembly module whose import section owns its physical host contract.
+_Avoid_: Physical Program, canonical core, per-module cache
 
 **Closure Conversion**:
 A lowering step that makes captured lexical variables explicit in function values.
@@ -436,16 +439,16 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
 - Buslane external value metadata does not store runtime names; a **Buslane External Map** belongs to the compiler, linker, or runtime.
 - The **Compiler Facade** may return a **Buslane External Map** alongside a **Buslane Program**.
 - Buslane v1 has no module namespace; a future **Buslane Unit** may wrap a program with linking metadata.
-- A **Canonical Core Artifact** is the semantic source of truth for `.lmo` and
-  linked `.lbp` artifacts.
+- A **Canonical Core Artifact** is the semantic source of truth for relocatable
+  `.lmo` artifacts.
 - ANF is a derived representation below Buslane and must not become the
   artifact boundary.
 - **Execution Image Lowering** happens after linking and any whole-program
   optimization over canonical core.
-- A **Bytecode Image** may become the primary runtime payload for `exec`, but
-  it is still lowered code rather than the compiler interface contract.
-- A **Per-Module Bytecode Cache** is an invalidatable build cache, not a
-  substitute for linkable Buslane/core.
+- A **Physical Program** is verified before WebAssembly emission and never
+  crosses the compiler/runtime or persistence boundary.
+- A **WebAssembly Execution Image** is the only payload accepted by `exec`;
+  module interfaces and objects remain target-independent.
 - Buslane has no `if` node; source conditionals lower to **Synthetic Bool Matches**.
 - Buslane uses **One-Level Buslane Matches**; nested source patterns are compiled into nested one-level matches before entering Buslane.
 - Every **One-Level Buslane Match** must be an **Exhaustive Buslane Match**.
@@ -461,6 +464,10 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
 - Source field access lowers to a **Selector Function** call; Buslane has no field-access expression node.
 - **ANF Lowering** transforms **Buslane Core Language** into **ANF IR**.
 - **ANF IR** uses **Administrative Normal Form** and **Structured ANF**, not basic blocks.
+- **Runtime ANF** partitions non-minimal lexical `LetRec` input into
+  deterministic minimal callable SCCs before assigning callable disposition.
+- An acyclic singleton callable SCC becomes an ordinary Runtime ANF `Let`; a
+  recursive SCC remains `LetRec` and has one verified disposition.
 - **Buslane Core Language** and **ANF IR** represent source structs and enums as **Nominal Core Data**.
 - **Nominal Core Data** is introduced through **Data Constructors**.
 - A **Data Constructor** is not a first-class value; Buslane uses a **Dedicated Construction Form**.

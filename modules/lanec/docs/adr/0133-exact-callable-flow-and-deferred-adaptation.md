@@ -3,47 +3,41 @@
 ## Decision
 
 Lane performs callable devirtualization from one whole-image VM CFG callable
-flow analysis. The analysis computes a finite fixed point over unreachable
-values, closed callable alternatives, open alternatives with retained known
-provenance, and recursively summarized aggregates. It propagates facts through
-aliases, block parameters, immutable globals, aggregate projections, and known
-function results. It uses no invocation-count threshold, growth budget, score,
-or source-order heuristic.
+flow analysis. The analysis computes a finite fixed point over unreachable,
+closed, and open callable alternatives and recursively summarized aggregates.
+It propagates facts through aliases, block parameters, immutable globals,
+aggregate projections, known function inputs, and known function results.
 
 An indirect call becomes direct only when its fact is closed and names exactly
-one target. A locally known environment may be passed directly to the target.
-The target's environment ABI is removed only when every observed construction
-and invocation can use one exact environment shape and every environment
-projection can become an explicit hidden witness or value parameter. Packing a
-callable into an aggregate or global, passing it as a value argument, returning
-it, or joining incompatible alternatives prevents that ABI rewrite. Such a
-call may still be devirtualized while retaining its packed environment ABI.
-Eligibility is decided before rewriting; there is no speculative rewrite and
-fallback pass.
+one target. A known environment may be passed directly to that target. The
+environment ABI is removed only when every construction and invocation can use
+one exact environment shape and every projection can become an explicit hidden
+parameter. Packing, returning, joining, or otherwise escaping a callable may
+retain its environment ABI even when the target can be devirtualized.
 
-LoisVM lowering represents a required callable representation conversion as a
-deferred structural value containing the source callable, source and target
-types, exact parameter alignment, final substitution, and captured witnesses.
-Calling that value fuses argument conversion, the source call, and result
-conversion directly into the caller. Applying type arguments preserves the
-same structural value. Only an operation that requires an ordinary first-class
-callable slot materializes the canonical adapter plan, environment, and
-closure.
+Representation elaboration expresses a callable conversion as one structural
+adaptation from a complete source callable contract to a complete target
+callable contract. Calling that value may fuse parameter conversion, the source
+call, and result conversion into the caller. Only a first-class escape
+materializes a worker, environment, and closure.
 
-Adapter alignment also proves whether the source and target callable contracts
-are definitionally aligned after substitution and differ only by omitted Unit
-positions. Such a conversion reuses the original callable bits; physical ABI
-equality alone is insufficient because equal-width values may have different
-source semantics. For adapters that must be materialized, function-table
-canonicalization computes exact structural equivalence, including recursive
-references to other adapters, and gives each equivalence class one physical
-worker. Every materialization site retains its own environment and witnesses.
+Adapter alignment proves semantic parameter and result compatibility after
+substitution. Equal physical slots alone do not establish compatibility:
+equal-width values may differ in ownership, object shape, callable ABI, or
+required semantic conversion.
+
+Equal structural source/target contracts share one materialized worker. Every
+materialization site supplies its own captures. Recursive callable ABI
+identities belong to the physical ABI owner; they are not a second adapter
+equivalence analysis. Function-table processing owns reachability, Runtime
+Import deduplication, stable remapping, and provenance remapping, but never
+reconstructs adapter identity from VM CFG bodies.
 
 Callable-flow analysis is the sole producer of callable target and environment
-facts. Callable adapter alignment is the sole producer of the deferred
-adaptation contract. Consumers may preserve or materialize those facts but may
-not reconstruct them from instruction adjacency, reference counts, runtime
-layout equality, or source effect syntax.
+facts. Structural callable adaptation is the sole producer of the conversion.
+Consumers may preserve, fuse, or materialize it but may not reconstruct it from
+instruction adjacency, reference counts, runtime-layout equality, source type
+spelling, or source effect syntax.
 
 ## Consequences
 
@@ -51,17 +45,16 @@ layout equality, or source effect syntax.
   relying on neighboring instruction shapes.
 - Multiple uses of one known capture-free function remain directly callable;
   uniqueness of a reference is not an optimization precondition.
-- Environment elimination changes both callers and the callee ABI only when
-  the complete-image fact proves that change coherent.
-- Non-escaping representation adapters add no adapter function, environment,
-  closure, or callable-table entry.
-- Definitionally aligned adapters whose runtime ABI already agrees add no
-  wrapper, including target-only Unit parameters.
-- Alpha-renamed or recursively equivalent materialized adapter contracts share
-  one physical worker and preserve all contributing provenance.
-- Escaping adapters retain the existing first-class callable semantics through
-  the canonical materialization path.
-- This decision does not specialize arbitrary generic function bodies by
-  concrete runtime representation. Demand-driven erased-value specialization
-  and cancellation of general `erase_*`/`unerase_*` pairs remain separate work.
+- Environment elimination changes callers and the callee ABI only when the
+  complete-image fact proves the rewrite coherent.
+- Non-escaping adaptations add no adapter function, environment, closure, or
+  callable-table entry.
+- Definitionally aligned adaptations whose complete physical contract agrees
+  add no wrapper, including target-only `Unit` parameters.
+- Alpha-renamed materialized adaptations with the same physical contracts
+  share one worker before VM CFG construction.
+- Escaping adaptations retain first-class callable semantics.
+- Arbitrary generic-body specialization remains the optional program rewrite
+  defined by ADR-0138. It is not a prerequisite for callable adaptation or VM
+  CFG construction.
 - The transformation changes no persisted artifact or bytecode schema.

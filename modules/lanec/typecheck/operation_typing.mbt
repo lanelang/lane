@@ -136,7 +136,7 @@ fn SemanticChecker::handler_operation_signature(
     let expected = instantiation.selection.declaration.type_parameters[index].kind
     let actual = checked_binders[index].kind
     if actual != expected {
-      self.diagnostics.push({ kind: KindMismatch(expected~, actual~), loc })
+      self.diagnostics.push({ kind: KindMismatch(expected~, actual~), loc, })
     }
     if expected == Effect {
       hidden_substitution.insert_effect(
@@ -236,7 +236,7 @@ fn SemanticChecker::operation_generic_witnesses(
       checked[index],
     )
   }
-  Some({ generic_witnesses: checked, substitution })
+  Some({ generic_witnesses: checked, substitution, })
 }
 
 ///|
@@ -281,7 +281,7 @@ fn SemanticChecker::select_operation(
   let operation = match reference {
     Symbol(symbol) => symbol
     Unresolved(name) => {
-      self.diagnostics.push({ kind: UnresolvedEffectOperation(name), loc })
+      self.diagnostics.push({ kind: UnresolvedEffectOperation(name), loc, })
       return None
     }
     Ambiguous(name~, candidates~) => {
@@ -306,7 +306,7 @@ fn SemanticChecker::select_operation(
     self.report_internal_typecheck_failure("effect operation owner", loc)
     return None
   }
-  Some({ operation, declaration, owner: metadata.owner, owner_declaration })
+  Some({ operation, declaration, owner: metadata.owner, owner_declaration, })
 }
 
 ///|

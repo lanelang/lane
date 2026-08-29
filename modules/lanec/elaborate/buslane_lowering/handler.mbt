@@ -140,7 +140,7 @@ fn BuslaneLowerer::lower_handler_operation_group(
     guard arm.body is Some(body) else {
       abort("unchecked handler operation body")
     }
-    { patterns: arm.payload_patterns, body: self.lower_expr(body) }
+    { patterns: arm.payload_patterns, body: self.lower_expr(body), }
   })
   {
     operation: group.operation,

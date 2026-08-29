@@ -1,7 +1,7 @@
 ///|
 test "runtime contract preserves a missing declaration as a typed ABI error" {
   let contract = CanonicalBasicAbiRuntimeContract::from_void_type(
-    Some({ index: 0 }),
+    Some({ index: 0, }),
   )
   guard contract.certify([], MetadataRegistry()) is Err(error) else {
     fail("missing canonical Void declaration unexpectedly certified")

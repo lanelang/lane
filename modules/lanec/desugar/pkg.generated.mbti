@@ -20,6 +20,10 @@ pub(all) enum DesugaredCallArgument {
   Positional(value~ : DesugaredExpr, loc~ : @basic.SourceSpan, provenance~ : @syntax.CallArgumentProvenance)
   Named(name~ : String, value~ : DesugaredExpr, loc~ : @basic.SourceSpan, provenance~ : @syntax.CallArgumentProvenance)
 } derive(Eq, @debug.Debug)
+pub fn DesugaredCallArgument::equal(Self, Self) -> Bool
+pub fn DesugaredCallArgument::not_equal(Self, Self) -> Bool
+pub fn DesugaredCallArgument::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredCallArgument::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredCallArgument
 
 pub(all) enum DesugaredExpr {
@@ -29,7 +33,7 @@ pub(all) enum DesugaredExpr {
   StructLiteral(type_name~ : @resolve.ResolvedNominalName, type_name_loc~ : @basic.SourceSpan, reference~ : @resolve.ResolvedTypeReference, generic_arguments~ : Array[@resolve.ResolvedGenericArgument], fields~ : Array[DesugaredStructLiteralField], loc~ : @basic.SourceSpan)
   Derive(capability~ : @resolve.ResolvedType, target~ : @resolve.ResolvedType, arguments~ : Array[DesugaredCallArgument], source~ : @basic.DeriveSourceSite)
   Builtin(String, loc~ : @basic.SourceSpan)
-  Extern(String, loc~ : @basic.SourceSpan)
+  Extern(module_name~ : String, field_name~ : String, loc~ : @basic.SourceSpan)
   ErrorRecovery(loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@resolve.ResolvedTypeParameter], parameters~ : Array[@resolve.ResolvedFunctionLiteralParameter], return_type~ : @resolve.ResolvedType?, effect~ : @resolve.ResolvedEffectTerm?, body~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : @resolve.ResolvedEffectOperationName, generic_witnesses~ : Array[@resolve.ResolvedGenericArgument], arguments~ : Array[DesugaredExpr], loc~ : @basic.SourceSpan)
@@ -42,7 +46,11 @@ pub(all) enum DesugaredExpr {
   Field(base~ : DesugaredExpr, name~ : String, name_loc~ : @basic.SourceSpan, reference~ : @resolve.ResolvedFieldReference, loc~ : @basic.SourceSpan)
   Unary(operator~ : @syntax.UnaryOperator, target~ : @resolve.ResolvedOperatorTarget, operand~ : DesugaredExpr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn DesugaredExpr::equal(Self, Self) -> Bool
 pub fn DesugaredExpr::loc(Self) -> @basic.SourceSpan
+pub fn DesugaredExpr::not_equal(Self, Self) -> Bool
+pub fn DesugaredExpr::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredExpr::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredExpr
 
 pub(all) struct DesugaredFunctionDeclaration {
@@ -58,6 +66,10 @@ pub(all) struct DesugaredFunctionDeclaration {
   body : DesugaredExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn DesugaredFunctionDeclaration::equal(Self, Self) -> Bool
+pub fn DesugaredFunctionDeclaration::not_equal(Self, Self) -> Bool
+pub fn DesugaredFunctionDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredFunctionDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredFunctionDeclaration
 
 pub(all) struct DesugaredHandlerFinalBranch {
@@ -67,6 +79,10 @@ pub(all) struct DesugaredHandlerFinalBranch {
   body : DesugaredExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn DesugaredHandlerFinalBranch::equal(Self, Self) -> Bool
+pub fn DesugaredHandlerFinalBranch::not_equal(Self, Self) -> Bool
+pub fn DesugaredHandlerFinalBranch::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredHandlerFinalBranch::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredHandlerFinalBranch
 
 pub(all) struct DesugaredHandlerOperationArm {
@@ -79,12 +95,20 @@ pub(all) struct DesugaredHandlerOperationArm {
   body : DesugaredExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn DesugaredHandlerOperationArm::equal(Self, Self) -> Bool
+pub fn DesugaredHandlerOperationArm::not_equal(Self, Self) -> Bool
+pub fn DesugaredHandlerOperationArm::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredHandlerOperationArm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredHandlerOperationArm
 
 pub(all) struct DesugaredHandlerWithBlock {
   arms : Array[DesugaredHandlerOperationArm]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn DesugaredHandlerWithBlock::equal(Self, Self) -> Bool
+pub fn DesugaredHandlerWithBlock::not_equal(Self, Self) -> Bool
+pub fn DesugaredHandlerWithBlock::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredHandlerWithBlock::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredHandlerWithBlock
 
 pub(all) struct DesugaredLetDeclaration {
@@ -97,6 +121,10 @@ pub(all) struct DesugaredLetDeclaration {
   initializer : DesugaredExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn DesugaredLetDeclaration::equal(Self, Self) -> Bool
+pub fn DesugaredLetDeclaration::not_equal(Self, Self) -> Bool
+pub fn DesugaredLetDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredLetDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredLetDeclaration
 
 pub(all) enum DesugaredLiteral {
@@ -107,6 +135,10 @@ pub(all) enum DesugaredLiteral {
   Bool(Bool)
   Unit
 } derive(Eq, @debug.Debug)
+pub fn DesugaredLiteral::equal(Self, Self) -> Bool
+pub fn DesugaredLiteral::not_equal(Self, Self) -> Bool
+pub fn DesugaredLiteral::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredLiteral::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredLiteral
 
 pub(all) enum DesugaredLocalItem {
@@ -115,6 +147,10 @@ pub(all) enum DesugaredLocalItem {
   Function(DesugaredFunctionDeclaration)
   Expression(DesugaredExpr)
 } derive(Eq, @debug.Debug)
+pub fn DesugaredLocalItem::equal(Self, Self) -> Bool
+pub fn DesugaredLocalItem::not_equal(Self, Self) -> Bool
+pub fn DesugaredLocalItem::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredLocalItem::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredLocalItem
 
 pub(all) struct DesugaredMatchArm {
@@ -122,6 +158,10 @@ pub(all) struct DesugaredMatchArm {
   body : DesugaredExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn DesugaredMatchArm::equal(Self, Self) -> Bool
+pub fn DesugaredMatchArm::not_equal(Self, Self) -> Bool
+pub fn DesugaredMatchArm::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredMatchArm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredMatchArm
 
 pub(all) struct DesugaredPatternLetDeclaration {
@@ -130,6 +170,10 @@ pub(all) struct DesugaredPatternLetDeclaration {
   initializer : DesugaredExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn DesugaredPatternLetDeclaration::equal(Self, Self) -> Bool
+pub fn DesugaredPatternLetDeclaration::not_equal(Self, Self) -> Bool
+pub fn DesugaredPatternLetDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredPatternLetDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredPatternLetDeclaration
 
 pub(all) struct DesugaredSourceFile {
@@ -138,12 +182,20 @@ pub(all) struct DesugaredSourceFile {
   declarations : Array[DesugaredTopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn DesugaredSourceFile::equal(Self, Self) -> Bool
+pub fn DesugaredSourceFile::not_equal(Self, Self) -> Bool
+pub fn DesugaredSourceFile::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredSourceFile::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredSourceFile
 
 pub(all) enum DesugaredStructLiteralField {
   Value(name~ : String, value~ : DesugaredExpr, loc~ : @basic.SourceSpan)
   TypeWitness(name~ : String, witness~ : @resolve.ResolvedGenericArgument, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn DesugaredStructLiteralField::equal(Self, Self) -> Bool
+pub fn DesugaredStructLiteralField::not_equal(Self, Self) -> Bool
+pub fn DesugaredStructLiteralField::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredStructLiteralField::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredStructLiteralField
 
 pub(all) enum DesugaredTopLevelDeclaration {
@@ -154,6 +206,10 @@ pub(all) enum DesugaredTopLevelDeclaration {
   Function(DesugaredFunctionDeclaration)
   Let(DesugaredLetDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn DesugaredTopLevelDeclaration::equal(Self, Self) -> Bool
+pub fn DesugaredTopLevelDeclaration::not_equal(Self, Self) -> Bool
+pub fn DesugaredTopLevelDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn DesugaredTopLevelDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for DesugaredTopLevelDeclaration
 
 // Type aliases

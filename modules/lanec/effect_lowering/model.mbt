@@ -1,0 +1,116 @@
+///|
+priv struct Program {
+  metadata : @buslane.MetadataRegistry
+  terms : Array[TopTerm]
+}
+
+///|
+priv enum TopTerm {
+  Let(@buslane.ValueId, Expr)
+  LetRec(Array[RecursiveBinding])
+  External(@buslane.ValueId)
+}
+
+///|
+priv struct RecursiveBinding {
+  id : @buslane.ValueId
+  rhs : Expr
+} derive(Debug, Eq)
+
+///|
+priv enum Expr {
+  Ref(@buslane.ValueId)
+  Literal(@buslane.Literal)
+  Function(FunctionExpr)
+  Call(Expr, Array[Expr])
+  TypeLambda(Array[@buslane.TypeParameterId], Expr)
+  TypeApply(Expr, Array[@buslane.GenericArgument])
+  Construct(ConstructExpr)
+  Let(@buslane.ValueId, Expr, Expr)
+  LetRec(Array[RecursiveBinding], Expr)
+  Match(MatchExpr)
+  Invoke(InvokeExpr)
+  Install(InstallExpr)
+  Bind(BindExpr)
+  OpenContext(OpenContextExpr)
+} derive(Debug, Eq)
+
+///|
+priv struct FunctionExpr {
+  origin : @function_origin.FunctionOrigin
+  parameters : Array[@buslane.ValueId]
+  result_type : @buslane.Type
+  body : Expr
+} derive(Debug, Eq)
+
+///|
+priv struct ConstructExpr {
+  data_constructor : @buslane.DataConId
+  type_arguments : Array[@buslane.GenericArgument]
+  hidden_witnesses : Array[@buslane.GenericArgument]
+  payloads : Array[Expr]
+} derive(Debug, Eq)
+
+///|
+priv struct MatchExpr {
+  scrutinee : Expr
+  binder : @buslane.ValueId
+  result_type : @buslane.Type
+  alternatives : Array[Alternative]
+} derive(Debug, Eq)
+
+///|
+priv struct Alternative {
+  alt_constructor : @buslane.AltCon
+  type_binders : Array[@buslane.TypeParameterId]
+  value_binders : Array[@buslane.ValueId]
+  body : Expr
+} derive(Debug, Eq)
+
+///|
+priv struct InvokeExpr {
+  operation : @buslane.OperationId
+  effect_arguments : Array[@buslane.GenericArgument]
+  hidden_witnesses : Array[@buslane.GenericArgument]
+  payloads : Array[Expr]
+} derive(Debug, Eq)
+
+///|
+priv struct InstallExpr {
+  body : Expr
+  result_type : @buslane.Type
+  dictionaries : Array[HandlerDictionary]
+  final_clause : FunctionExpr
+} derive(Debug, Eq)
+
+///|
+priv struct HandlerDictionary {
+  handled_effect : @buslane.Effect
+  operations : Array[OperationClause]
+} derive(Debug, Eq)
+
+///|
+priv struct OperationClause {
+  operation : @buslane.OperationId
+  callable : ClauseCallable
+} derive(Debug, Eq)
+
+///|
+priv enum ClauseCallable {
+  Monomorphic(FunctionExpr)
+  Polymorphic(Array[@buslane.TypeParameterId], FunctionExpr)
+} derive(Debug, Eq)
+
+///|
+priv struct BindExpr {
+  computation : Expr
+  binder : @buslane.ValueId
+  continuation : FunctionExpr
+} derive(Debug, Eq)
+
+///|
+priv struct OpenContextExpr {
+  source_effect : @buslane.Effect
+  target_effect : @buslane.Effect
+  body : Expr
+} derive(Debug, Eq)

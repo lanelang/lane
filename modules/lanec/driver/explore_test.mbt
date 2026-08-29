@@ -5,7 +5,7 @@ fn explore_test_request(
   entry? : String = "main",
 ) -> ExploreRequest {
   {
-    root_source: { source_id: "Main.lane", text: root },
+    root_source: { source_id: "Main.lane", text: root, },
     library_sources: libraries.mapi((index, text) => {
       source_id: "Library\{index}.lane",
       text,
@@ -55,7 +55,66 @@ fn explore_stage_scale(
 }
 
 ///|
-test "explore protocol v5 exposes all eighteen ordered completed stages" {
+test "Explore preserves source-written nested and CPS-introduced function origins" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|effect Ask {
+        #|  ask() -> I64
+        #|}
+        #|
+        #|fn[Eff : Effect] invoke(
+        #|  callback : (I64) -> I64 ! Eff
+        #|) -> I64 ! Eff {
+        #|  callback(0)
+        #|}
+        #|
+        #|pub extern type Host : Effect
+        #|let observe : (I64) -> Unit ! Host = extern("lane.test", "observe")
+        #|
+        #|pub fn main() -> Unit ! Host {
+        #|  let result = handle invoke[{ Ask }](fn(_value) {
+        #|    let asked = Ask::ask!()
+        #|    asked
+        #|  }) with {
+        #|    Ask::ask(resume) => resume(42)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|  observe(result)
+        #|}
+      ),
+    ),
+  )
+  let anf_roles = report.functions.nodes.filter_map(node => {
+    if node.function.stage == Anf {
+      Some(node.roles)
+    } else {
+      None
+    }
+  })
+  debug_inspect(
+    anf_roles,
+    content=(
+      #|[
+      #|  [SourceFunction(value=3, name=Some("main")), RuntimeAnfTopLevelRoot],
+      #|  [SelectiveCpsFunction, RuntimeAnfEscapingClosure],
+      #|  [SelectiveCpsFunction, RuntimeAnfJoinPoint],
+      #|  [
+      #|    SourceFunction(value=13, name=Some("function_literal")),
+      #|    RuntimeAnfEscapingClosure,
+      #|  ],
+      #|  [MonadicTransformationFunction, RuntimeAnfEscapingClosure],
+      #|  [HandlerElaborationFunction, RuntimeAnfEscapingClosure],
+      #|]
+    ),
+  )
+}
+
+///|
+test "explore protocol v11 exposes all eighteen ordered completed stages" {
   let report = explore(
     explore_test_request(
       (
@@ -78,7 +137,7 @@ test "explore protocol v5 exposes all eighteen ordered completed stages" {
     ),
     content=(
       #|(
-      #|  5,
+      #|  11,
       #|  { name: "Milky2018/lanec", version: "0.1.0" },
       #|  { source_id: "Main.lane", module_path_text: Some("Main") },
       #|  Some({ module_path_text: "Main", name: "main", type_text: "() -> Unit" }),
@@ -181,7 +240,7 @@ test "explore protocol v5 exposes all eighteen ordered completed stages" {
       #|      "completed",
       #|      Some("compiler"),
       #|      Some("buslane"),
-      #|      Some("letrec {"),
+      #|      Some("executable {"),
       #|    ),
       #|    ("anf", "completed", Some("compiler"), Some("anf"), Some("letrec {")),
       #|    (
@@ -192,13 +251,164 @@ test "explore protocol v5 exposes all eighteen ordered completed stages" {
       #|      Some("function f1("),
       #|    ),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      "completed",
       #|      Some("compiler"),
-      #|      Some("loisvm-bytecode"),
+      #|      Some("physical-program"),
       #|      Some("function f1 abi=abi0("),
       #|    ),
       #|    ("wasm", "completed", Some("backend"), Some("wat"), Some("(module")),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
+test "explore attributes link growth and effect-specialization cleanup" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|import Lib.{ live, invoke }
+        #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
+        #|fn pure() -> Unit { () }
+        #|pub fn main() -> Unit ! Io {
+        #|  invoke[{}](pure)
+        #|  observe(live())
+        #|}
+      ),
+      libraries=[
+        (
+          #|module Lib
+          #|pub enum Box[E : Effect] {
+          #|  box(() -> Unit ! E)
+          #|}
+          #|pub fn live() -> I64 { 42 }
+          #|pub fn[E : Effect] invoke(action : () -> Unit ! E) -> Unit ! E {
+          #|  action()
+          #|}
+        ),
+      ],
+    ),
+  )
+  let selected = report.stages
+    .ordered()
+    .filter_map(stage => {
+      guard [
+        "syntax", "resolved", "checked", "buslane.module", "buslane.linked", "buslane.effect-specialized",
+      ].contains(stage.id) else {
+        return None
+      }
+      guard stage.state is Completed(snapshot) else { return None }
+      Some(
+        (
+          stage.id,
+          snapshot.scale.metrics.map(metric => (metric.id.key(), metric.value)),
+          snapshot.scale.modules,
+        ),
+      )
+    })
+  debug_inspect(
+    (report.status, report.diagnostics, selected),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [],
+      #|  [
+      #|    (
+      #|      "syntax",
+      #|      [
+      #|        ("declarationCount", 3),
+      #|        ("importCount", 1),
+      #|        ("functionCount", 2),
+      #|        ("nodeCount", 15),
+      #|        ("callCount", 3),
+      #|        ("sourceGenericBinderCount", 0),
+      #|        ("sourceTypeApplicationCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
+      #|    (
+      #|      "resolved",
+      #|      [
+      #|        ("declarationCount", 3),
+      #|        ("importCount", 1),
+      #|        ("functionCount", 2),
+      #|        ("nodeCount", 15),
+      #|        ("callCount", 3),
+      #|        ("sourceGenericBinderCount", 0),
+      #|        ("sourceTypeApplicationCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
+      #|    (
+      #|      "checked",
+      #|      [
+      #|        ("declarationCount", 3),
+      #|        ("importCount", 1),
+      #|        ("functionCount", 2),
+      #|        ("nodeCount", 15),
+      #|        ("callCount", 3),
+      #|        ("sourceGenericBinderCount", 0),
+      #|        ("sourceTypeApplicationCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
+      #|    (
+      #|      "buslane.module",
+      #|      [
+      #|        ("topTermCount", 3),
+      #|        ("functionCount", 2),
+      #|        ("nodeCount", 18),
+      #|        ("callCount", 3),
+      #|        ("genericBinderCount", 0),
+      #|        ("typeApplicationCount", 1),
+      #|        ("externalCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
+      #|    (
+      #|      "buslane.linked",
+      #|      [
+      #|        ("topTermCount", 4),
+      #|        ("functionCount", 4),
+      #|        ("nodeCount", 27),
+      #|        ("callCount", 4),
+      #|        ("genericBinderCount", 1),
+      #|        ("typeApplicationCount", 1),
+      #|        ("externalCount", 1),
+      #|      ],
+      #|      [
+      #|        {
+      #|          module_path_text: "Lib",
+      #|          input_top_terms: 1,
+      #|          retained_top_terms: 1,
+      #|          input_value_bindings: 2,
+      #|          retained_value_bindings: 2,
+      #|        },
+      #|        {
+      #|          module_path_text: "Main",
+      #|          input_top_terms: 3,
+      #|          retained_top_terms: 3,
+      #|          input_value_bindings: 4,
+      #|          retained_value_bindings: 4,
+      #|        },
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "buslane.effect-specialized",
+      #|      [
+      #|        ("topTermCount", 5),
+      #|        ("functionCount", 4),
+      #|        ("nodeCount", 26),
+      #|        ("callCount", 4),
+      #|        ("genericBinderCount", 0),
+      #|        ("typeApplicationCount", 0),
+      #|        ("externalCount", 1),
+      #|      ],
+      #|      [],
+      #|    ),
       #|  ],
       #|)
     ),
@@ -210,7 +420,7 @@ test "explore reports deterministic typed scale metrics" {
   let request = explore_test_request(
     (
       #|module Main
-      #|let observe : (I64) -> Unit ! Io = extern("observe")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
       #|
       #|fn apply(f : (I64) -> I64, value : I64) -> I64 {
       #|  f(value)
@@ -228,7 +438,7 @@ test "explore reports deterministic typed scale metrics" {
   let selected = first_scales.filter_map(fn(scale) {
     if [
         "buslane.effect-specialized", "buslane.core-optimized", "anf", "vmcfg.initial",
-        "loisvm.bytecode", "wasm",
+        "physical", "wasm",
       ].contains(scale.0) {
       Some((scale.0, scale.1))
     } else {
@@ -246,6 +456,9 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionCount", 3),
       #|      ("nodeCount", 21),
       #|      ("callCount", 3),
+      #|      ("genericBinderCount", 0),
+      #|      ("typeApplicationCount", 0),
+      #|      ("externalCount", 1),
       #|    ],
       #|  ),
       #|  (
@@ -255,6 +468,9 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionCount", 2),
       #|      ("nodeCount", 13),
       #|      ("callCount", 2),
+      #|      ("genericBinderCount", 0),
+      #|      ("typeApplicationCount", 0),
+      #|      ("externalCount", 1),
       #|    ],
       #|  ),
       #|  (
@@ -264,6 +480,8 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionCount", 2),
       #|      ("nodeCount", 19),
       #|      ("callCount", 2),
+      #|      ("genericBinderCount", 0),
+      #|      ("typeApplicationCount", 0),
       #|    ],
       #|  ),
       #|  (
@@ -279,8 +497,8 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionReferenceCount", 0),
       #|      ("closureCount", 0),
       #|      ("environmentCount", 0),
-      #|      ("eraseCount", 0),
-      #|      ("uneraseCount", 0),
+      #|      ("genericAbiEraseCount", 0),
+      #|      ("genericAbiUneraseCount", 0),
       #|      ("retainCount", 0),
       #|      ("releaseCount", 0),
       #|      ("globalCount", 0),
@@ -290,7 +508,7 @@ test "explore reports deterministic typed scale metrics" {
       #|    ],
       #|  ),
       #|  (
-      #|    "loisvm.bytecode",
+      #|    "physical",
       #|    [
       #|      ("functionCount", 2),
       #|      ("importCount", 1),
@@ -302,8 +520,8 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("functionReferenceCount", 0),
       #|      ("closureCount", 0),
       #|      ("environmentCount", 0),
-      #|      ("eraseCount", 0),
-      #|      ("uneraseCount", 0),
+      #|      ("genericAbiEraseCount", 0),
+      #|      ("genericAbiUneraseCount", 0),
       #|      ("retainCount", 0),
       #|      ("releaseCount", 0),
       #|      ("callableAbiCount", 3),
@@ -316,18 +534,29 @@ test "explore reports deterministic typed scale metrics" {
       #|  (
       #|    "wasm",
       #|    [
-      #|      ("functionCount", 27),
+      #|      ("functionCount", 4),
       #|      ("importCount", 1),
-      #|      ("instructionCount", 806),
-      #|      ("localCount", 34),
-      #|      ("tableEntryCount", 8),
+      #|      ("instructionCount", 51),
+      #|      ("localCount", 3),
+      #|      ("tableEntryCount", 0),
+      #|      ("wasmIfCount", 3),
+      #|      ("wasmUnreachableCount", 0),
+      #|      ("unreachableWasmSupportRoleCount", 0),
+      #|      ("wasmExpansion.physicalStorage.localCount", 3),
+      #|      ("wasmExpansion.runtimeGuard.instructionCount", 22),
+      #|      ("wasmExpansion.physicalOpcode.scalar.instructionCount", 2),
+      #|      ("wasmExpansion.physicalOpcode.callable.instructionCount", 4),
+      #|      ("wasmExpansion.physicalOpcode.controlTransfer.instructionCount", 13),
+      #|      ("wasmExpansion.functionAbi.instructionCount", 2),
+      #|      ("wasmExpansion.runtimeImportAdapter.instructionCount", 5),
+      #|      ("wasmExpansion.entryLifecycle.instructionCount", 3),
       #|    ],
       #|  ),
       #|]
     ),
   )
   let lowered_functions = first_scales.filter_map(fn(scale) {
-    if ["anf", "vmcfg.initial", "loisvm.bytecode"].contains(scale.0) {
+    if ["anf", "vmcfg.initial", "physical"].contains(scale.0) {
       Some((scale.0, scale.2))
     } else {
       None
@@ -352,7 +581,7 @@ test "explore reports deterministic typed scale metrics" {
       #|    ],
       #|  ),
       #|  (
-      #|    "loisvm.bytecode",
+      #|    "physical",
       #|    [
       #|      { index: 1, block_count: 1, operation_count: 2, value_count: 2 },
       #|      { index: 2, block_count: 1, operation_count: 0, value_count: 1 },
@@ -364,13 +593,14 @@ test "explore reports deterministic typed scale metrics" {
 }
 
 ///|
-test "explore gates direct generic representation specialization" {
+test "explore records direct canonical generic representation costs" {
   let report = explore(
     explore_test_request(
       (
         #|module Main
-        #|let read_flag : () -> Bool ! Io = extern("read_flag")
-        #|let touch : () -> Unit ! Io = extern("touch")
+        #|let read_flag : () -> I32 ! Io = extern("lane.test", "read_flag")
+        #|let touch : () -> Unit ! Io = extern("lane.test", "touch")
+        #|let i32_equal : (I32, I32) -> Bool = builtin("%i32_equal")
         #|
         #|fn[T] consume(flag : Bool, value : T) -> Unit ! Io {
         #|  if flag {
@@ -381,8 +611,8 @@ test "explore gates direct generic representation specialization" {
         #|}
         #|
         #|pub fn main() -> Unit ! Io {
-        #|  consume[Bool](read_flag(), true)
-        #|  consume[I32](read_flag(), 42i32)
+        #|  consume[Bool](i32_equal(read_flag(), 0i32), true)
+        #|  consume[I32](i32_equal(read_flag(), 0i32), 42i32)
         #|}
       ),
     ),
@@ -390,16 +620,26 @@ test "explore gates direct generic representation specialization" {
   let selected = report.stages
     .ordered()
     .filter_map(stage => {
-      guard stage.id == "vmcfg.initial" || stage.id == "loisvm.bytecode" else {
+      guard stage.id == "vmcfg.initial" || stage.id == "physical" else {
         return None
       }
       explore_stage_scale(stage)
     })
+  let adapters = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is CallableAdapter(..))
+  })
   debug_inspect(
-    (report.status, report.diagnostics, selected),
+    (
+      report.status,
+      report.diagnostics,
+      adapters.map(node => node.roles),
+      selected,
+    ),
     content=(
       #|(
       #|  Succeeded,
+      #|  [],
       #|  [],
       #|  [
       #|    (
@@ -407,54 +647,54 @@ test "explore gates direct generic representation specialization" {
       #|      [
       #|        ("functionCount", 2),
       #|        ("importCount", 2),
-      #|        ("blockCount", 5),
-      #|        ("instructionCount", 6),
-      #|        ("valueCount", 7),
+      #|        ("blockCount", 4),
+      #|        ("instructionCount", 15),
+      #|        ("valueCount", 19),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 0),
-      #|        ("uneraseCount", 0),
+      #|        ("genericAbiEraseCount", 2),
+      #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 0),
+      #|        ("layoutCount", 2),
       #|        ("objectShapeCount", 0),
       #|        ("constantCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 1, operation_count: 5, value_count: 4 },
-      #|        { index: 2, block_count: 4, operation_count: 1, value_count: 3 },
+      #|        { index: 1, block_count: 3, operation_count: 1, value_count: 5 },
+      #|        { index: 2, block_count: 1, operation_count: 14, value_count: 14 },
       #|      ],
       #|    ),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      [
       #|        ("functionCount", 2),
       #|        ("importCount", 2),
-      #|        ("blockCount", 4),
-      #|        ("instructionCount", 6),
-      #|        ("slotCount", 4),
+      #|        ("blockCount", 5),
+      #|        ("instructionCount", 16),
+      #|        ("slotCount", 11),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 0),
-      #|        ("uneraseCount", 0),
+      #|        ("genericAbiEraseCount", 2),
+      #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
-      #|        ("releaseCount", 0),
+      #|        ("releaseCount", 1),
       #|        ("callableAbiCount", 3),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 0),
+      #|        ("layoutCount", 2),
       #|        ("objectShapeCount", 0),
       #|        ("constantCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 1, operation_count: 5, value_count: 2 },
-      #|        { index: 2, block_count: 3, operation_count: 1, value_count: 2 },
+      #|        { index: 1, block_count: 4, operation_count: 2, value_count: 4 },
+      #|        { index: 2, block_count: 1, operation_count: 14, value_count: 7 },
       #|      ],
       #|    ),
       #|  ],
@@ -464,7 +704,280 @@ test "explore gates direct generic representation specialization" {
 }
 
 ///|
-test "explore gates concrete-answer CPS normalization" {
+test "explore records elimination of concrete-answer callback representation costs" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|effect Ask {
+        #|  ask() -> I64
+        #|}
+        #|
+        #|struct Apply {
+        #|  call : [T, Eff : Effect](T, (T) -> T ! Eff) -> T ! Eff
+        #|}
+        #|
+        #|fn[T, Eff : Effect] apply_call(
+        #|  value : T,
+        #|  callback : (T) -> T ! Eff
+        #|) -> T ! Eff {
+        #|  callback(value)
+        #|}
+        #|
+        #|fn answer_callback(_value : I64) -> I64 ! Ask {
+        #|  Ask::ask!()
+        #|}
+        #|
+        #|fn[Eff : Effect] forwarded(
+        #|  callback : (I64) -> I64 ! Eff
+        #|) -> I64 ! Eff {
+        #|  let apply = Apply::{ call: apply_call }
+        #|  apply.call[I64, Eff](0, callback)
+        #|}
+        #|
+        #|pub extern type Host : Effect
+        #|let observe : (I64) -> Unit ! Host = extern("lane.test", "observe")
+        #|
+        #|pub fn main() -> Unit ! Host {
+        #|  let result = handle forwarded[{ Ask }](answer_callback) with {
+        #|    Ask::ask(resume) => resume(42)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|  observe(result)
+        #|}
+      ),
+    ),
+  )
+  let selected = report.stages
+    .ordered()
+    .filter_map(stage => {
+      guard stage.id == "vmcfg.initial" else { return None }
+      explore_stage_scale(stage)
+    })
+  let adapters = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is CallableAdapter(..))
+  })
+  let adapter_count = report.functions.nodes
+    .filter(node => {
+      node.function.stage == VmcfgInitial &&
+      node.roles.any(role => role is CallableAdapter(..))
+    })
+    .length()
+  let mut indirect_calls = []
+  for stage in report.stages.ordered() {
+    if stage.id == "vmcfg.initial" && stage.state is Completed(snapshot) {
+      indirect_calls = snapshot.indirect_calls
+    }
+  }
+  let source_calls = indirect_calls
+    .filter(call => call.origins.contains(SourceBound))
+    .length()
+  let adapter_calls = indirect_calls
+    .filter(call => call.origins.contains(CallableAdapter))
+    .length()
+  let exact_packed_calls = indirect_calls
+    .filter(call => call.resolution is ExactTarget(_, Packed))
+    .length()
+  assert_eq(
+    (
+      indirect_calls.length(),
+      source_calls,
+      adapter_calls,
+      exact_packed_calls,
+      indirect_calls.any(call => call.boundaries.is_empty()),
+    ),
+    (0, 0, 0, 0, false),
+  )
+  debug_inspect(
+    (
+      report.status,
+      report.diagnostics,
+      adapters.map(node => node.roles),
+      adapter_count,
+      selected,
+    ),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [],
+      #|  [],
+      #|  0,
+      #|  [
+      #|    (
+      #|      "vmcfg.initial",
+      #|      [
+      #|        ("functionCount", 3),
+      #|        ("importCount", 1),
+      #|        ("blockCount", 4),
+      #|        ("instructionCount", 3),
+      #|        ("valueCount", 8),
+      #|        ("directCallCount", 3),
+      #|        ("indirectCallCount", 0),
+      #|        ("functionReferenceCount", 1),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("genericAbiEraseCount", 0),
+      #|        ("genericAbiUneraseCount", 0),
+      #|        ("retainCount", 0),
+      #|        ("releaseCount", 0),
+      #|        ("globalCount", 0),
+      #|        ("layoutCount", 0),
+      #|        ("objectShapeCount", 0),
+      #|        ("constantCount", 0),
+      #|      ],
+      #|      [
+      #|        { index: 1, block_count: 1, operation_count: 2, value_count: 2 },
+      #|        { index: 2, block_count: 2, operation_count: 1, value_count: 5 },
+      #|        { index: 3, block_count: 1, operation_count: 0, value_count: 1 },
+      #|      ],
+      #|    ),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
+test "expanding recursive generic application uses one finite worker and fallback" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|enum Box[T] {
+        #|  box(T)
+        #|}
+        #|
+        #|fn[T] expand(value : T) -> Unit {
+        #|  expand[Box[T]](Box::box(value))
+        #|}
+        #|
+        #|pub fn main() -> Unit {
+        #|  expand[I64](0)
+        #|}
+      ),
+    ),
+  )
+  let adapters = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is CallableAdapter(..))
+  })
+  let workers = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is RepresentationWorker)
+  })
+  assert_eq(
+    (report.status, report.diagnostics, adapters.length(), workers.length()),
+    (Succeeded, [], 0, 1),
+  )
+}
+
+///|
+test "explore attributes a closed effect worker nominal ABI crossing" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|effect Tick {
+        #|  tick(I64) -> I64
+        #|}
+        #|
+        #|let record_callback : () -> Unit ! Io = extern("lane.test", "record_callback")
+        #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
+        #|
+        #|fn[T, R, Eff : Effect] apply(
+        #|  value : T,
+        #|  callback : (T) -> R ! Eff
+        #|) -> R ! Eff {
+        #|  callback(value)
+        #|}
+        #|
+        #|fn[T, R, Eff : Effect] forward(
+        #|  value : T,
+        #|  callback : (T) -> R ! Eff
+        #|) -> R ! Eff {
+        #|  apply[T, R, Eff](value, callback)
+        #|}
+        #|
+        #|fn increment_mixed(value : I64) -> I64 ! { Tick, Io } {
+        #|  record_callback()
+        #|  Tick::tick!(value)
+        #|}
+        #|
+        #|pub fn main() -> Unit ! Io {
+        #|  let direct = handle apply[I64, I64, { Tick, Io }](41, increment_mixed) with {
+        #|    Tick::tick(value, resume) => resume(value)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|  observe(direct)
+        #|  let forwarded = handle forward[I64, I64, { Tick, Io }](41, increment_mixed) with {
+        #|    Tick::tick(value, resume) => resume(value)
+        #|  } final value {
+        #|    value
+        #|  }
+        #|  observe(forwarded)
+        #|}
+      ),
+    ),
+  )
+  let workers = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is RepresentationWorker)
+  })
+  let adapters = report.functions.nodes.filter(node => {
+    node.function.stage == VmcfgInitial &&
+    node.roles.any(role => role is CallableAdapter(..))
+  })
+  let mut metrics = []
+  let mut worker_calls = []
+  for stage in report.stages.ordered() {
+    if stage.id == "vmcfg.initial" && stage.state is Completed(snapshot) {
+      metrics = snapshot.scale.metrics
+        .filter(metric => {
+          metric.id.key() == "genericAbiEraseCount" ||
+          metric.id.key() == "genericAbiUneraseCount"
+        })
+        .map(metric => (metric.id.key(), metric.value))
+      worker_calls = snapshot.indirect_calls.filter(call => {
+        call.origins.contains(RepresentationWorker)
+      })
+    }
+  }
+  debug_inspect(
+    (
+      report.status,
+      report.diagnostics,
+      workers.length(),
+      adapters.length(),
+      metrics,
+      worker_calls.map(call => {
+        (
+          call.origins,
+          call.resolution is ExactTarget(_, Packed),
+          call.boundaries,
+        )
+      }),
+    ),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [],
+      #|  1,
+      #|  3,
+      #|  [("genericAbiEraseCount", 2), ("genericAbiUneraseCount", 2)],
+      #|  [([RepresentationWorker], true, [AggregateStorage, FunctionParameter])],
+      #|)
+    ),
+  )
+}
+
+///|
+test "explore records concrete-answer CPS cleanup after scalar replacement" {
   let report = explore(
     explore_test_request(
       (
@@ -473,8 +986,8 @@ test "explore gates concrete-answer CPS normalization" {
         #|  ping(I64) -> I64
         #|}
         #|
-        #|let add : (I64, I64) -> I64 = extern("add")
-        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|let add : (I64, I64) -> I64 = extern("lane.test", "add")
+        #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
         #|
         #|fn computation() -> I64 ! Probe {
         #|  Probe::ping!(40)
@@ -497,7 +1010,7 @@ test "explore gates concrete-answer CPS normalization" {
       guard stage.id == "buslane.monadic-lifted" ||
         stage.id == "buslane.cps-core-optimized" ||
         stage.id == "vmcfg.initial" ||
-        stage.id == "loisvm.bytecode" else {
+        stage.id == "physical" else {
         return None
       }
       guard explore_stage_scale(stage) is Some((id, metrics, _)) else {
@@ -510,7 +1023,7 @@ test "explore gates concrete-answer CPS normalization" {
             [
               "topTermCount", "nodeCount", "callCount", "functionCount", "instructionCount",
               "directCallCount", "indirectCallCount", "closureCount", "environmentCount",
-              "eraseCount", "uneraseCount",
+              "genericAbiEraseCount", "genericAbiUneraseCount",
             ].contains(metric.0)
           }),
         ),
@@ -537,34 +1050,34 @@ test "explore gates concrete-answer CPS normalization" {
       #|      [
       #|        ("topTermCount", 3),
       #|        ("functionCount", 4),
-      #|        ("nodeCount", 31),
+      #|        ("nodeCount", 27),
       #|        ("callCount", 5),
       #|      ],
       #|    ),
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 7),
-      #|        ("instructionCount", 37),
-      #|        ("directCallCount", 2),
-      #|        ("indirectCallCount", 6),
-      #|        ("closureCount", 4),
-      #|        ("environmentCount", 4),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 2),
+      #|        ("functionCount", 3),
+      #|        ("instructionCount", 5),
+      #|        ("directCallCount", 4),
+      #|        ("indirectCallCount", 0),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("genericAbiEraseCount", 0),
+      #|        ("genericAbiUneraseCount", 0),
       #|      ],
       #|    ),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      [
-      #|        ("functionCount", 7),
-      #|        ("instructionCount", 31),
+      #|        ("functionCount", 3),
+      #|        ("instructionCount", 6),
       #|        ("directCallCount", 4),
-      #|        ("indirectCallCount", 4),
-      #|        ("closureCount", 3),
-      #|        ("environmentCount", 3),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 2),
+      #|        ("indirectCallCount", 0),
+      #|        ("closureCount", 0),
+      #|        ("environmentCount", 0),
+      #|        ("genericAbiEraseCount", 0),
+      #|        ("genericAbiUneraseCount", 0),
       #|      ],
       #|    ),
       #|  ],
@@ -574,12 +1087,13 @@ test "explore gates concrete-answer CPS normalization" {
 }
 
 ///|
-test "explore keeps expanding recursive representation SCC generic" {
+test "explore bounds expanding recursive specialization to one worker" {
   let report = explore(
     explore_test_request(
       (
         #|module Main
-        #|let read_flag : () -> Bool ! Io = extern("read_flag")
+        #|let read_flag : () -> I32 ! Io = extern("lane.test", "read_flag")
+        #|let i32_equal : (I32, I32) -> Bool = builtin("%i32_equal")
         #|
         #|enum Box[T] {
         #|  box(T)
@@ -594,7 +1108,8 @@ test "explore keeps expanding recursive representation SCC generic" {
         #|}
         #|
         #|pub fn main() -> Unit ! Io {
-        #|  grow[I64](read_flag(), 42)
+        #|  grow[I64](i32_equal(read_flag(), 0i32), 42)
+        #|  grow[I64](i32_equal(read_flag(), 0i32), 7)
         #|}
       ),
     ),
@@ -602,7 +1117,7 @@ test "explore keeps expanding recursive representation SCC generic" {
   let selected = report.stages
     .ordered()
     .filter_map(stage => {
-      guard stage.id == "vmcfg.initial" || stage.id == "loisvm.bytecode" else {
+      guard stage.id == "vmcfg.initial" || stage.id == "physical" else {
         return None
       }
       explore_stage_scale(stage)
@@ -617,56 +1132,60 @@ test "explore keeps expanding recursive representation SCC generic" {
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 2),
+      #|        ("functionCount", 3),
       #|        ("importCount", 1),
-      #|        ("blockCount", 5),
-      #|        ("instructionCount", 10),
-      #|        ("valueCount", 13),
-      #|        ("directCallCount", 3),
+      #|        ("blockCount", 7),
+      #|        ("instructionCount", 20),
+      #|        ("valueCount", 26),
+      #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 0),
+      #|        ("genericAbiEraseCount", 3),
+      #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
       #|        ("layoutCount", 3),
       #|        ("objectShapeCount", 1),
       #|        ("constantCount", 0),
+      #|        ("duplicateRuntimeAbiWorkerCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 4, operation_count: 5, value_count: 8 },
-      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 5 },
+      #|        { index: 1, block_count: 3, operation_count: 5, value_count: 9 },
+      #|        { index: 2, block_count: 1, operation_count: 8, value_count: 8 },
+      #|        { index: 3, block_count: 3, operation_count: 7, value_count: 9 },
       #|      ],
       #|    ),
       #|    (
-      #|      "loisvm.bytecode",
+      #|      "physical",
       #|      [
-      #|        ("functionCount", 2),
+      #|        ("functionCount", 3),
       #|        ("importCount", 1),
-      #|        ("blockCount", 5),
-      #|        ("instructionCount", 11),
-      #|        ("slotCount", 12),
-      #|        ("directCallCount", 3),
+      #|        ("blockCount", 8),
+      #|        ("instructionCount", 21),
+      #|        ("slotCount", 18),
+      #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("eraseCount", 2),
-      #|        ("uneraseCount", 0),
+      #|        ("genericAbiEraseCount", 3),
+      #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 1),
-      #|        ("callableAbiCount", 3),
+      #|        ("callableAbiCount", 4),
       #|        ("globalCount", 0),
       #|        ("layoutCount", 3),
       #|        ("objectShapeCount", 1),
       #|        ("constantCount", 0),
+      #|        ("duplicateRuntimeAbiWorkerCount", 0),
       #|      ],
       #|      [
       #|        { index: 1, block_count: 4, operation_count: 6, value_count: 7 },
-      #|        { index: 2, block_count: 1, operation_count: 5, value_count: 5 },
+      #|        { index: 2, block_count: 1, operation_count: 8, value_count: 4 },
+      #|        { index: 3, block_count: 3, operation_count: 7, value_count: 7 },
       #|      ],
       #|    ),
       #|  ],
@@ -691,7 +1210,7 @@ test "explore removes alpha-renamed adapters during CPS core normalization" {
         #|}
         #|
         #|let add : (I64, I64) -> I64 = builtin("%i64_add")
-        #|let sink : (I64) -> Unit ! Io = extern("sink")
+        #|let sink : (I64) -> Unit ! Io = extern("lane.test", "sink")
         #|
         #|let left : Left[I64] = Left::{ apply: add }
         #|let right : Right[I64] = Right::{ apply: add }
@@ -704,7 +1223,7 @@ test "explore removes alpha-renamed adapters during CPS core normalization" {
   )
   let adapter_roles = report.functions.nodes.filter_map(node => {
     guard node.function.stage == VmcfgInitial &&
-      node.roles.any(role => role is CallableAdapter) else {
+      node.roles.any(role => role is CallableAdapter(..)) else {
       return None
     }
     Some(node.roles)
@@ -801,7 +1320,7 @@ test "explore parse failure marks syntax failed and later stages unavailable" {
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
       #|    ("vmcfg.initial", "unavailable"),
-      #|    ("loisvm.bytecode", "unavailable"),
+      #|    ("physical", "unavailable"),
       #|    ("wasm", "unavailable"),
       #|  ],
       #|)
@@ -896,7 +1415,7 @@ test "explore graph failure preserves syntax and fails resolved" {
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
       #|    ("vmcfg.initial", "unavailable"),
-      #|    ("loisvm.bytecode", "unavailable"),
+      #|    ("physical", "unavailable"),
       #|    ("wasm", "unavailable"),
       #|  ],
       #|)
@@ -984,7 +1503,7 @@ test "explore resolve failure preserves syntax and fails resolved" {
       #|    ("executable", "unavailable"),
       #|    ("anf", "unavailable"),
       #|    ("vmcfg.initial", "unavailable"),
-      #|    ("loisvm.bytecode", "unavailable"),
+      #|    ("physical", "unavailable"),
       #|    ("wasm", "unavailable"),
       #|  ],
       #|)
@@ -1047,7 +1566,7 @@ test "explore typecheck and entry-selection failures retain completed stages" {
       #|      ("executable", "unavailable"),
       #|      ("anf", "unavailable"),
       #|      ("vmcfg.initial", "unavailable"),
-      #|      ("loisvm.bytecode", "unavailable"),
+      #|      ("physical", "unavailable"),
       #|      ("wasm", "unavailable"),
       #|    ],
       #|  ),
@@ -1070,7 +1589,7 @@ test "explore typecheck and entry-selection failures retain completed stages" {
       #|      ("executable", "unavailable"),
       #|      ("anf", "unavailable"),
       #|      ("vmcfg.initial", "unavailable"),
-      #|      ("loisvm.bytecode", "unavailable"),
+      #|      ("physical", "unavailable"),
       #|      ("wasm", "unavailable"),
       #|    ],
       #|  ),
@@ -1156,23 +1675,23 @@ test "explore traces a named function and preserves synthetic roots" {
     ),
     content=(
       #|(
-      #|  5,
+      #|  11,
       #|  [
       #|    (
       #|      { stage: Anf, index: 0 },
-      #|      [[SourceFunction(value=1, name=Some("main"))]],
+      #|      [[SourceFunction(value=1, name=Some("main")), RuntimeAnfTopLevelRoot]],
       #|    ),
       #|    (
       #|      { stage: VmcfgInitial, index: 1 },
       #|      [[SourceFunction(value=1, name=Some("main"))]],
       #|    ),
       #|    (
-      #|      { stage: LoisvmBytecode, index: 1 },
+      #|      { stage: PhysicalProgram, index: 1 },
       #|      [[SourceFunction(value=1, name=Some("main"))]],
       #|    ),
-      #|    ({ stage: Wasm, index: 0 }, [[WasmBytecodeFunction]]),
+      #|    ({ stage: Wasm, index: 0 }, [[WasmPhysicalFunction]]),
       #|  ],
-      #|  [{ function: { stage: Wasm, index: 24 }, roles: [EntryWrapper] }],
+      #|  [{ function: { stage: Wasm, index: 1 }, roles: [EntryWrapper] }],
       #|  false,
       #|)
     ),
@@ -1185,7 +1704,7 @@ test "every Explore function scale consumes an IR-owned identity" {
     explore_test_request(
       (
         #|module Main
-        #|let observe : (I64) -> Unit ! Io = extern("observe")
+        #|let observe : (I64) -> Unit ! Io = extern("lane.test", "observe")
         #|fn apply(f : (I64) -> I64, value : I64) -> I64 { f(value) }
         #|pub fn main() -> Unit ! Io {
         #|  observe(apply(fn(value) { value }, 42))

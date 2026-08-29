@@ -29,7 +29,7 @@ pub struct CertifiedCanonicalBasicAbiRuntimeContract {
 
 ///|
 pub fn CanonicalBasicAbiRuntimeContract::empty() -> CanonicalBasicAbiRuntimeContract {
-  { void_type: None }
+  { void_type: None, }
 }
 
 ///|
@@ -51,7 +51,7 @@ pub fn lower_runtime_contract(
   checked : @checked.CheckedCanonicalBasicAbi,
   lower_type : (@symbol.TypeSymbolId) -> @buslane.TypeId,
 ) -> CanonicalBasicAbiRuntimeContract {
-  { void_type: checked.type_symbol(Void).map(lower_type) }
+  { void_type: checked.type_symbol(Void).map(lower_type), }
 }
 
 ///|
@@ -84,7 +84,7 @@ pub fn CanonicalBasicAbiRuntimeContract::certify(
       )
     }
   }
-  Ok({ contract: self })
+  Ok({ contract: self, })
 }
 
 ///|

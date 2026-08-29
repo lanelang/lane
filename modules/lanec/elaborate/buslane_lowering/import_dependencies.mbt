@@ -66,7 +66,7 @@ fn BuslaneLowerer::seed_imported_type_dependency(
   guard available.find(module_path) is Some(interface) else {
     raise MissingTypeDependency(module_path, interface_type_name(type_))
   }
-  let { types: type_symbols, effects: effect_symbols } = type_.dependency_symbols()
+  let { types: type_symbols, effects: effect_symbols, } = type_.dependency_symbols()
   for symbol in type_symbols {
     if self.registry.find_type(symbol) is Some(_) {
       continue

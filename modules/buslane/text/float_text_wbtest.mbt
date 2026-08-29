@@ -15,7 +15,7 @@ fn float_literal_program(
     _ => abort("expected floating literal")
   }
   let value = metadata.define_value("value", Value, type_)
-  { metadata, terms: [Let(value, Literal(literal))] }
+  { metadata, terms: [Let(value, Literal(literal))], }
 }
 
 ///|

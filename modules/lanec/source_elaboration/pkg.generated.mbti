@@ -1,0 +1,62 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/source_elaboration"
+
+import {
+  "Milky2018/lanec/checked",
+  "Milky2018/lanec/diagnostic",
+  "Milky2018/lanec/module",
+  "Milky2018/lanec/module/frontend",
+  "Milky2018/lanec/resolve",
+  "Milky2018/lanec/symbol",
+  "Milky2018/lanec/typecheck",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn elaborate_source(@frontend.ParsedModuleInput, @symbol.SymbolRegistry, @module.ModuleImportEnvironments, previous_declarations? : @symbol.DeclarationIdentities?) -> SourceElaborationOutcome
+
+// Errors
+
+// Types and methods
+pub struct SourceElaborationCompilerDefect {
+  // private fields
+}
+pub fn SourceElaborationCompilerDefect::cause(Self) -> SourceElaborationCompilerDefectCause
+pub fn SourceElaborationCompilerDefect::diagnostic(Self) -> @diagnostic.CompilerDiagnostic
+
+pub(all) enum SourceElaborationCompilerDefectCause {
+  InvalidTypecheckInput(@typecheck.TypeCheckError)
+  IncompleteTypecheckOutput
+} derive(Eq, @debug.Debug)
+pub fn SourceElaborationCompilerDefectCause::equal(Self, Self) -> Bool
+pub fn SourceElaborationCompilerDefectCause::not_equal(Self, Self) -> Bool
+pub fn SourceElaborationCompilerDefectCause::to_repr(Self) -> @debug.Repr
+
+pub(all) enum SourceElaborationOutcome {
+  ResolutionFailed(SourceResolutionFailure)
+  TypecheckFailed(SourceTypecheckFailure)
+  Succeeded(SuccessfulSourceElaboration)
+  CompilerDefect(SourceElaborationCompilerDefect)
+}
+pub fn SourceElaborationOutcome::diagnostics(Self) -> Array[@diagnostic.CompilerDiagnostic]
+pub fn SourceElaborationOutcome::resolved_source(Self) -> @resolve.ResolvedSourceFile
+
+pub struct SourceResolutionFailure {
+  // private fields
+}
+
+pub struct SourceTypecheckFailure {
+  // private fields
+}
+
+pub struct SuccessfulSourceElaboration {
+  // private fields
+}
+pub fn SuccessfulSourceElaboration::checked_source(Self) -> @checked.CheckedSourceFile
+pub fn SuccessfulSourceElaboration::exported_symbols(Self) -> @symbol.SymbolMetadataArena
+pub fn SuccessfulSourceElaboration::module_interface(Self) -> @module.ModuleInterface
+pub fn SuccessfulSourceElaboration::warnings(Self) -> Array[@diagnostic.CompilerDiagnostic]
+
+// Type aliases
+
+// Traits

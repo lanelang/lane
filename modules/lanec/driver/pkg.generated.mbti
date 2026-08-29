@@ -2,9 +2,10 @@
 package "Milky2018/lanec/driver"
 
 import {
-  "Milky2018/lanec/compile",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/executable",
+  "Milky2018/lanec/module/frontend",
+  "Milky2018/lanec/physical_lowering",
   "moonbitlang/core/debug",
 }
 
@@ -13,7 +14,7 @@ pub fn explore(ExploreRequest) -> ExploreReport
 
 pub let explore_report_schema_version : Int
 
-pub fn list_entries(@compile.SourceInput, Array[@compile.SourceInput]) -> EntryReport
+pub fn list_entries(@frontend.SourceInput, Array[@frontend.SourceInput]) -> EntryReport
 
 // Errors
 
@@ -23,56 +24,111 @@ pub(all) struct EntryReport {
   entries : Array[EntrySummary]
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn EntryReport::equal(Self, Self) -> Bool
+pub fn EntryReport::not_equal(Self, Self) -> Bool
+pub fn EntryReport::to_repr(Self) -> @debug.Repr
 
 pub(all) struct EntrySummary {
   module_path_text : String
   name : String
   type_text : String
 } derive(Eq, @debug.Debug)
+pub fn EntrySummary::equal(Self, Self) -> Bool
+pub fn EntrySummary::not_equal(Self, Self) -> Bool
+pub fn EntrySummary::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ExploreCallableEnvironmentKnowledge {
+  CaptureFree
+  Local
+  Packed
+} derive(Eq, @debug.Debug)
+pub fn ExploreCallableEnvironmentKnowledge::equal(Self, Self) -> Bool
+pub fn ExploreCallableEnvironmentKnowledge::not_equal(Self, Self) -> Bool
+pub fn ExploreCallableEnvironmentKnowledge::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ExploreCallableFlowBoundary {
+  Alias
+  BlockParameter
+  FunctionParameter
+  FunctionResult
+  AggregateStorage
+  GlobalStorage
+  OpaqueInput
+  OpaqueOperation
+} derive(Eq, @debug.Debug)
+pub fn ExploreCallableFlowBoundary::equal(Self, Self) -> Bool
+pub fn ExploreCallableFlowBoundary::not_equal(Self, Self) -> Bool
+pub fn ExploreCallableFlowBoundary::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreCompilerIdentity {
   name : String
   version : String
 } derive(Eq, @debug.Debug)
+pub fn ExploreCompilerIdentity::equal(Self, Self) -> Bool
+pub fn ExploreCompilerIdentity::not_equal(Self, Self) -> Bool
+pub fn ExploreCompilerIdentity::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionEdge {
   source : ExploreFunctionRef
   target : ExploreFunctionRef
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionEdge::equal(Self, Self) -> Bool
+pub fn ExploreFunctionEdge::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionEdge::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionGraph {
   nodes : Array[ExploreFunctionNode]
   edges : Array[ExploreFunctionEdge]
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionGraph::equal(Self, Self) -> Bool
+pub fn ExploreFunctionGraph::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionGraph::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionNode {
   function : ExploreFunctionRef
   roles : Array[ExploreFunctionRole]
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionNode::equal(Self, Self) -> Bool
+pub fn ExploreFunctionNode::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionNode::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionRef {
   stage : ExploreStageId
   index : Int
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionRef::equal(Self, Self) -> Bool
+pub fn ExploreFunctionRef::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionRef::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreFunctionRole {
+  RuntimeAnfTopLevelRoot
+  RuntimeAnfEscapingClosure
+  RuntimeAnfDirectFunction
+  RuntimeAnfJoinPoint
   SourceFunction(value~ : Int, name~ : String?)
-  AnonymousFunction
+  SourceAnonymousFunction
+  HandlerElaborationFunction
+  MonadicTransformationFunction
+  SelectiveCpsFunction
   Initializer(value~ : Int, name~ : String?)
   InitializerOrchestrator
   IntrinsicWrapper(name~ : String)
-  CallableAdapter
-  RepresentationWorker(value~ : Int?, name~ : String?)
+  RepresentationWorker
+  CallableAdapter(contract~ : @physical_lowering.CallableAdapterWorkerContractId, reason~ : @physical_lowering.CallableAdapterReason)
   LayoutConstructor
-  RuntimeImport(value~ : Int, name~ : String?, symbol~ : String)
+  RuntimeImport(value~ : Int, name~ : String?, module_name~ : String, field_name~ : String)
   InternalRuntimeImport(name~ : String)
-  PhysicalRuntimeImport(symbol~ : String)
-  WasmBytecodeFunction
-  RuntimeImportAdapter(symbol~ : String)
+  WasiPreview1Import(module_name~ : String, field_name~ : String)
+  PhysicalRuntimeImport(module_name~ : String, field_name~ : String)
+  WasmPhysicalFunction
+  RuntimeImportAdapter(module_name~ : String, field_name~ : String)
   WasmRuntimeFunction(name~ : String)
   WasmHelperFunction(name~ : String, ordinal~ : Int?)
   EntryWrapper
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionRole::equal(Self, Self) -> Bool
+pub fn ExploreFunctionRole::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionRole::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreFunctionScale {
   index : Int
@@ -80,20 +136,67 @@ pub(all) struct ExploreFunctionScale {
   operation_count : Int
   value_count : Int
 } derive(Eq, @debug.Debug)
+pub fn ExploreFunctionScale::equal(Self, Self) -> Bool
+pub fn ExploreFunctionScale::not_equal(Self, Self) -> Bool
+pub fn ExploreFunctionScale::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ExploreIndirectCallObservation {
+  function : ExploreFunctionRef
+  ordinal : Int
+  origins : Array[ExploreIndirectCallOrigin]
+  resolution : ExploreIndirectCallResolution
+  boundaries : Array[ExploreCallableFlowBoundary]
+} derive(Eq, @debug.Debug)
+pub fn ExploreIndirectCallObservation::equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallObservation::not_equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallObservation::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ExploreIndirectCallOrigin {
+  SourceBound
+  SourceAnonymous
+  HandlerElaboration
+  MonadicTransformation
+  SelectiveCps
+  CallableAdapter
+  RepresentationWorker
+  Initialization
+  RuntimeSupport
+} derive(Eq, @debug.Debug)
+pub fn ExploreIndirectCallOrigin::equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallOrigin::not_equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallOrigin::to_repr(Self) -> @debug.Repr
+
+pub(all) enum ExploreIndirectCallResolution {
+  ExactTarget(ExploreFunctionRef, ExploreCallableEnvironmentKnowledge)
+  MultipleTargets(Array[ExploreFunctionRef])
+  UnknownTargets(Array[ExploreFunctionRef])
+} derive(Eq, @debug.Debug)
+pub fn ExploreIndirectCallResolution::equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallResolution::not_equal(Self, Self) -> Bool
+pub fn ExploreIndirectCallResolution::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreMetric {
   id : ExploreMetricId
   value : Int
 } derive(Eq, @debug.Debug)
+pub fn ExploreMetric::equal(Self, Self) -> Bool
+pub fn ExploreMetric::not_equal(Self, Self) -> Bool
+pub fn ExploreMetric::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreMetricId {
+  DeclarationCount
   TopTermCount
   FunctionCount
   ImportCount
   NodeCount
+  SourceGenericBinderCount
+  GenericBinderCount
+  SourceTypeApplicationCount
+  TypeApplicationCount
   BlockCount
   InstructionCount
   CallCount
+  ExternalCount
   ValueCount
   SlotCount
   DirectCallCount
@@ -102,6 +205,7 @@ pub(all) enum ExploreMetricId {
   ClosureCount
   EnvironmentCount
   CallableAbiCount
+  DuplicateRuntimeAbiWorkerCount
   GlobalCount
   LayoutCount
   ObjectShapeCount
@@ -112,9 +216,28 @@ pub(all) enum ExploreMetricId {
   ReleaseCount
   LocalCount
   TableEntryCount
+  WasmIfCount
+  WasmUnreachableCount
+  UnreachableWasmSupportRoleCount
+  WasmExpansionInstructionCount(String)
+  WasmExpansionLocalCount(String)
 } derive(Eq, @debug.Debug)
+pub fn ExploreMetricId::equal(Self, Self) -> Bool
 pub fn ExploreMetricId::key(Self) -> String
+pub fn ExploreMetricId::not_equal(Self, Self) -> Bool
 pub fn ExploreMetricId::title(Self) -> String
+pub fn ExploreMetricId::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ExploreModuleScale {
+  module_path_text : String
+  input_top_terms : Int
+  retained_top_terms : Int
+  input_value_bindings : Int
+  retained_value_bindings : Int
+} derive(Eq, @debug.Debug)
+pub fn ExploreModuleScale::equal(Self, Self) -> Bool
+pub fn ExploreModuleScale::not_equal(Self, Self) -> Bool
+pub fn ExploreModuleScale::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreReport {
   schema_version : Int
@@ -126,23 +249,36 @@ pub(all) struct ExploreReport {
   stages : ExploreStages
   functions : ExploreFunctionGraph
 } derive(Eq, @debug.Debug)
+pub fn ExploreReport::equal(Self, Self) -> Bool
+pub fn ExploreReport::not_equal(Self, Self) -> Bool
+pub fn ExploreReport::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreRequest {
-  root_source : @compile.SourceInput
-  library_sources : Array[@compile.SourceInput]
+  root_source : @frontend.SourceInput
+  library_sources : Array[@frontend.SourceInput]
   entry : String
   execution_profile : @executable.ExecutionProfile
 } derive(Eq, @debug.Debug)
+pub fn ExploreRequest::equal(Self, Self) -> Bool
+pub fn ExploreRequest::not_equal(Self, Self) -> Bool
+pub fn ExploreRequest::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreRootIdentity {
   source_id : String
   module_path_text : String?
 } derive(Eq, @debug.Debug)
+pub fn ExploreRootIdentity::equal(Self, Self) -> Bool
+pub fn ExploreRootIdentity::not_equal(Self, Self) -> Bool
+pub fn ExploreRootIdentity::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreScaleObservation {
   metrics : Array[ExploreMetric]
   functions : Array[ExploreFunctionScale]
+  modules : Array[ExploreModuleScale]
 } derive(Eq, @debug.Debug)
+pub fn ExploreScaleObservation::equal(Self, Self) -> Bool
+pub fn ExploreScaleObservation::not_equal(Self, Self) -> Bool
+pub fn ExploreScaleObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreSnapshot {
   domain : ExploreStageDomain
@@ -150,19 +286,29 @@ pub(all) struct ExploreSnapshot {
   text : String
   diagnostics : Array[@diagnostic.CompilerDiagnostic]
   scale : ExploreScaleObservation
+  indirect_calls : Array[ExploreIndirectCallObservation]
 } derive(Eq, @debug.Debug)
+pub fn ExploreSnapshot::equal(Self, Self) -> Bool
+pub fn ExploreSnapshot::not_equal(Self, Self) -> Bool
+pub fn ExploreSnapshot::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExploreStage {
   id : String
   title : String
   state : ExploreStageState
 } derive(Eq, @debug.Debug)
+pub fn ExploreStage::equal(Self, Self) -> Bool
+pub fn ExploreStage::not_equal(Self, Self) -> Bool
+pub fn ExploreStage::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreStageDomain {
   Compiler
   Backend
 } derive(Eq, @debug.Debug)
+pub fn ExploreStageDomain::equal(Self, Self) -> Bool
 pub fn ExploreStageDomain::name(Self) -> String
+pub fn ExploreStageDomain::not_equal(Self, Self) -> Bool
+pub fn ExploreStageDomain::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreStageId {
   Syntax
@@ -181,43 +327,38 @@ pub(all) enum ExploreStageId {
   Executable
   Anf
   VmcfgInitial
-  LoisvmBytecode
+  PhysicalProgram
   Wasm
 } derive(Eq, @debug.Debug)
+pub fn ExploreStageId::equal(Self, Self) -> Bool
 pub fn ExploreStageId::key(Self) -> String
+pub fn ExploreStageId::not_equal(Self, Self) -> Bool
+pub fn ExploreStageId::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreStageState {
   Completed(ExploreSnapshot)
   Failed(Array[@diagnostic.CompilerDiagnostic])
   Unavailable
 } derive(Eq, @debug.Debug)
+pub fn ExploreStageState::equal(Self, Self) -> Bool
+pub fn ExploreStageState::not_equal(Self, Self) -> Bool
+pub fn ExploreStageState::to_repr(Self) -> @debug.Repr
 
-pub(all) struct ExploreStages {
-  syntax : ExploreStageState
-  resolved : ExploreStageState
-  checked : ExploreStageState
-  buslane_module : ExploreStageState
-  buslane_linked : ExploreStageState
-  buslane_effect_specialized : ExploreStageState
-  buslane_core_optimized : ExploreStageState
-  buslane_handlers_elaborated : ExploreStageState
-  buslane_monadic : ExploreStageState
-  buslane_selective_cps : ExploreStageState
-  buslane_open_context_resolved : ExploreStageState
-  buslane_monadic_lifted : ExploreStageState
-  buslane_cps_core_optimized : ExploreStageState
-  executable : ExploreStageState
-  anf : ExploreStageState
-  vmcfg_initial : ExploreStageState
-  loisvm_bytecode : ExploreStageState
-  wasm : ExploreStageState
+pub struct ExploreStages {
+  // private fields
 } derive(Eq, @debug.Debug)
+pub fn ExploreStages::equal(Self, Self) -> Bool
+pub fn ExploreStages::not_equal(Self, Self) -> Bool
 pub fn ExploreStages::ordered(Self) -> Array[ExploreStage]
+pub fn ExploreStages::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreStatus {
   Succeeded
   Failed(ExploreStageId)
 } derive(Eq, @debug.Debug)
+pub fn ExploreStatus::equal(Self, Self) -> Bool
+pub fn ExploreStatus::not_equal(Self, Self) -> Bool
+pub fn ExploreStatus::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExploreTextFormat {
   Lane
@@ -227,10 +368,13 @@ pub(all) enum ExploreTextFormat {
   EffectLowering
   Anf
   Vmcfg
-  LoisvmBytecode
+  PhysicalProgram
   Wat
 } derive(Eq, @debug.Debug)
+pub fn ExploreTextFormat::equal(Self, Self) -> Bool
 pub fn ExploreTextFormat::name(Self) -> String
+pub fn ExploreTextFormat::not_equal(Self, Self) -> Bool
+pub fn ExploreTextFormat::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

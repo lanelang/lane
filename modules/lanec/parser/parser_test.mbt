@@ -107,7 +107,7 @@ test "parse keeps negation outside a suffixed numeric literal" {
             operand=IntegerLiteral("2147483648", suffix=Some(I32Suffix), ..),
             ..
           ),
-          ..,
+          ..
         }
       ),
     ],
@@ -136,7 +136,7 @@ test "parse negative floating literal patterns with their fixed suffix" {
               arms=[
                 {
                   pattern: FloatingLiteral("-1.5", suffix=Some(F32Suffix), ..),
-                  ..,
+                  ..
                 },
                 ..,
               ],
@@ -144,7 +144,7 @@ test "parse negative floating literal patterns with their fixed suffix" {
             ),
             ..
           ),
-          ..,
+          ..
         }
       ),
     ],

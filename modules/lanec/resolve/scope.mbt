@@ -28,12 +28,12 @@ priv struct ResolveScope {
 
 ///|
 fn ResolveScope::copy(self : ResolveScope) -> ResolveScope {
-  { values: self.values.copy(), type_parameters: self.type_parameters.copy() }
+  { values: self.values.copy(), type_parameters: self.type_parameters.copy(), }
 }
 
 ///|
 fn ResolveScope::enter_scope(self : ResolveScope) -> ResolveScope {
-  { values: self.values.copy(), type_parameters: self.type_parameters.copy() }
+  { values: self.values.copy(), type_parameters: self.type_parameters.copy(), }
 }
 
 ///|

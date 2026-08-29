@@ -4,6 +4,10 @@ status: accepted
 
 # Built-in effects, extern bindings, and host seams
 
+> **Partially superseded.** The WASI Preview 1 WebAssembly Target RFC replaces
+> this ADR's semantic extern registry and generic host-object transport. Its
+> source effect and compiler-intrinsic decisions remain in force.
+
 Lane separates effect semantics, compiler intrinsics, host linkage, and host effect handling. `Io` and `Panic` are import-free compiler-provided built-in effect atoms. Users may additionally declare nominal External Effects with `extern type E : Effect`. Built-in and External Effects have no operations, are non-handleable, do not trigger monadic translation, and remain as static observability markers until residual effect erasure. `builtin("...")` selects a compiler-known intrinsic from a closed signature table, while `extern("...")` names an open host symbol and lowers to a LoisVM runtime import.
 
 Every nominal effect identity has a declaration-owned origin and an External or Algebraic flavor. Built-in effect atoms instead use closed semantic-IR constructors: `Io` denotes runtime I/O and `Panic` denotes documented source-level fatal control. They are encoded explicitly rather than forged as registry-local ordinary `EffectSymbolId` values.

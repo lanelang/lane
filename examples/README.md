@@ -23,6 +23,8 @@ to the examples checker:
 ```sh
 git submodule update --init --checkout basic
 moon build --target native --release modules/lane
+lane_bin="$PWD/_build/native/release/build/Milky2018/lane/lane.exe"
+(cd basic && LANE_BIN="$lane_bin" ./test.sh)
 tools/check-lane-run-examples.sh \
   "$PWD/_build/native/release/build/Milky2018/lane/lane.exe"
 ```

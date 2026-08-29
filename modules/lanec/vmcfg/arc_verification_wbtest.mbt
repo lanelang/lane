@@ -1,7 +1,7 @@
 ///|
 fn arc_test_value(
   ownership : Ownership,
-  cleanup : @bytecode.Cleanup,
+  cleanup : @physical.Cleanup,
 ) -> ValueMetadata {
   {
     representation: I32,
@@ -24,12 +24,15 @@ test "ARC-final boundary rejects duplicate trivial definitions" {
   try
     verify_arc_final_body({
       values: [scalar],
-      inputs: { environment: None, witnesses: [], user_parameters: [] },
+      inputs: { environment: None, witnesses: [], user_parameters: [], },
       result: Unit,
       blocks: [
         {
           parameters: [],
-          instructions: [ConstI64({ value: 0 }, 1L), ConstI64({ value: 0 }, 2L)],
+          instructions: [
+            ConstI64({ value: 0, }, 1L),
+            ConstI64({ value: 0, }, 2L),
+          ],
           terminator: Return(None),
         },
       ],
@@ -55,6 +58,33 @@ test "ARC-final boundary rejects duplicate trivial definitions" {
 }
 
 ///|
+test "ARC-final boundary ignores metadata for undefined unused values" {
+  let layout : ValueMetadata = {
+    representation: I32,
+    cleanup: Trivial,
+    kind: LayoutValue,
+    ownership: Trivial,
+    erased_companion: None,
+  }
+  let erased : ValueMetadata = {
+    representation: I64,
+    cleanup: OwnedErased,
+    kind: ErasedValue,
+    ownership: Owned,
+    erased_companion: Some({ value: 0, }),
+  }
+  let arc_final = verify_arc_final_body({
+    values: [layout, erased],
+    inputs: { environment: None, witnesses: [], user_parameters: [], },
+    result: Unit,
+    blocks: [{ parameters: [], instructions: [], terminator: Return(None), }],
+  })
+  assert_eq(arc_final.body.blocks, [
+    { parameters: [], instructions: [], terminator: Return(None), },
+  ])
+}
+
+///|
 test "ARC-final boundary rejects a borrowed input redefinition" {
   let borrowed = arc_test_value(Borrowed, OwnedRef)
   let owned = arc_test_value(Owned, OwnedRef)
@@ -64,18 +94,18 @@ test "ARC-final boundary rejects a borrowed input redefinition" {
       inputs: {
         environment: None,
         witnesses: [],
-        user_parameters: [{ value: 0 }, { value: 1 }],
+        user_parameters: [{ value: 0, }, { value: 1, }],
       },
       result: Unit,
       blocks: [
         {
           parameters: [],
           instructions: [
-            BorrowField({ value: 0 }, { value: 1 }, 0, {
-              value_destination: { value: 0 },
+            BorrowField({ value: 0, }, { value: 1, }, 0, {
+              value_destination: { value: 0, },
               witness_destination: None,
             }),
-            Release({ value: 1 }),
+            Release({ value: 1, }),
           ],
           terminator: Return(None),
         },
@@ -116,7 +146,7 @@ test "ARC-final boundary rejects duplicate block-parameter definitions" {
       inputs: {
         environment: None,
         witnesses: [],
-        user_parameters: [{ value: 0 }],
+        user_parameters: [{ value: 0, }],
       },
       result: Unit,
       blocks: [
@@ -124,18 +154,18 @@ test "ARC-final boundary rejects duplicate block-parameter definitions" {
           parameters: [],
           instructions: [],
           terminator: BranchBool(
-            { value: 0 },
-            { target: { value: 1 }, arguments: [{ value: 0 }] },
-            { target: { value: 2 }, arguments: [{ value: 0 }] },
+            { value: 0, },
+            { target: { value: 1, }, arguments: [{ value: 0, }], },
+            { target: { value: 2, }, arguments: [{ value: 0, }], },
           ),
         },
         {
-          parameters: [{ value: 1 }],
+          parameters: [{ value: 1, }],
           instructions: [],
           terminator: Return(None),
         },
         {
-          parameters: [{ value: 1 }],
+          parameters: [{ value: 1, }],
           instructions: [],
           terminator: Return(None),
         },
@@ -169,10 +199,10 @@ test "ARC-final boundary rejects an owner that reaches return" {
       inputs: {
         environment: None,
         witnesses: [],
-        user_parameters: [{ value: 0 }],
+        user_parameters: [{ value: 0, }],
       },
       result: Unit,
-      blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+      blocks: [{ parameters: [], instructions: [], terminator: Return(None), }],
     })
   catch {
     error =>
@@ -197,20 +227,20 @@ test "ARC-final boundary rejects a borrow after its local owner is released" {
       inputs: {
         environment: None,
         witnesses: [],
-        user_parameters: [{ value: 0 }],
+        user_parameters: [{ value: 0, }],
       },
       result: Unit,
       blocks: [
         {
           parameters: [],
           instructions: [
-            BorrowField({ value: 0 }, { value: 0 }, 0, {
-              value_destination: { value: 1 },
+            BorrowField({ value: 0, }, { value: 0, }, 0, {
+              value_destination: { value: 1, },
               witness_destination: None,
             }),
-            Release({ value: 0 }),
-            RetainCopy({ value: 2 }, { value: 1 }),
-            Release({ value: 2 }),
+            Release({ value: 0, }),
+            RetainCopy({ value: 2, }, { value: 1, }),
+            Release({ value: 2, }),
           ],
           terminator: Return(None),
         },
@@ -235,30 +265,30 @@ test "ARC-final boundary follows an owner transferred into an environment" {
   let borrowed = arc_test_value(Borrowed, OwnedRef)
   let environment : ValueMetadata = {
     ..owned,
-    kind: EnvironmentValue({ value: 0 }),
+    kind: EnvironmentValue({ value: 0, }),
   }
   let arc_final = verify_arc_final_body({
     values: [owned, borrowed, environment, owned],
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Unit,
     blocks: [
       {
         parameters: [],
         instructions: [
-          BorrowField({ value: 0 }, { value: 0 }, 0, {
-            value_destination: { value: 1 },
+          BorrowField({ value: 0, }, { value: 0, }, 0, {
+            value_destination: { value: 1, },
             witness_destination: None,
           }),
-          MakeEnv({ value: 2 }, { value: 0 }, Immediate({ value: 1 }), [], [
-            { value: 0 },
+          MakeEnv({ value: 2, }, { value: 0, }, Immediate({ value: 1, }), [], [
+            { value: 0, },
           ]),
-          RetainCopy({ value: 3 }, { value: 1 }),
-          Release({ value: 3 }),
-          Release({ value: 2 }),
+          RetainCopy({ value: 3, }, { value: 1, }),
+          Release({ value: 3, }),
+          Release({ value: 2, }),
         ],
         terminator: Return(None),
       },
@@ -277,29 +307,29 @@ test "ARC-final boundary does not let an unrelated projection cover a borrow" {
       inputs: {
         environment: None,
         witnesses: [],
-        user_parameters: [{ value: 0 }],
+        user_parameters: [{ value: 0, }],
       },
       result: Unit,
       blocks: [
         {
           parameters: [],
           instructions: [
-            BorrowField({ value: 0 }, { value: 0 }, 0, {
-              value_destination: { value: 1 },
+            BorrowField({ value: 0, }, { value: 0, }, 0, {
+              value_destination: { value: 1, },
               witness_destination: None,
             }),
-            ConsumeFields({ value: 0 }, { value: 0 }, [
+            ConsumeFields({ value: 0, }, { value: 0, }, [
               {
                 member_index: 1,
                 result: {
-                  value_destination: { value: 2 },
+                  value_destination: { value: 2, },
                   witness_destination: None,
                 },
               },
             ]),
-            RetainCopy({ value: 3 }, { value: 1 }),
+            RetainCopy({ value: 3, }, { value: 1, }),
           ],
-          terminator: Return(Some({ value: 2 })),
+          terminator: Return(Some({ value: 2, })),
         },
       ],
     })
@@ -325,14 +355,14 @@ test "ARC-final boundary rejects a borrowed value in a consuming operand" {
       inputs: {
         environment: None,
         witnesses: [],
-        user_parameters: [{ value: 0 }],
+        user_parameters: [{ value: 0, }],
       },
       result: Unit,
       blocks: [
         {
           parameters: [],
           instructions: [
-            CallDirect({ value: 1 }, None, [], [{ value: 0 }], None),
+            CallDirect({ value: 1, }, None, [], [{ value: 0, }], None),
           ],
           terminator: Return(None),
         },
@@ -363,16 +393,16 @@ test "ARC-final boundary validates CFG edge shape before slot planning" {
   try
     verify_arc_final_body({
       values: [scalar],
-      inputs: { environment: None, witnesses: [], user_parameters: [] },
+      inputs: { environment: None, witnesses: [], user_parameters: [], },
       result: Unit,
       blocks: [
         {
           parameters: [],
-          instructions: [ConstI64({ value: 0 }, 0L)],
-          terminator: Jump({ target: { value: 1 }, arguments: [] }),
+          instructions: [ConstI64({ value: 0, }, 0L)],
+          terminator: Jump({ target: { value: 1, }, arguments: [], }),
         },
         {
-          parameters: [{ value: 0 }],
+          parameters: [{ value: 0, }],
           instructions: [],
           terminator: Return(None),
         },

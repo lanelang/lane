@@ -8,6 +8,7 @@ priv struct ValueSubstitution {
 priv struct CoreSimplifier {
   entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
+  function_origins : @function_origin.FunctionOriginCatalog?
   observe : (CoreOptimizationObservation) -> Unit
 }
 
@@ -16,9 +17,10 @@ fn simplify_program(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
+  function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
-  CoreSimplifier::{ entry, roots, observe }.run(program)
+  CoreSimplifier::{ entry, roots, function_origins, observe, }.run(program)
 }
 
 ///|
@@ -34,6 +36,7 @@ fn CoreSimplifier::run(
       current,
       analysis,
       preserved_roots,
+      self.function_origins,
       self.observe,
     )
     if next.terms == current.terms {
@@ -47,6 +50,7 @@ fn CoreSimplifier::run(
 priv struct CoreCleanup {
   entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
+  function_origins : @function_origin.FunctionOriginCatalog?
   observe : (CoreOptimizationObservation) -> Unit
 }
 
@@ -58,9 +62,10 @@ fn cleanup_core(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
+  function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
-  CoreCleanup::{ entry, roots, observe }.run(program)
+  CoreCleanup::{ entry, roots, function_origins, observe, }.run(program)
 }
 
 ///|
@@ -73,9 +78,13 @@ fn CoreCleanup::run(
       current,
       self.entry,
       self.roots,
+      self.function_origins,
       self.observe,
     )
-    let commoned = eliminate_local_common_subexpressions(simplified)
+    let commoned = eliminate_local_common_subexpressions(
+      simplified,
+      self.function_origins,
+    )
     if commoned.terms == current.terms {
       break prune_unreachable(commoned, self.entry, self.roots)
     }
@@ -95,6 +104,7 @@ priv struct CommonLocalInitializer {
 /// ownership lifetime belongs to initializer orchestration.
 fn eliminate_local_common_subexpressions(
   program : @buslane.Program,
+  function_origins : @function_origin.FunctionOriginCatalog?,
 ) -> @buslane.Program raise CoreOptimizeError {
   let facts = @buslane.ExpressionFactsQuery::new(program)
   let terms = program.terms.map(term => {
@@ -102,13 +112,25 @@ fn eliminate_local_common_subexpressions(
       Let(value, expression) =>
         @buslane.TopTerm::Let(
           value,
-          eliminate_local_common_expr(program, facts, [], expression),
+          eliminate_local_common_expr(
+            program,
+            facts,
+            [],
+            expression,
+            function_origins,
+          ),
         )
       LetRec(bindings) =>
         LetRec(
           bindings.map(binding => {
             ..binding,
-            rhs: eliminate_local_common_expr(program, facts, [], binding.rhs),
+            rhs: eliminate_local_common_expr(
+              program,
+              facts,
+              [],
+              binding.rhs,
+              function_origins,
+            ),
           }),
         )
       External(_) => term
@@ -123,41 +145,59 @@ fn eliminate_local_common_expr(
   facts : @buslane.ExpressionFactsQuery,
   available : Array[CommonLocalInitializer],
   expression : @buslane.Expr,
+  function_origins : @function_origin.FunctionOriginCatalog?,
 ) -> @buslane.Expr raise CoreOptimizeError {
   match expression {
     Ref(_) | Literal(_) | Resume(_) => expression
-    Function(function) =>
-      Function({
+    Function(function) => {
+      let rewritten : @buslane.FunctionExpr = {
         ..function,
-        body: eliminate_local_common_expr(program, facts, [], function.body),
-      })
+        body: eliminate_local_common_expr(
+          program,
+          facts,
+          [],
+          function.body,
+          function_origins,
+        ),
+      }
+      transfer_function_origin(function_origins, function, rewritten)
+      Function(rewritten)
+    }
     Call(callee, arguments) =>
       Call(
-        eliminate_local_common_expr(program, facts, available, callee),
+        eliminate_local_common_expr(
+          program, facts, available, callee, function_origins,
+        ),
         arguments.map(argument => {
-          eliminate_local_common_expr(program, facts, available, argument)
+          eliminate_local_common_expr(
+            program, facts, available, argument, function_origins,
+          )
         }),
       )
     TypeLambda(parameters, body) =>
       TypeLambda(
         parameters,
-        eliminate_local_common_expr(program, facts, [], body),
+        eliminate_local_common_expr(program, facts, [], body, function_origins),
       )
     TypeApply(callee, arguments) =>
       TypeApply(
-        eliminate_local_common_expr(program, facts, available, callee),
+        eliminate_local_common_expr(
+          program, facts, available, callee, function_origins,
+        ),
         arguments,
       )
     Construct(construct) =>
       Construct({
         ..construct,
         payloads: construct.payloads.map(payload => {
-          eliminate_local_common_expr(program, facts, available, payload)
+          eliminate_local_common_expr(
+            program, facts, available, payload, function_origins,
+          )
         }),
       })
     Let(value, initializer, body) => {
       let rewritten_initializer = eliminate_local_common_expr(
-        program, facts, available, initializer,
+        program, facts, available, initializer, function_origins,
       )
       let is_pure = expression_has_empty_effect(facts, initializer)
       if is_pure {
@@ -167,19 +207,23 @@ fn eliminate_local_common_expr(
             return Let(
               value,
               Ref(common.value),
-              eliminate_local_common_expr(program, facts, available, body),
+              eliminate_local_common_expr(
+                program, facts, available, body, function_origins,
+              ),
             )
           }
         }
       }
       let body_available = available.copy()
       if is_pure {
-        body_available.push({ value, initializer: rewritten_initializer })
+        body_available.push({ value, initializer: rewritten_initializer, })
       }
       Let(
         value,
         rewritten_initializer,
-        eliminate_local_common_expr(program, facts, body_available, body),
+        eliminate_local_common_expr(
+          program, facts, body_available, body, function_origins,
+        ),
       )
     }
     LetRec(bindings, body) =>
@@ -191,9 +235,12 @@ fn eliminate_local_common_expr(
             facts,
             available,
             binding.rhs,
+            function_origins,
           ),
         }),
-        eliminate_local_common_expr(program, facts, available, body),
+        eliminate_local_common_expr(
+          program, facts, available, body, function_origins,
+        ),
       )
     Match(match_) =>
       Match({
@@ -203,6 +250,7 @@ fn eliminate_local_common_expr(
           facts,
           available,
           match_.scrutinee,
+          function_origins,
         ),
         alternatives: match_.alternatives.map(alternative => {
           ..alternative,
@@ -211,6 +259,7 @@ fn eliminate_local_common_expr(
             facts,
             available,
             alternative.body,
+            function_origins,
           ),
         }),
       })
@@ -218,7 +267,9 @@ fn eliminate_local_common_expr(
       Perform({
         ..perform,
         payloads: perform.payloads.map(payload => {
-          eliminate_local_common_expr(program, facts, available, payload)
+          eliminate_local_common_expr(
+            program, facts, available, payload, function_origins,
+          )
         }),
       })
     Handle(handle) =>
@@ -229,12 +280,14 @@ fn eliminate_local_common_expr(
           facts,
           available,
           handle.body,
+          function_origins,
         ),
         final_body: eliminate_local_common_expr(
           program,
           facts,
           available,
           handle.final_body,
+          function_origins,
         ),
         handlers: handle.handlers.map(table => {
           ..table,
@@ -245,6 +298,7 @@ fn eliminate_local_common_expr(
               facts,
               [],
               operation.body,
+              function_origins,
             ),
           }),
         }),
@@ -257,6 +311,7 @@ fn simplify_program_once(
   program : @buslane.Program,
   analysis : CoreAnalysis,
   preserved_roots : Array[@buslane.ValueId],
+  function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
   let facts = @buslane.ExpressionFactsQuery::new(program)
@@ -269,7 +324,9 @@ fn simplify_program_once(
         terms.push(
           @buslane.TopTerm::Let(
             value,
-            simplify_expr(program, facts, analysis, substitutions, rhs, observe),
+            simplify_expr(
+              program, facts, analysis, substitutions, rhs, function_origins, observe,
+            ),
           ),
         )
       LetRec(bindings) =>
@@ -283,6 +340,7 @@ fn simplify_program_once(
                 analysis,
                 substitutions,
                 binding.rhs,
+                function_origins,
                 observe,
               ),
             }),
@@ -304,7 +362,7 @@ fn collect_top_aliases(
     guard term is Let(value, Ref(target)) else { continue }
     if !preserved_roots.contains(value) &&
       compatible_alias(program, value, target) {
-      substitutions.push({ value, replacement: Ref(target) })
+      substitutions.push({ value, replacement: Ref(target), })
     }
   }
   substitutions
@@ -336,13 +394,14 @@ fn simplify_expr(
   analysis : CoreAnalysis,
   substitutions : Array[ValueSubstitution],
   expression : @buslane.Expr,
+  function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Expr raise CoreOptimizeError {
   match expression {
     Ref(value) => substitutions.resolve_ref(value)
     Literal(_) => expression
-    Function(function) =>
-      Function({
+    Function(function) => {
+      let rewritten : @buslane.FunctionExpr = {
         ..function,
         body: simplify_expr(
           program,
@@ -350,30 +409,39 @@ fn simplify_expr(
           analysis,
           substitutions,
           function.body,
+          function_origins,
           observe,
         ),
-      })
+      }
+      transfer_function_origin(function_origins, function, rewritten)
+      Function(rewritten)
+    }
     Call(callee, arguments) => {
       let callee = simplify_expr(
-        program, facts, analysis, substitutions, callee, observe,
+        program, facts, analysis, substitutions, callee, function_origins, observe,
       )
       let arguments = arguments.map(argument => {
         simplify_expr(
-          program, facts, analysis, substitutions, argument, observe,
+          program, facts, analysis, substitutions, argument, function_origins, observe,
         )
       })
       simplify_call(
-        program, facts, analysis, substitutions, callee, arguments, observe,
+        program, facts, analysis, substitutions, callee, arguments, function_origins,
+        observe,
       )
     }
     TypeLambda(parameters, body) =>
       TypeLambda(
         parameters,
-        simplify_expr(program, facts, analysis, substitutions, body, observe),
+        simplify_expr(
+          program, facts, analysis, substitutions, body, function_origins, observe,
+        ),
       )
     TypeApply(callee, arguments) =>
       TypeApply(
-        simplify_expr(program, facts, analysis, substitutions, callee, observe),
+        simplify_expr(
+          program, facts, analysis, substitutions, callee, function_origins, observe,
+        ),
         arguments,
       )
     Construct(construct) =>
@@ -381,14 +449,14 @@ fn simplify_expr(
         ..construct,
         payloads: construct.payloads.map(payload => {
           simplify_expr(
-            program, facts, analysis, substitutions, payload, observe,
+            program, facts, analysis, substitutions, payload, function_origins, observe,
           )
         }),
       })
     Let(value, initializer, body) => {
       let original_initializer = initializer
       let initializer = simplify_expr(
-        program, facts, analysis, substitutions, initializer, observe,
+        program, facts, analysis, substitutions, initializer, function_origins, observe,
       )
       let can_substitute = match initializer {
         Ref(target) => compatible_alias(program, value, target)
@@ -397,12 +465,19 @@ fn simplify_expr(
       }
       if can_substitute {
         let nested = substitutions.copy()
-        nested.push({ value, replacement: initializer })
-        simplify_expr(program, facts, analysis, nested, body, observe)
+        nested.push({ value, replacement: initializer, })
+        simplify_expr(
+          program, facts, analysis, nested, body, function_origins, observe,
+        )
       } else {
         let body = simplify_expr(
-          program, facts, analysis, substitutions, body, observe,
+          program, facts, analysis, substitutions, body, function_origins, observe,
         )
+        if initializer is Construct(construct) &&
+          scalar_replace_local_construct(value, construct, body)
+          is Some(reduced) {
+          return reduced
+        }
         if count_value_uses(body, value) == 0 &&
           expression_has_empty_effect(facts, original_initializer) {
           body
@@ -421,10 +496,13 @@ fn simplify_expr(
             analysis,
             substitutions,
             binding.rhs,
+            function_origins,
             observe,
           ),
         }),
-        simplify_expr(program, facts, analysis, substitutions, body, observe),
+        simplify_expr(
+          program, facts, analysis, substitutions, body, function_origins, observe,
+        ),
       )
     Match(match_) => {
       let scrutinee = simplify_expr(
@@ -433,6 +511,7 @@ fn simplify_expr(
         analysis,
         substitutions,
         match_.scrutinee,
+        function_origins,
         observe,
       )
       let alternatives = match_.alternatives.map(alternative => {
@@ -443,14 +522,19 @@ fn simplify_expr(
           analysis,
           substitutions,
           alternative.body,
+          function_origins,
           observe,
         ),
       })
-      let rewritten = @buslane.Expr::Match({ ..match_, scrutinee, alternatives })
-      match known_match_reduction(facts, analysis, rewritten) {
+      let rewritten = @buslane.Expr::Match({
+        ..match_,
+        scrutinee,
+        alternatives,
+      })
+      match known_match_reduction(analysis, rewritten) {
         Some(reduced) =>
           simplify_expr(
-            program, facts, analysis, substitutions, reduced, observe,
+            program, facts, analysis, substitutions, reduced, function_origins, observe,
           )
         None => rewritten
       }
@@ -460,7 +544,7 @@ fn simplify_expr(
         ..perform,
         payloads: perform.payloads.map(payload => {
           simplify_expr(
-            program, facts, analysis, substitutions, payload, observe,
+            program, facts, analysis, substitutions, payload, function_origins, observe,
           )
         }),
       })
@@ -473,6 +557,7 @@ fn simplify_expr(
           analysis,
           substitutions,
           handle.body,
+          function_origins,
           observe,
         ),
         final_body: simplify_expr(
@@ -481,6 +566,7 @@ fn simplify_expr(
           analysis,
           substitutions,
           handle.final_body,
+          function_origins,
           observe,
         ),
         handlers: handle.handlers.map(table => {
@@ -493,6 +579,7 @@ fn simplify_expr(
               analysis,
               substitutions,
               operation.body,
+              function_origins,
               observe,
             ),
           }),
@@ -510,6 +597,7 @@ fn simplify_call(
   substitutions : Array[ValueSubstitution],
   callee : @buslane.Expr,
   arguments : Array[@buslane.Expr],
+  function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Expr raise CoreOptimizeError {
   guard callee is Function(function) else { return Call(callee, arguments) }
@@ -525,6 +613,7 @@ fn simplify_call(
     function.parameters,
     arguments,
     function.body,
+    function_origins,
     observation => nested_observations.push(observation),
   )
   if application_reduction_is_profitable(original, reduced.expression, analysis) {
@@ -606,21 +695,18 @@ fn Array::find_replacement(
 
 ///|
 fn known_match_reduction(
-  facts : @buslane.ExpressionFactsQuery,
   analysis : CoreAnalysis,
   expression : @buslane.Expr,
-) -> @buslane.Expr? raise CoreOptimizeError {
+) -> @buslane.Expr? {
   guard expression is Match(match_) else { return None }
   match match_.scrutinee {
     Construct(construct) => reduce_constructor_match(match_, construct)
     Ref(value) =>
-      match analysis.find_top_definition(value) {
-        Some(Construct(construct)) if match_.alternatives.all(alternative => {
+      match analysis.find_static_value(value) {
+        Some(StaticConstructor(construct)) if match_.alternatives.all(alternative => {
             count_value_uses(alternative.body, match_.binder) == 0
-          }) &&
-          construct.payloads.all(payload => {
-            expression_has_empty_effect(facts, payload)
           }) => reduce_static_constructor_projection(match_, construct)
+        Some(StaticLiteral(literal)) => reduce_literal_match(match_, literal)
         _ => None
       }
     Literal(literal) => reduce_literal_match(match_, literal)
@@ -676,7 +762,7 @@ fn reduce_constructor_match(
     })
     let mut body = @buslane.Expr::Let(
       match_.binder,
-      Construct({ ..construct, payloads: payload_refs }),
+      Construct({ ..construct, payloads: payload_refs, }),
       alternative.body,
     )
     let mut index = construct.payloads.length()

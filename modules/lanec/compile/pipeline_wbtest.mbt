@@ -4,7 +4,7 @@ test "compile source records intrinsic and runtime import origins" {
     (
       #|module Test
       #|pub let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
-      #|let _host : (I64) -> I64 = extern("lane.test.host")
+      #|let _host : (I64) -> I64 = extern("lane.test", "lane.test.host")
       #|let _private_value : I64 = 1
     ),
   )
@@ -12,10 +12,12 @@ test "compile source records intrinsic and runtime import origins" {
   debug_inspect(
     (
       result.externals.builtins.map(fn(external) { external.intrinsic().name() }),
-      result.externals.runtime_imports.map(fn(import_) { import_.symbol }),
+      result.externals.runtime_imports.map(fn(import_) {
+        (import_.contract.module_name, import_.contract.field_name)
+      }),
     ),
     content=(
-      #|(["%i64_add"], ["lane.test.host"])
+      #|(["%i64_add"], [("lane.test", "lane.test.host")])
     ),
   )
   inspect(

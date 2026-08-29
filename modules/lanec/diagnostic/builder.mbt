@@ -103,7 +103,7 @@ pub fn compiler_primary_label(
   span : @basic.SourceSpan,
   message : String,
 ) -> CompilerDiagnosticLabel {
-  { span: compiler_local_span(span), message, style: Primary }
+  { span: compiler_local_span(span), message, style: Primary, }
 }
 
 ///|
@@ -111,7 +111,7 @@ pub fn compiler_secondary_label(
   span : @basic.SourceSpan,
   message : String,
 ) -> CompilerDiagnosticLabel {
-  { span: compiler_local_span(span), message, style: Secondary }
+  { span: compiler_local_span(span), message, style: Secondary, }
 }
 
 ///|

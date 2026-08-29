@@ -1,5 +1,9 @@
 # Unified bytecode and runtime function table
 
+> **Superseded.** The WASI Preview 1 WebAssembly Target RFC deletes persisted
+> bytecode, semantic runtime imports, and the generic host ABI described here.
+> This document is retained as historical context.
+
 LoisVM uses one image-global `FunctionId` namespace for bytecode bodies and runtime imports. A tagged function-table entry contains either bytecode metadata and instructions or a stable runtime symbol with an erased ABI descriptor. Ordinary direct, callable-value, and tail-call instructions work for both entry kinds; LoisVM has no separate runtime-call instruction or runtime-function value kind.
 
 The image records one nonzero selected entry before the table. It must reference a no-context bytecode body with no witnesses, no user parameters, and `Unit` result; a runtime import cannot be the selected entry.

@@ -17,6 +17,267 @@ test "real example 45 lifted snapshot verifies" {
 }
 
 ///|
+test "real example 37 classifies residual representation adaptation" {
+  let fixture_path = "examples/valid/37_coroutine_scheduler.lane"
+  let result = compile({
+    root: {
+      source_id: fixture_path,
+      text: @fs.read_file_to_string("../../\{fixture_path}", encoding="utf8"),
+    },
+    libraries: effect_example_test_libraries(),
+  })
+  guard result is Succeeded(compiled, warnings) else {
+    abort("expected fixture to compile: \{Repr(result)}")
+  }
+  assert_eq(warnings.diagnostics(), [])
+  let mut answer_entry = None
+  for entry in compiled.entries() {
+    if entry.name() == "answer" {
+      answer_entry = Some(entry)
+    }
+  }
+  guard answer_entry is Some(entry) else {
+    abort("expected fixture to expose answer")
+  }
+  guard compiled.elaborate_entry(
+      entry,
+      @executable.ExecutionProfile::new(
+        builtin_effects=[Io, Panic],
+        supports_external_effects=true,
+      ),
+    )
+    is Ok(executable) else {
+    abort("expected executable elaboration to complete")
+  }
+  let mut adapter_workers = 0
+  let mut adapter_materializations = 0
+  let mut finalized_adapter_workers = 0
+  let mut generic_abi_erasures = 0
+  let mut generic_abi_unerasures = 0
+  let adapter_worker_ids = []
+  let adapter_worker_contracts : Array[
+    @physical_lowering.CallableAdapterWorkerContractId,
+  ] = []
+  let mut invalid_adapter_reasons = 0
+  let mut indirect_calls = []
+  let lowered = @physical_lowering.lower_executable_program_to_physical_observed(
+    executable,
+    stage => {
+      match stage {
+        InitialVmcfg(image, provenance, _) => {
+          indirect_calls = provenance.indirect_calls
+          for item in provenance.functions {
+            if item.origins.any(origin => origin is CallableAdapter(..)) {
+              adapter_worker_ids.push(item.function)
+              for origin in item.origins {
+                guard origin is CallableAdapter(contract~, reason~) else {
+                  continue
+                }
+                if adapter_worker_contracts.contains(contract) {
+                  invalid_adapter_reasons += 1
+                } else {
+                  adapter_worker_contracts.push(contract)
+                }
+                if reason.source == reason.target ||
+                  reason.differences.is_empty() {
+                  invalid_adapter_reasons += 1
+                }
+              }
+            }
+          }
+          adapter_workers = adapter_worker_ids.length()
+          for entry in image.functions {
+            guard entry is Body(body) else { continue }
+            for block in body.blocks {
+              for instruction in block.instructions {
+                if instruction is MakeClosure(_, function, _) &&
+                  adapter_worker_ids.contains(function) {
+                  adapter_materializations += 1
+                }
+                match instruction {
+                  EraseI32(_, _)
+                  | EraseI64(_, _)
+                  | EraseF32(_, _)
+                  | EraseF64(_, _)
+                  | EraseUnit(_) => generic_abi_erasures += 1
+                  UneraseI32(_, _)
+                  | UneraseI64(_, _)
+                  | UneraseF32(_, _)
+                  | UneraseF64(_, _)
+                  | UneraseUnit(_) => generic_abi_unerasures += 1
+                  _ => ()
+                }
+              }
+            }
+          }
+        }
+        FinalPhysicalProgram(_, provenance, _) =>
+          for item in provenance.functions {
+            if item.origins.any(origin => origin is CallableAdapter(..)) {
+              finalized_adapter_workers += 1
+            }
+          }
+        Anf(_) => ()
+      }
+    },
+  )
+  guard lowered is Ok(_) else {
+    abort("expected physical lowering to complete: \{Repr(lowered)}")
+  }
+  assert_eq(
+    (
+      adapter_workers,
+      adapter_materializations,
+      finalized_adapter_workers,
+      generic_abi_erasures,
+      generic_abi_unerasures,
+      adapter_worker_contracts.length(),
+      invalid_adapter_reasons,
+      summarize_adapter_flow(indirect_calls, adapter_worker_ids),
+    ),
+    (
+      20,
+      26,
+      20,
+      15,
+      11,
+      20,
+      0,
+      { indirect_targets: 20, aggregate_stored_targets: 20, direct_only: 0, },
+    ),
+  )
+  assert_eq(summarize_indirect_calls(indirect_calls), {
+    total: 43,
+    source_bound: 8,
+    source_anonymous: 0,
+    handler_elaboration: 0,
+    monadic_transformation: 8,
+    selective_cps: 9,
+    callable_adapter: 17,
+    representation_worker: 0,
+    initialization: 1,
+    runtime_support: 0,
+    exact_capture_free: 0,
+    exact_local: 0,
+    exact_packed: 9,
+    multiple_targets: 34,
+    unknown_with_candidates: 0,
+    unknown_without_candidates: 0,
+    calls_without_boundary: 0,
+  })
+}
+
+///|
+priv struct AdapterFlowSummary {
+  indirect_targets : Int
+  aggregate_stored_targets : Int
+  direct_only : Int
+} derive(Debug, Eq)
+
+///|
+fn summarize_adapter_flow(
+  calls : Array[@physical_lowering.PhysicalIndirectCallObservation],
+  adapters : Array[@physical.FunctionId],
+) -> AdapterFlowSummary {
+  let indirect_targets = []
+  let aggregate_stored_targets = []
+  for call in calls {
+    let targets = match call.resolution {
+      ExactTarget(target, _) => [target]
+      MultipleTargets(targets) | UnknownTargets(targets) => targets
+    }
+    for target in targets {
+      guard adapters.contains(target) else { continue }
+      if !indirect_targets.contains(target) {
+        indirect_targets.push(target)
+      }
+      if call.boundaries.contains(AggregateStorage) &&
+        !aggregate_stored_targets.contains(target) {
+        aggregate_stored_targets.push(target)
+      }
+    }
+  }
+  {
+    indirect_targets: indirect_targets.length(),
+    aggregate_stored_targets: aggregate_stored_targets.length(),
+    direct_only: adapters.length() - indirect_targets.length(),
+  }
+}
+
+///|
+priv struct IndirectCallSummary {
+  total : Int
+  mut source_bound : Int
+  mut source_anonymous : Int
+  mut handler_elaboration : Int
+  mut monadic_transformation : Int
+  mut selective_cps : Int
+  mut callable_adapter : Int
+  mut representation_worker : Int
+  mut initialization : Int
+  mut runtime_support : Int
+  mut exact_capture_free : Int
+  mut exact_local : Int
+  mut exact_packed : Int
+  mut multiple_targets : Int
+  mut unknown_with_candidates : Int
+  mut unknown_without_candidates : Int
+  mut calls_without_boundary : Int
+} derive(Debug, Eq)
+
+///|
+fn summarize_indirect_calls(
+  calls : Array[@physical_lowering.PhysicalIndirectCallObservation],
+) -> IndirectCallSummary {
+  let summary : IndirectCallSummary = {
+    total: calls.length(),
+    source_bound: 0,
+    source_anonymous: 0,
+    handler_elaboration: 0,
+    monadic_transformation: 0,
+    selective_cps: 0,
+    callable_adapter: 0,
+    representation_worker: 0,
+    initialization: 0,
+    runtime_support: 0,
+    exact_capture_free: 0,
+    exact_local: 0,
+    exact_packed: 0,
+    multiple_targets: 0,
+    unknown_with_candidates: 0,
+    unknown_without_candidates: 0,
+    calls_without_boundary: 0,
+  }
+  for call in calls {
+    for origin in call.origins {
+      match origin {
+        SourceBound => summary.source_bound += 1
+        SourceAnonymous => summary.source_anonymous += 1
+        HandlerElaboration => summary.handler_elaboration += 1
+        MonadicTransformation => summary.monadic_transformation += 1
+        SelectiveCps => summary.selective_cps += 1
+        CallableAdapter => summary.callable_adapter += 1
+        RepresentationWorker => summary.representation_worker += 1
+        Initialization => summary.initialization += 1
+        RuntimeSupport => summary.runtime_support += 1
+      }
+    }
+    match call.resolution {
+      ExactTarget(_, CaptureFree) => summary.exact_capture_free += 1
+      ExactTarget(_, Local) => summary.exact_local += 1
+      ExactTarget(_, Packed) => summary.exact_packed += 1
+      MultipleTargets(_) => summary.multiple_targets += 1
+      UnknownTargets([]) => summary.unknown_without_candidates += 1
+      UnknownTargets(_) => summary.unknown_with_candidates += 1
+    }
+    if call.boundaries.is_empty() {
+      summary.calls_without_boundary += 1
+    }
+  }
+  summary
+}
+
+///|
 fn lifted_fixture_diagnostics(
   repository_root : String,
   fixture_path : String,
@@ -53,7 +314,7 @@ fn lifted_fixture_diagnostics(
     ),
     stage => {
       if stage is MonadicContinuationsLifted(lifted) {
-        lifted_verification = Some(@buslane.verify_program(lifted))
+        lifted_verification = Some(@buslane.verify_program(lifted.program()))
       }
     },
   )
@@ -67,14 +328,22 @@ fn lifted_fixture_diagnostics(
 }
 
 ///|
-fn effect_example_test_libraries() -> Array[SourceInput] {
+fn effect_example_test_libraries() -> Array[@module_frontend.SourceInput] {
   [
     {
       source_id: "<basic-io>",
       text: (
         #|module Basic.Io
         #|
-        #|pub let println : (String) -> Unit ! Io = extern("println")
+        #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
+        #|let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
+        #|let wasi_fd_write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
+        #|
+        #|pub fn println(value : String) -> Unit ! Io {
+        #|  let bytes = bytes_concat(string_to_bytes(value), string_to_bytes("\n"))
+        #|  let _errno = wasi_fd_write(1i32, bytes)
+        #|  ()
+        #|}
       ),
     },
     {

@@ -2,6 +2,6 @@
 module Examples.Invalid.ExternMissingType
 
 pub fn value() -> Bool {
-  let host = extern("host")
+  let host = extern("lane.test", "host")
   true
 }

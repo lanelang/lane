@@ -4,6 +4,40 @@ pub(all) struct ValueId {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) enum CallableFlowBoundary {
+  Alias
+  BlockParameter
+  FunctionParameter
+  FunctionResult
+  AggregateStorage
+  GlobalStorage
+  OpaqueInput
+  OpaqueOperation
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CallableEnvironmentKnowledge {
+  CaptureFree
+  Local
+  Packed
+} derive(Debug, Eq)
+
+///|
+pub(all) enum IndirectCallResolution {
+  ExactTarget(@physical.FunctionId, CallableEnvironmentKnowledge)
+  MultipleTargets(Array[@physical.FunctionId])
+  UnknownTargets(Array[@physical.FunctionId])
+} derive(Debug, Eq)
+
+///|
+pub(all) struct IndirectCallObservation {
+  function : @physical.FunctionId
+  ordinal : Int
+  resolution : IndirectCallResolution
+  boundaries : Array[CallableFlowBoundary]
+} derive(Debug, Eq)
+
+///|
 pub(all) enum Ownership {
   Trivial
   Owned
@@ -12,9 +46,9 @@ pub(all) enum Ownership {
 
 ///|
 pub(all) struct ValueMetadata {
-  representation : @bytecode.Representation
-  cleanup : @bytecode.Cleanup
-  kind : @bytecode.SemanticValueKind
+  representation : @physical.Representation
+  cleanup : @physical.Cleanup
+  kind : @physical.SemanticValueKind
   ownership : Ownership
   erased_companion : ValueId?
 } derive(Debug, Eq)
@@ -28,7 +62,7 @@ pub(all) struct FunctionInputs {
 
 ///|
 pub(all) enum LayoutOperand {
-  Immediate(@bytecode.LayoutId)
+  Immediate(@physical.LayoutId)
   Witness(ValueId)
 } derive(Debug, Eq)
 
@@ -56,11 +90,11 @@ pub(all) enum Instruction {
   ConstF64(ValueId, Int64)
   ConstF32(ValueId, Int)
   ConstBool(ValueId, Bool)
-  ConstLayout(ValueId, @bytecode.LayoutId)
-  ConstFunction(ValueId, @bytecode.FunctionId)
-  ConstString(ValueId, @bytecode.ConstantId)
+  ConstLayout(ValueId, @physical.LayoutId)
+  ConstFunction(ValueId, @physical.FunctionId)
+  ConstString(ValueId, @physical.ConstantId)
   CallDirect(
-    @bytecode.FunctionId,
+    @physical.FunctionId,
     ValueId?,
     Array[ValueId],
     Array[ValueId],
@@ -69,25 +103,25 @@ pub(all) enum Instruction {
   CallValue(ValueId, Array[ValueId], Array[ValueId], ValueId?)
   MakeData(
     ValueId,
-    @bytecode.ObjectShapeId,
+    @physical.ObjectShapeId,
     LayoutOperand,
     Array[ValueId],
     Array[ValueId]
   )
   LoadTag(ValueId, ValueId)
-  LoadObjectWitness(ValueId, @bytecode.ObjectShapeId, ValueId, Int)
-  BorrowField(@bytecode.ObjectShapeId, ValueId, Int, ProjectionResult)
-  ConsumeFields(@bytecode.ObjectShapeId, ValueId, Array[ProjectionSelection])
+  LoadObjectWitness(ValueId, @physical.ObjectShapeId, ValueId, Int)
+  BorrowField(@physical.ObjectShapeId, ValueId, Int, ProjectionResult)
+  ConsumeFields(@physical.ObjectShapeId, ValueId, Array[ProjectionSelection])
   MakeEnv(
     ValueId,
-    @bytecode.ObjectShapeId,
+    @physical.ObjectShapeId,
     LayoutOperand,
     Array[ValueId],
     Array[ValueId]
   )
-  BorrowCapture(@bytecode.ObjectShapeId, ValueId, Int, ProjectionResult)
-  ConsumeCaptures(@bytecode.ObjectShapeId, ValueId, Array[ProjectionSelection])
-  MakeClosure(ValueId, @bytecode.FunctionId, ValueId)
+  BorrowCapture(@physical.ObjectShapeId, ValueId, Int, ProjectionResult)
+  ConsumeCaptures(@physical.ObjectShapeId, ValueId, Array[ProjectionSelection])
+  MakeClosure(ValueId, @physical.FunctionId, ValueId)
   ByteToI64(ValueId, ValueId)
   I64ToByte(ValueId, ValueId)
   ByteSequenceMake(ValueId, ValueId, ValueId)
@@ -98,6 +132,7 @@ pub(all) enum Instruction {
   ByteSequenceConcat(ValueId, ValueId, ValueId)
   ByteSequenceSlice(ValueId, ValueId, ValueId, ValueId)
   ByteSequenceIsValidUtf8(ValueId, ValueId)
+  WasiFdWrite(ValueId, ValueId, ValueId)
   I32Add(ValueId, ValueId, ValueId)
   I32Sub(ValueId, ValueId, ValueId)
   I32Mul(ValueId, ValueId, ValueId)
@@ -169,13 +204,13 @@ pub(all) enum Instruction {
   UneraseF32(ValueId, ValueId)
   EraseUnit(ValueId)
   UneraseUnit(ValueId)
-  InitGlobal(@bytecode.GlobalId, ValueId)
-  BorrowGlobal(ValueId, @bytecode.GlobalId)
+  InitGlobal(@physical.GlobalId, ValueId)
+  BorrowGlobal(ValueId, @physical.GlobalId)
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct Edge {
-  target : @bytecode.BlockId
+  target : @physical.BlockId
   arguments : Array[ValueId]
 } derive(Debug, Eq)
 
@@ -185,7 +220,7 @@ pub(all) enum Terminator {
   BranchBool(ValueId, Edge, Edge)
   SwitchTag(ValueId, Array[Edge], Edge)
   Return(ValueId?)
-  TailCallDirect(@bytecode.FunctionId, ValueId?, Array[ValueId], Array[ValueId])
+  TailCallDirect(@physical.FunctionId, ValueId?, Array[ValueId], Array[ValueId])
   TailCallValue(ValueId, Array[ValueId], Array[ValueId])
   Fatal(ValueId)
   Unreachable
@@ -202,7 +237,7 @@ pub(all) struct Block {
 pub(all) struct FunctionBody {
   values : Array[ValueMetadata]
   inputs : FunctionInputs
-  result : @bytecode.ResultAbi
+  result : @physical.ResultAbi
   blocks : Array[Block]
 } derive(Debug, Eq)
 
@@ -215,26 +250,26 @@ priv struct ArcFinalBody {
 ///|
 pub(all) enum FunctionEntry {
   Body(FunctionBody)
-  RuntimeImport(@bytecode.RuntimeImport)
+  RuntimeImport(@wasm_abi.ImportContract)
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct Image {
-  entry : @bytecode.FunctionId
-  initializer : @bytecode.FunctionId?
+  entry : @physical.FunctionId
+  initializer : @physical.FunctionId?
   functions : Array[FunctionEntry]
   data_family_count : Int
-  globals : Array[@bytecode.GlobalMetadata]
-  layouts : Array[@bytecode.LayoutRecipe]
-  object_shapes : Array[@bytecode.ObjectShape]
+  globals : Array[@physical.GlobalMetadata]
+  layouts : Array[@physical.LayoutRecipe]
+  object_shapes : Array[@physical.ObjectShape]
   constants : Array[Bytes]
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum PhysicalSlotPlanError {
   MissingAssignment(ValueId)
-  MetadataMismatch(ValueId, @bytecode.SlotId)
-  InterferenceConflict(ValueId, ValueId, @bytecode.SlotId)
+  MetadataMismatch(ValueId, @physical.SlotId)
+  InterferenceConflict(ValueId, ValueId, @physical.SlotId)
 } derive(Debug, Eq)
 
 ///|
@@ -242,19 +277,19 @@ pub(all) enum ArcFinalBodyError {
   EmptyControlFlowGraph
   EntryBlockHasParameters
   InvalidValue(ValueId)
-  InvalidBlock(@bytecode.BlockId)
-  UnreachableBlock(@bytecode.BlockId)
-  EdgeArityMismatch(@bytecode.BlockId, @bytecode.BlockId, Int, Int)
-  EdgeMetadataMismatch(@bytecode.BlockId, @bytecode.BlockId, Int)
+  InvalidBlock(@physical.BlockId)
+  UnreachableBlock(@physical.BlockId)
+  EdgeArityMismatch(@physical.BlockId, @physical.BlockId, Int, Int)
+  EdgeMetadataMismatch(@physical.BlockId, @physical.BlockId, Int)
   MissingDefinition(ValueId)
-  UseBeforeDefinition(ValueId, @bytecode.BlockId)
-  BorrowedValueConsumed(ValueId, @bytecode.BlockId)
-  BorrowOwnerNotLive(ValueId, ValueId, @bytecode.BlockId)
-  OwnedValueNotLive(ValueId, @bytecode.BlockId)
-  OwnedValueOverwritten(ValueId, @bytecode.BlockId)
-  OwnedValueEscapes(ValueId, @bytecode.BlockId)
-  InconsistentOwnershipAtJoin(ValueId, @bytecode.BlockId)
-  InvalidRelease(ValueId, @bytecode.BlockId)
+  UseBeforeDefinition(ValueId, @physical.BlockId)
+  BorrowedValueConsumed(ValueId, @physical.BlockId)
+  BorrowOwnerNotLive(ValueId, ValueId, @physical.BlockId)
+  OwnedValueNotLive(ValueId, @physical.BlockId)
+  OwnedValueOverwritten(ValueId, @physical.BlockId)
+  OwnedValueEscapes(ValueId, @physical.BlockId)
+  InconsistentOwnershipAtJoin(ValueId, @physical.BlockId)
+  InvalidRelease(ValueId, @physical.BlockId)
 } derive(Debug, Eq)
 
 ///|
@@ -270,11 +305,38 @@ pub(all) enum UseDefAnalysisError {
 } derive(Debug, Eq)
 
 ///|
+pub(all) suberror FunctionTableCanonicalizationError {
+  InvalidFunctionReference(@physical.FunctionId)
+  MissingFunctionMapping(@physical.FunctionId)
+} derive(Debug, Eq)
+
+///|
+priv struct CanonicalPreArcImage {
+  image : Image
+  source_functions : Array[Array[@physical.FunctionId]]
+  indirect_calls : Array[IndirectCallObservation]
+}
+
+///|
+pub struct Finalization {
+  pre_arc_image : Image
+  source_functions : Array[Array[@physical.FunctionId]]
+  indirect_calls : Array[IndirectCallObservation]
+  physical_program : @physical.VerifiedPhysicalProgram
+}
+
+///|
 pub(all) suberror FinalizeError {
   IllegalValueMetadata(value~ : ValueId)
   UseBeforeOwnership(value~ : ValueId, block~ : Int)
   UseDefAnalysisCompilerDefect(UseDefAnalysisError)
+  FunctionTableCanonicalizationCompilerDefect(
+    FunctionTableCanonicalizationError
+  )
+  IndirectCallObservationMismatch(@physical.FunctionId, Int, Int)
   ArcFinalVerificationCompilerDefect(ArcFinalBodyError)
   PhysicalSlotAllocationCompilerDefect(PhysicalSlotPlanError)
-  BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
+  PhysicalProgramVerificationCompilerDefect(
+    @physical.PhysicalProgramVerificationError
+  )
 } derive(Debug, Eq)

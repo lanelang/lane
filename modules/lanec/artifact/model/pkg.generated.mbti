@@ -14,11 +14,17 @@ import {
 pub(all) struct CompilationFingerprint {
   value : String
 } derive(Eq, @debug.Debug)
+pub fn CompilationFingerprint::equal(Self, Self) -> Bool
+pub fn CompilationFingerprint::not_equal(Self, Self) -> Bool
+pub fn CompilationFingerprint::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ImportedInterfaceFingerprint {
   module_path_text : String
   fingerprint : CompilationFingerprint
 } derive(Eq, @debug.Debug)
+pub fn ImportedInterfaceFingerprint::equal(Self, Self) -> Bool
+pub fn ImportedInterfaceFingerprint::not_equal(Self, Self) -> Bool
+pub fn ImportedInterfaceFingerprint::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleImportedReference {
   module_path_text : String
@@ -26,6 +32,9 @@ pub(all) struct ModuleImportedReference {
   fingerprint : CompilationFingerprint
   reference : @buslane_lowering.BuslaneModuleReference
 } derive(Eq, @debug.Debug)
+pub fn ModuleImportedReference::equal(Self, Self) -> Bool
+pub fn ModuleImportedReference::not_equal(Self, Self) -> Bool
+pub fn ModuleImportedReference::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -52,7 +52,7 @@ test "builtin external contract rejects metadata signature drift" {
   let metadata = object.metadata.snapshot()
   let value = builtin.value()
   let info = metadata.values[value.index]
-  metadata.values[value.index] = { ..info, type_: Primitive(I64) }
+  metadata.values[value.index] = { ..info, type_: Primitive(I64), }
   let malformed = refingerprint_test_object({ ..object, metadata, })
   debug_inspect(
     @artifact.link_module_object_artifacts([malformed]),
@@ -67,7 +67,7 @@ test "builtin external contract rejects metadata signature drift" {
       #|      severity: Error,
       #|      code: Some("E4208"),
       #|      labels: [],
-      #|      notes: ["builtin external type does not match metadata for { index: 1 }; module objects must be internally valid before identity remapping begins"],
+      #|      notes: ["builtin `%panic` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
       #|      helps: ["recompile the module object from valid Lane source"],
       #|      facts: [],
       #|      suggestions: [],
@@ -79,35 +79,27 @@ test "builtin external contract rejects metadata signature drift" {
 }
 
 ///|
-test "builtin external rejects a self-consistent stale Unit panic contract" {
+test "Wasm import contract is certified against metadata source type" {
   let object = compiled_test_object(
     (
-      #|module Basic.Data.Void
-      #|pub enum Void {}
-      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|module Main
+      #|pub let observe : (I32) -> Unit ! Io = extern("lane.test", "observe")
     ),
   )
-  guard object.externals.builtins is [builtin] else {
-    abort("expected one builtin external")
+  guard object.externals.runtime_imports is [runtime_import] else {
+    abort("expected one runtime import")
   }
-  let stale_type = @buslane.Type::Function(
-    [Primitive(String)],
-    Primitive(Unit),
-    Builtin(Panic),
-  )
-  let metadata = object.metadata.snapshot()
-  let value = builtin.value()
-  let info = metadata.values[value.index]
-  metadata.values[value.index] = { ..info, type_: stale_type }
-  let stale_builtin = @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
-    value,
-    builtin.intrinsic(),
-    stale_type,
-  )
   let malformed = refingerprint_test_object({
     ..object,
-    metadata,
-    externals: { ..object.externals, builtins: [stale_builtin] },
+    externals: {
+      ..object.externals,
+      runtime_imports: [
+        {
+          ..runtime_import,
+          contract: { ..runtime_import.contract, parameters: [Direct(I64)], },
+        },
+      ],
+    },
   })
   debug_inspect(
     @artifact.link_module_object_artifacts([malformed]),
@@ -117,12 +109,12 @@ test "builtin external rejects a self-consistent stale Unit panic contract" {
       #|  diagnostics: [
       #|    {
       #|      source_id: None,
-      #|      message: "invalid module object `Basic.Data.Void`",
+      #|      message: "invalid module object `Main`",
       #|      span: None,
       #|      severity: Error,
       #|      code: Some("E4208"),
       #|      labels: [],
-      #|      notes: ["builtin `%panic` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
+      #|      notes: ["Wasm import `lane.test.observe` contract does not match its source type; module objects must be internally valid before identity remapping begins"],
       #|      helps: ["recompile the module object from valid Lane source"],
       #|      facts: [],
       #|      suggestions: [],
@@ -181,7 +173,7 @@ test "canonical Basic owner certifies the persisted Void shape" {
   }
   let metadata = object.metadata.snapshot()
   let info = metadata.types[void_type.index]
-  metadata.types[void_type.index] = { ..info, flavor: External }
+  metadata.types[void_type.index] = { ..info, flavor: External, }
   let malformed = refingerprint_test_object({ ..object, metadata, })
   debug_inspect(
     @artifact.link_module_object_artifacts([malformed]).diagnostics,
@@ -217,12 +209,12 @@ test "object artifact validation rejects every unknown Buslane identity namespac
   )
   let metadata = object.metadata.snapshot()
   let terms = object.terms.copy()
-  let unknown_type : @buslane.TypeId = { index: 1000 }
-  let unknown_parameter : @buslane.TypeParameterId = { index: 1001 }
-  let unknown_value : @buslane.ValueId = { index: 1002 }
-  let unknown_constructor : @buslane.DataConId = { index: 1003 }
-  let unknown_effect : @buslane.EffectId = { index: 1004 }
-  let unknown_operation : @buslane.OperationId = { index: 1005 }
+  let unknown_type : @buslane.TypeId = { index: 1000, }
+  let unknown_parameter : @buslane.TypeParameterId = { index: 1001, }
+  let unknown_value : @buslane.ValueId = { index: 1002, }
+  let unknown_constructor : @buslane.DataConId = { index: 1003, }
+  let unknown_effect : @buslane.EffectId = { index: 1004, }
+  let unknown_operation : @buslane.OperationId = { index: 1005, }
   ignore(
     metadata.define_value("unknown_type", Value, Constructor(unknown_type)),
   )
@@ -273,7 +265,7 @@ test "object artifact validation rejects every unknown Buslane identity namespac
     ),
   )
   terms.push(External(unknown_value))
-  let malformed = refingerprint_test_object({ ..object, metadata, terms })
+  let malformed = refingerprint_test_object({ ..object, metadata, terms, })
   debug_inspect(
     @artifact.link_module_object_artifacts([malformed]),
     content=(
@@ -378,18 +370,17 @@ test "object artifact validation rejects malformed side table references" {
       #|pub let add : (I64, I64) -> I64 = builtin("%i64_add")
     ),
   )
-  let unknown_value : @buslane.ValueId = { index: 1000 }
-  let unknown_type : @buslane.TypeId = { index: 1001 }
+  let unknown_value : @buslane.ValueId = { index: 1000, }
+  let unknown_type : @buslane.TypeId = { index: 1001, }
   let builtins = object.externals.builtins.copy()
   builtins[0] = @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
     unknown_value,
     builtins[0].intrinsic(),
-    builtins[0].type_(),
   )
   let entries = object.entries.copy()
-  entries[0] = { ..entries[0], value: unknown_value }
+  entries[0] = { ..entries[0], value: unknown_value, }
   let exports = object.exports.copy()
-  exports[0] = { name: exports[0].name, reference: Type(unknown_type) }
+  exports[0] = { name: exports[0].name, reference: Type(unknown_type), }
   let malformed = refingerprint_test_object({
     ..object,
     externals: { ..object.externals, builtins, },
@@ -489,7 +480,7 @@ test "object-only linking rejects an imported name missing from its provider" {
   let objects = modules.modules.map(module_ => module_.to_object_artifact())
   for index, object in objects {
     if object.module_path_text == "Lib" {
-      objects[index] = refingerprint_test_object({ ..object, exports: [] })
+      objects[index] = refingerprint_test_object({ ..object, exports: [], })
     }
   }
   debug_inspect(
@@ -565,7 +556,10 @@ test "compile module with interface artifact then link object artifacts" {
     content="Lib.box,Main.answer",
   )
   inspect(
-    @prettyprinter.render(@buslane.verify_program(program.program), width=100),
+    @prettyprinter.render(
+      @buslane.verify_program(program.program.program()),
+      width=100,
+    ),
     content="verify_result {}",
   )
 }
@@ -629,10 +623,9 @@ test "compile module freshens independently compiled interface symbols" {
   }
   let main_artifact = main_module.to_artifact()
   let linked = @artifact.link_module_artifacts({
-    schema_version: 2,
+    schema_version: 3,
     root_module_path_text: "Main",
     modules: [left_artifact, right_artifact, main_artifact],
-    reachable_module_path_texts: ["Left", "Right", "Main"],
   })
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
@@ -714,10 +707,9 @@ test "compile module follows transitive interface dependencies without extra pol
   }
   let c_artifact = c_module.to_artifact()
   let linked = @artifact.link_module_artifacts({
-    schema_version: 2,
+    schema_version: 3,
     root_module_path_text: "C",
     modules: [c_artifact, b_artifact, a_artifact],
-    reachable_module_path_texts: ["C", "B", "A"],
   })
   debug_inspect(linked.diagnostics, content="[]")
   guard linked.program is Some(program) else {
@@ -852,7 +844,7 @@ test "compile module rejects stale interface artifact fingerprint" {
     schema_version: lib_artifact.interface.schema_version,
     module_path_text: lib_artifact.interface.module_path_text,
     interface: lib_artifact.interface.interface,
-    interface_fingerprint: { value: "stale" },
+    interface_fingerprint: { value: "stale", },
     module_fingerprint: lib_artifact.interface.module_fingerprint,
     imported_interface_fingerprints: lib_artifact.interface.imported_interface_fingerprints,
   }
@@ -893,7 +885,7 @@ test "compile module rejects stale interface artifact module fingerprint" {
     module_path_text: lib_artifact.interface.module_path_text,
     interface: lib_artifact.interface.interface,
     interface_fingerprint: lib_artifact.interface.interface_fingerprint,
-    module_fingerprint: { value: "stale" },
+    module_fingerprint: { value: "stale", },
     imported_interface_fingerprints: lib_artifact.interface.imported_interface_fingerprints,
   }
   let compiled = compile_module_with_interfaces_for_test(
@@ -983,7 +975,7 @@ test "link object artifacts rejects stale object fingerprint" {
     exports: object.exports,
     imports: object.imports,
     module_fingerprint: object.module_fingerprint,
-    object_fingerprint: { value: "stale" },
+    object_fingerprint: { value: "stale", },
     imported_interface_fingerprints: object.imported_interface_fingerprints,
   }
   let linked = @artifact.link_module_object_artifacts([damaged])
@@ -1027,7 +1019,7 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
         entries: module_.object.entries,
         exports: module_.object.exports,
         imports: module_.object.imports,
-        module_fingerprint: { value: "stale" },
+        module_fingerprint: { value: "stale", },
         object_fingerprint: module_.object.object_fingerprint,
         imported_interface_fingerprints: module_.object.imported_interface_fingerprints,
       }
@@ -1044,7 +1036,6 @@ test "link module artifacts rejects interface object fingerprint mismatch" {
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged,
-    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1096,7 +1087,6 @@ test "link module artifacts rejects interface object name mismatch" {
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged,
-    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1133,7 +1123,7 @@ test "link module artifacts rejects stale imported reference fingerprint" {
           {
             module_path_text: imported.module_path_text,
             name: imported.name,
-            fingerprint: { value: "stale" },
+            fingerprint: { value: "stale", },
             reference: imported.reference,
           }
         },
@@ -1177,7 +1167,6 @@ test "link module artifacts rejects stale imported reference fingerprint" {
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged_modules,
-    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1248,7 +1237,6 @@ test "link module artifacts rejects missing exported object value" {
     schema_version: artifact.schema_version,
     root_module_path_text: artifact.root_module_path_text,
     modules: damaged_modules,
-    reachable_module_path_texts: artifact.reachable_module_path_texts,
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1299,10 +1287,9 @@ test "link modules rejects compiled artifact import cycle" {
     },
   ])
   let linked = @artifact.link_module_artifacts({
-    schema_version: 2,
+    schema_version: 3,
     root_module_path_text: "A",
     modules: [module_a, module_b],
-    reachable_module_path_texts: ["A", "B"],
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1326,13 +1313,12 @@ test "link modules rejects missing compiled artifact import" {
     abort("expected Main module")
   }
   let module_ = artifact_with_imported_interfaces(module_, [
-    { module_path_text: "Missing", fingerprint: { value: "missing" } },
+    { module_path_text: "Missing", fingerprint: { value: "missing", }, },
   ])
   let linked = @artifact.link_module_artifacts({
-    schema_version: 2,
+    schema_version: 3,
     root_module_path_text: "Main",
     modules: [module_],
-    reachable_module_path_texts: ["Main"],
   })
   debug_inspect(
     linked.diagnostics.map(fn(diagnostic) { diagnostic.message }),
@@ -1379,5 +1365,5 @@ fn artifact_with_imported_interfaces(
     ),
     imported_interface_fingerprints: imported,
   }
-  { schema_version: artifact.schema_version, interface, object }
+  { schema_version: artifact.schema_version, interface, object, }
 }

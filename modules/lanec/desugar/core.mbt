@@ -162,7 +162,7 @@ pub(all) enum DesugaredExpr {
     source~ : @basic.DeriveSourceSite
   )
   Builtin(String, loc~ : SourceSpan)
-  Extern(String, loc~ : SourceSpan)
+  Extern(module_name~ : String, field_name~ : String, loc~ : SourceSpan)
   ErrorRecovery(loc~ : SourceSpan)
   FunctionLiteral(
     type_parameters~ : Array[@resolve.ResolvedTypeParameter],
@@ -234,7 +234,7 @@ pub fn DesugaredExpr::loc(self : DesugaredExpr) -> SourceSpan {
     | VariantCall(loc~, ..)
     | StructLiteral(loc~, ..)
     | Builtin(_, loc~)
-    | Extern(_, loc~)
+    | Extern(loc~, ..)
     | ErrorRecovery(loc~)
     | FunctionLiteral(loc~, ..)
     | EffectOperationCall(loc~, ..)

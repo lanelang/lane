@@ -1,4 +1,0 @@
-import {
-  "Milky2018/loisvm/bytecode",
-  "moonbitlang/core/encoding/utf8",
-}

@@ -1,66 +1,38 @@
 # CPS-aware callable-instance planning
 
-Status: proposed; tracked by ISS-363.
+Status: superseded by
+[ADR-0138](0138-uniform-generic-abi-and-optional-representation-specialization.md).
 
-## Decision
+## Historical decision
 
-LoisVM lowering plans semantic callable instances before emitting VM CFG.
-One typed ANF fixed point propagates callable identity, generic application,
-closure allocation, aggregate members, parameters, results, recursion, and
-immutable globals. Its immutable result is the sole producer of
-runtime-representation specialization demand. Lowering consumes that plan and
-does not rediscover workers from expression syntax.
+This ADR proposed a whole-program Callable Instance Plan, Representation
+Constraint Graph, Representation Solution, specialized nominal data families,
+and structural Physical ANF. The design attempted to assign every runtime
+value port one exact physical contract before VM CFG emission.
 
-The analysis is CPS-aware through ordinary typed structure. It composes every
-`TypeApply`, including generated CPS answer and residual applications, but
-does not inspect generated names or reconstruct source effects. The selective
-CPS callable shape remains owned by effect lowering. The representation plan
-consumes the fully elaborated callable type and explicit effect-companion
-metadata.
+The motivation was valid: CPS-generated higher-kinded callables, nominal
+storage, captures, and recursive flow must not be assigned incompatible
+physical ABIs. VM CFG emission must not guess an ABI from source effect syntax,
+raw type spelling, or an ambient family list.
 
-A representation worker may specialize a closed first-order `Type` binder
-while retaining symbolic binders. In particular, a concrete CPS answer ABI may
-be selected while a higher-kinded effect companion remains an explicit worker
-witness. The companion is neither guessed nor treated as a first-order layout;
-its application continues to use the representation elaborator. Purely static
-effect binders do not enter runtime keys.
+## Reason for supersession
 
-Worker keys contain the original logical function and the complete canonical
-runtime ABI of specialized evidence, physical parameters, and result. Retained
-generic binders are part of the worker contract rather than part of the
-specialized evidence key. One key owns at most one worker. Open uses retain the
-generic implementation, and ordinary exact function reachability is the only
-mechanism that may later remove it.
+The design made representation specialization responsible for compiler
+correctness. Its intermediate facts mirrored program topology and had to be
+kept consistent with Runtime ANF, each other, Physical ANF, and VM CFG. Adding
+a new physical operation required synchronized planner, graph, materializer,
+verifier, and emitter changes.
 
-Recursive callable-instance demand is accepted only when the planner proves
-the instance set finite over the generic call SCC. There is no call-count,
-function-size, worker-count, score, growth budget, speculative rewrite, or
-fallback pass.
+ADR-0138 restores the correct layering:
 
-VM CFG callable-flow has a separate, physical responsibility. It propagates
-the emitted environment, witness, argument, aggregate, global, and result
-facts and decides whether a final `CallValue` can become `CallDirect` or lose
-its environment ABI. It does not create specialization demand or infer source
-generic applications from layout instructions.
+- CPS-generated parameters use the same complete generic evidence ABI as all
+  other polymorphic values;
+- generic lowering remains correct without callable-instance specialization;
+- callable-flow analysis may be private input to an optional program rewrite;
+- generic nominal data keeps one declaration-owned storage schema;
+- representation adaptations are explicit structural operations; and
+- the verified physical-program seam carries final contracts, not demand,
+  solution, recipe, or occurrence sidecars.
 
-## Consequences
-
-- CPS answer specialization is an instance of general runtime-ABI
-  specialization, not an effect-specific lowering path.
-- Higher-kinded companions can remain symbolic while concrete answer
-  erase/unerase bridges disappear.
-- Callable values with open or incompatible ABI uses remain generic and
-  indirect; correctness does not depend on optimistic rewriting.
-- Function planning must be complete before specialization demand closes, and
-  VM CFG emission consumes a frozen plan.
-- No source-language, linked-artifact, or LoisVM bytecode schema changes are
-  required by this decision.
-
-## Implementation status
-
-Effect-aware CPS Core optimization and interprocedural VM CFG callable flow are
-implemented prerequisites. The optimizer trusts the CPS residual effect as the
-authoritative purity fact; runtime effect projection occurs only at the ANF
-seam. The typed ANF callable catalog and immutable instance plan, partial
-higher-kinded workers, and finite recursive instance closure described above
-remain open in ISS-363.
+The historical terms remain in closed issue records only. They are not owning
+glossary concepts and must not guide new implementation work.

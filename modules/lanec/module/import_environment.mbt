@@ -53,7 +53,7 @@ pub fn ModuleImportEnvironments::from_pool(
   for interface in direct {
     collect_reachable_interfaces(interface.module_path, pool, available)
   }
-  { direct: { modules: direct }, available: { modules: available } }
+  { direct: { modules: direct, }, available: { modules: available, }, }
 }
 
 ///|

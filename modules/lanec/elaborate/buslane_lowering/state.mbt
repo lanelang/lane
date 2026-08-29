@@ -169,7 +169,7 @@ fn BuslaneLoweringRegistry::register_type(
   if self.find_type(source) is Some(existing) {
     existing
   } else {
-    self.type_symbols.push({ source, target })
+    self.type_symbols.push({ source, target, })
     target
   }
 }
@@ -207,7 +207,7 @@ fn BuslaneLoweringRegistry::register_type_parameter(
   if self.find_type_parameter(source) is Some(existing) {
     existing
   } else {
-    self.type_parameters.push({ source, target })
+    self.type_parameters.push({ source, target, })
     target
   }
 }
@@ -245,7 +245,7 @@ fn BuslaneLoweringRegistry::register_value(
   if self.find_value(source) is Some(existing) {
     existing
   } else {
-    self.values.push({ source, target })
+    self.values.push({ source, target, })
     target
   }
 }
@@ -283,7 +283,7 @@ fn BuslaneLoweringRegistry::register_data_constructor(
   if self.find_data_constructor(source) is Some(existing) {
     existing
   } else {
-    self.data_constructors.push({ source, target })
+    self.data_constructors.push({ source, target, })
     target
   }
 }
@@ -321,7 +321,7 @@ fn BuslaneLoweringRegistry::register_effect(
   if self.find_effect(source) is Some(existing) {
     existing
   } else {
-    self.effects.push({ source, target })
+    self.effects.push({ source, target, })
     target
   }
 }
@@ -359,7 +359,7 @@ fn BuslaneLoweringRegistry::register_operation(
   if self.find_operation(source) is Some(existing) {
     existing
   } else {
-    self.operations.push({ source, target })
+    self.operations.push({ source, target, })
     target
   }
 }
@@ -397,7 +397,7 @@ fn BuslaneLoweringRegistry::register_struct_constructor(
   if self.find_struct_constructor(source) is Some(existing) {
     existing
   } else {
-    self.struct_constructors.push({ source, target })
+    self.struct_constructors.push({ source, target, })
     target
   }
 }
@@ -435,7 +435,7 @@ fn BuslaneLoweringRegistry::register_field_selector(
   if self.find_field_selector(source) is Some(existing) {
     existing
   } else {
-    self.field_selectors.push({ source, target })
+    self.field_selectors.push({ source, target, })
     target
   }
 }

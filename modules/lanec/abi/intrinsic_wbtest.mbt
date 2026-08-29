@@ -172,3 +172,24 @@ test "floating-point string intrinsics have exact names and signatures" {
     ),
   )
 }
+
+///|
+test "WASI fd_write bridge owns its exact effectful signature" {
+  assert_eq(
+    (
+      Intrinsic::from_name("%wasi_fd_write"),
+      WasiFdWrite.name(),
+      WasiFdWrite.signature(),
+    ),
+    (
+      Some(WasiFdWrite),
+      "%wasi_fd_write",
+      Function(
+        parameters=[I32, Bytes],
+        result=I32,
+        effect=BuiltinIo,
+        implementation=Direct,
+      ),
+    ),
+  )
+}

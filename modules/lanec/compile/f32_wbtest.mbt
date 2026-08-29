@@ -1,6 +1,6 @@
 ///|
-test "compiler lowers F32 literals and intrinsics to LoisVM" {
-  let bytecode = compile_test_loisvm_image(
+test "compiler lowers F32 literals and intrinsics to the physical program" {
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -8,7 +8,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|let f32_inf : F32 = builtin("%f32_inf")
       #|let f32_ninf : F32 = builtin("%f32_ninf")
       #|let f32_nan : F32 = builtin("%f32_nan")
-      #|let observe : (F32) -> Unit ! Io = extern("lane.test.observe_f32")
+      #|let observe : (F32) -> Unit ! Io = extern("lane.test", "lane.test.observe_f32")
       #|
       #|fn[T] identity(value : T) -> T {
       #|  value
@@ -30,7 +30,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -50,7 +50,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|  ],
       #|  data_family_count: 0,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -93,7 +93,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -114,7 +114,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -135,7 +135,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -156,7 +156,7 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -186,10 +186,10 @@ test "compiler lowers F32 literals and intrinsics to LoisVM" {
       #|    ),
       #|    RuntimeImport(
       #|      {
-      #|        abi_major: 1,
-      #|        parameters: [F32],
+      #|        module_name: "lane.test",
+      #|        field_name: "lane.test.observe_f32",
+      #|        parameters: [Direct(F32)],
       #|        result: Unit,
-      #|        symbol: "lane.test.observe_f32",
       #|      },
       #|    ),
       #|  ],

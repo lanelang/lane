@@ -283,6 +283,7 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
     | F64ToF32(_, _)
     | F32ToString(_, _)
     | F64ToString(_, _)
+    | WasiFdWrite(_, _, _)
     | EraseUnit(_)
     | BorrowGlobal(_, _) =>
       {
@@ -389,7 +390,7 @@ fn arc_terminal_plan(terminator : Terminator) -> ArcTerminalPlan? {
         operands: [(message, Consume)],
         materialize: values => Fatal(values[0]),
       })
-    Unreachable => Some({ operands: [], materialize: _ => Unreachable })
+    Unreachable => Some({ operands: [], materialize: _ => Unreachable, })
     Jump(_) | BranchBool(_, _, _) | SwitchTag(_, _, _) => None
   }
 }

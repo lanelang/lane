@@ -9,11 +9,24 @@ and lower compiler IRs.
 
 **Buslane Core Language**:
 The typed expression-tree language used as Lane's canonical semantic core.
-_Avoid_: source AST, ANF, bytecode
+_Avoid_: source AST, ANF, Physical Program
 
 **Buslane Program**:
 A Metadata Registry and an ordered sequence of top-level terms.
 _Avoid_: source file, module interface, execution image
+
+**Raw Buslane Program**:
+A constructible Buslane Program used at interchange, parsing, codec, diagnostic,
+and test-fixture boundaries. A raw program does not carry evidence that its
+metadata, scope, types, effects, or initialization order are valid.
+_Avoid_: compiler-stage input, implicitly trusted program
+
+**Verified Buslane Program**:
+The opaque certificate produced only when the Buslane Verifier accepts a raw
+Buslane Program. Compiler transformations consume this value, expose the
+certified program read-only, and certify each newly produced Buslane Program
+exactly once before handing it to the next stage.
+_Avoid_: second semantic verifier, defensive consumer revalidation
 
 **Buslane Identity**:
 The stable internal identity used for semantic equality, lookup, verification,
@@ -36,7 +49,8 @@ _Avoid_: source symbol table, raw metadata arrays
 
 **Buslane Verifier**:
 The pure semantic boundary that validates metadata, scope, types, effects,
-initialization order, and core invariants.
+initialization order, and core invariants, and the sole producer of a Verified
+Buslane Program.
 _Avoid_: source typechecker, parser validation
 
 **Buslane Expression Facts**:
@@ -45,7 +59,7 @@ _Avoid_: duplicated optimizer classification, cached AST annotation
 
 **Buslane Interpreter**:
 The reference evaluator for verified Buslane programs.
-_Avoid_: source interpreter, LoisVM
+_Avoid_: source interpreter, Lane runtime
 
 ### Type And Effect Logic
 

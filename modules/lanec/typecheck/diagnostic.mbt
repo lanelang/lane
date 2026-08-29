@@ -21,7 +21,7 @@ pub fn TypeCheckDiagnostic::with_display(
   self : TypeCheckDiagnostic,
   display : TypeDisplayContext,
 ) -> DisplayedTypeCheckDiagnostic {
-  { diagnostic: self, display }
+  { diagnostic: self, display, }
 }
 
 ///|
@@ -76,6 +76,10 @@ fn extern_type_restriction_message(
     DirectResultRequired => "extern results must use a direct host ABI type"
     ExternalEffectRowRequired =>
       "extern latent effects must be closed and contain only external effects"
+    UnknownWasiPreview1Import(field_name~) =>
+      "WASI Preview 1 has no supported import named `\{field_name}`"
+    WasiPreview1ContractMismatch(expected~) =>
+      "the declaration must use the canonical WASI core signature `\{Repr(expected.parameters)} -> \{Repr(expected.result)}`"
   }
 }
 
@@ -368,7 +372,9 @@ fn typecheck_diagnostic(
         suggestions=[
           {
             message: "write this literal as `\{replacement}`",
-            edits: [{ span: compiler_local_span(diagnostic_.loc), replacement }],
+            edits: [
+              { span: compiler_local_span(diagnostic_.loc), replacement, },
+            ],
             applicability: MachineApplicable,
           },
         ],
@@ -500,7 +506,7 @@ fn typecheck_diagnostic(
           {
             message: "remove the duplicate field entry",
             edits: [
-              { span: compiler_local_span(diagnostic_.loc), replacement: "" },
+              { span: compiler_local_span(diagnostic_.loc), replacement: "", },
             ],
             applicability: MachineApplicable,
           },
@@ -592,7 +598,7 @@ fn typecheck_diagnostic(
         labels=[
           {
             span: compiler_local_span(diagnostic_.loc),
-            message: "external host values use a single opaque nominal identity",
+            message: "external type declarations have one nominal identity",
             style: Primary,
           },
         ],
@@ -988,7 +994,7 @@ fn typecheck_diagnostic(
           },
         ],
         notes=[
-          "extern functions accept direct primitive or external types and closed rows containing only external effects",
+          "extern functions accept only Unit, I32, I64, F32, and F64 at the core WebAssembly boundary",
         ],
         helps=[
           "change the declaration to a supported direct host function signature",
@@ -1577,7 +1583,7 @@ fn add_generic_argument_subject_label(
       Some(type_) => "`\{callee}` has type `\{display.type_text(type_)}`"
       None => "generic callee `\{callee}`"
     }
-    labels.push({ span: compiler_local_span(loc), message, style: Secondary })
+    labels.push({ span: compiler_local_span(loc), message, style: Secondary, })
   }
 }
 

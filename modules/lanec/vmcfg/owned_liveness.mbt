@@ -15,13 +15,13 @@ fn promote_cross_block_instruction_borrows(
       continue
     }
     guard definition is InstructionResult(block, instruction) else {
-      raise IllegalValueMetadata(value={ value: value_index })
+      raise IllegalValueMetadata(value={ value: value_index, })
     }
-    values[value_index] = { ..metadata, ownership: Owned }
-    let borrowed : ValueId = { value: values.length() }
+    values[value_index] = { ..metadata, ownership: Owned, }
+    let borrowed : ValueId = { value: values.length(), }
     values.push(metadata)
     instruction_promotions[block][instruction].push(
-      ({ value: value_index }, borrowed),
+      ({ value: value_index, }, borrowed),
     )
   }
   {
@@ -67,8 +67,8 @@ fn thread_owned_block_values(
     for value_index in 0..<value_count {
       if body.values[value_index].ownership is Owned &&
         liveness.live_in[block_index][value_index] {
-        let source : ValueId = { value: value_index }
-        let parameter : ValueId = { value: values.length() }
+        let source : ValueId = { value: value_index, }
+        let parameter : ValueId = { value: values.length(), }
         values.push(body.values[value_index])
         threaded[block_index].push((source, parameter))
       }

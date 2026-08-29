@@ -1,13 +1,13 @@
 ///|
 fn module_fingerprint(path : String) -> @artifact_model.CompilationFingerprint {
-  { value: "module:\{path}" }
+  { value: "module:\{path}", }
 }
 
 ///|
 fn interface_fingerprint(
   path : String,
 ) -> @artifact_model.CompilationFingerprint {
-  { value: "interface:\{path}" }
+  { value: "interface:\{path}", }
 }
 
 ///|
@@ -27,9 +27,8 @@ fn test_link_object(
     interface: None,
     interface_fingerprint: interface_fingerprint(path),
     canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-    metadata,
-    terms,
-    externals: { builtins: [], runtime_imports: [] },
+    program: { metadata, terms, },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [],
     exports: [],
     imports: [],
@@ -57,16 +56,15 @@ fn exported_value_modules(
       Primitive(I64),
     )
     provider_terms.push(Let(value, Literal(I64(0L))))
-    provider_exports.push({ name: "value_\{index}", reference: Value(value) })
+    provider_exports.push({ name: "value_\{index}", reference: Value(value), })
   }
   let provider : LinkModuleObject = {
     module_path_text: "Provider",
     interface: None,
     interface_fingerprint: interface_fingerprint("Provider"),
     canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-    metadata: provider_metadata,
-    terms: provider_terms,
-    externals: { builtins: [], runtime_imports: [] },
+    program: { metadata: provider_metadata, terms: provider_terms, },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [],
     exports: provider_exports,
     imports: [],
@@ -105,9 +103,8 @@ fn exported_value_modules(
     interface: None,
     interface_fingerprint: interface_fingerprint("Importer"),
     canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-    metadata: importer_metadata,
-    terms: importer_terms,
-    externals: { builtins: [], runtime_imports: [] },
+    program: { metadata: importer_metadata, terms: importer_terms, },
+    externals: { builtins: [], runtime_imports: [], },
     entries: [],
     exports: [],
     imports,
@@ -154,9 +151,9 @@ test "linked tree shaking remains deterministic for many modules and symbols" {
   )
   assert_eq(
     (
-      program.program.metadata.values.length(),
-      program.program.terms.length(),
-      @buslane.verify_program(program.program).is_ok(),
+      program.program.program().metadata.values.length(),
+      program.program.program().terms.length(),
+      @buslane.verify_program(program.program.program()).is_ok(),
     ),
     (module_count * values_per_module, 0, true),
   )
@@ -176,9 +173,9 @@ test "symbol-rich imports reuse indexed provider exports" {
   assert_eq(
     (
       program.module_path_texts,
-      program.program.metadata.values.length(),
-      program.program.terms.length(),
-      @buslane.verify_program(program.program).is_ok(),
+      program.program.program().metadata.values.length(),
+      program.program.program().terms.length(),
+      @buslane.verify_program(program.program.program()).is_ok(),
     ),
     (["Provider", "Importer"], value_count * 2, value_count, true),
   )
@@ -210,7 +207,7 @@ fn test_entry(
   name : String,
   value : @buslane.ValueId,
 ) -> @buslane_lowering.BuslaneEntry {
-  { module_path_text, name, value, type_: Primitive(I64) }
+  { module_path_text, name, value, }
 }
 
 ///|
@@ -239,39 +236,40 @@ test "linked tree shaking retains exports entries externals and metadata" {
   let host_log = provider_metadata.define_value(
     "host_log",
     External,
-    Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+    Function([Primitive(I64)], Primitive(Unit), Builtin(Io)),
   )
   let provider : LinkModuleObject = {
     ..test_link_object("Provider", [], 0),
-    metadata: provider_metadata,
-    terms: [
-      Let(helper, Literal(I64(1L))),
-      Let(api, Ref(helper)),
-      Let(provider_dead, Literal(I64(2L))),
-      External(add),
-      External(host_log),
-    ],
+    program: {
+      metadata: provider_metadata,
+      terms: [
+        Let(helper, Literal(I64(1L))),
+        Let(api, Ref(helper)),
+        Let(provider_dead, Literal(I64(2L))),
+        External(add),
+        External(host_log),
+      ],
+    },
     externals: {
       builtins: [
-        @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(
-          add,
-          I64Add,
-          Function([Primitive(I64), Primitive(I64)], Primitive(I64), Empty),
-        ),
+        @buslane_lowering.BuslaneBuiltinExternal::from_intrinsic(add, I64Add),
       ],
       runtime_imports: [
         {
           value: host_log,
-          symbol: "host_log",
-          signature: { parameters: [String], result: Unit },
-          type_: Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+          contract: {
+            module_name: "lane.test",
+            field_name: "host_log",
+            parameters: [Direct(I64)],
+            result: Unit,
+          },
         },
       ],
     },
     exports: [
-      { name: "api", reference: Value(api) },
-      { name: "Runtime", reference: Effect(effect) },
-      { name: "signal", reference: Operation(signal) },
+      { name: "api", reference: Value(api), },
+      { name: "Runtime", reference: Effect(effect), },
+      { name: "signal", reference: Operation(signal), },
     ],
   }
   let root_metadata = @buslane.MetadataRegistry()
@@ -284,8 +282,10 @@ test "linked tree shaking retains exports entries externals and metadata" {
   let root_dead = root_metadata.define_value("root_dead", Value, Primitive(I64))
   let root : LinkModuleObject = {
     ..test_link_object("Root", ["Provider"], 0),
-    metadata: root_metadata,
-    terms: [Let(main, Ref(imported_api)), Let(root_dead, Literal(I64(3L)))],
+    program: {
+      metadata: root_metadata,
+      terms: [Let(main, Ref(imported_api)), Let(root_dead, Literal(I64(3L)))],
+    },
     entries: [test_entry("Root", "main", main)],
     imports: [
       {
@@ -302,13 +302,17 @@ test "linked tree shaking retains exports entries externals and metadata" {
   debug_inspect(
     (
       linked.module_path_texts,
-      linked_term_names(linked.program),
+      linked_term_names(linked.program.program()),
       linked.entries.map(entry => (entry.module_path_text, entry.name)),
       linked.externals.builtins.map(builtin => builtin.intrinsic()),
-      linked.externals.runtime_imports.map(import_ => import_.symbol),
-      linked.program.metadata.effects.map(info => info.name.occurrence),
-      linked.program.metadata.operations.map(info => info.name.occurrence),
-      @buslane.verify_program(linked.program).is_ok(),
+      linked.externals.runtime_imports.map(import_ => {
+        import_.contract.field_name
+      }),
+      linked.program.program().metadata.effects.map(info => info.name.occurrence),
+      linked.program.program().metadata.operations.map(info => {
+        info.name.occurrence
+      }),
+      @buslane.verify_program(linked.program.program()).is_ok(),
     ),
     content=(
       #|(
@@ -346,8 +350,10 @@ test "linked entry policy determines whole-program retention roots" {
   )
   let dependency : LinkModuleObject = {
     ..test_link_object("Dependency", [], 0),
-    metadata: dependency_metadata,
-    terms: [Let(helper, Literal(I64(1L))), Let(dependency_entry, Ref(helper))],
+    program: {
+      metadata: dependency_metadata,
+      terms: [Let(helper, Literal(I64(1L))), Let(dependency_entry, Ref(helper))],
+    },
     entries: [test_entry("Dependency", "run", dependency_entry)],
   }
   let root_metadata = @buslane.MetadataRegistry()
@@ -358,8 +364,10 @@ test "linked entry policy determines whole-program retention roots" {
   )
   let root : LinkModuleObject = {
     ..test_link_object("Root", ["Dependency"], 0),
-    metadata: root_metadata,
-    terms: [Let(root_entry, Literal(I64(0L)))],
+    program: {
+      metadata: root_metadata,
+      terms: [Let(root_entry, Literal(I64(0L)))],
+    },
     entries: [test_entry("Root", "run", root_entry)],
   }
   let reachable = link_reachable_modules([root, dependency], "Root")
@@ -371,7 +379,10 @@ test "linked entry policy determines whole-program retention roots" {
     abort("expected complete linked program")
   }
   assert_eq(
-    (linked_term_names(reachable.program), linked_term_names(complete.program)),
+    (
+      linked_term_names(reachable.program.program()),
+      linked_term_names(complete.program.program()),
+    ),
     (
       ["let root_entry"],
       ["let dependency_helper", "let dependency_entry", "let root_entry"],

@@ -79,7 +79,7 @@ test "buslane text roundtrips external metadata flavors" {
     [type_parameter],
     flavor=External,
   )
-  let program = @buslane.Program::{ metadata, terms: [] }
+  let program = @buslane.Program::{ metadata, terms: [], }
   let text = CanonicalTextWriter::CanonicalTextWriter().write_program(program)
   inspect(
     text,
@@ -111,10 +111,12 @@ test "buslane text roundtrips external metadata flavors" {
 ///|
 test "buslane text roundtrips standalone type" {
   let type_ : @buslane.Type = Forall(
-    [{ index: 0 }],
+    [{ index: 0, }],
     Function(
       [
-        Apply(Constructor({ index: 0 }), [TypeArgument(Parameter({ index: 0 }))]),
+        Apply(Constructor({ index: 0, }), [
+          TypeArgument(Parameter({ index: 0, })),
+        ]),
         Function([Primitive(I64)], Primitive(Bool), Empty),
       ],
       Primitive(String),
@@ -351,8 +353,8 @@ test "canonical text allocator remains fresh after parse and verify" {
   assert_true(@buslane.verify_program(program).is_ok())
   assert_eq(
     [
-      program.metadata.value_info({ index: 0 }).unwrap().name.occurrence,
-      program.metadata.value_info({ index: 1 }).unwrap().name.occurrence,
+      program.metadata.value_info({ index: 0, }).unwrap().name.occurrence,
+      program.metadata.value_info({ index: 1, }).unwrap().name.occurrence,
     ],
     ["first", "second"],
   )
@@ -421,8 +423,8 @@ test "buslane text roundtrips effectful function type" {
     Primitive(Unit),
     Union([
       Builtin(Io),
-      Singleton({ index: 0 }, [TypeArgument(Primitive(I64))]),
-      Parameter({ index: 0 }),
+      Singleton({ index: 0, }, [TypeArgument(Primitive(I64))]),
+      Parameter({ index: 0, }),
     ]),
   )
   let text = CanonicalTextWriter::CanonicalTextWriter().write_type(type_)

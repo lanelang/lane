@@ -3,24 +3,56 @@ package "Milky2018/lanec/anf"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/function_origin",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub fn lower_buslane_program_to_anf(@buslane.Program) -> AnfProgram
+pub fn instantiate_runtime_evidence(RuntimeEvidence, Array[(RuntimeEvidenceId, RuntimeArgument)]) -> RuntimeEvidence
 
-pub fn lower_cps_core_to_runtime_anf(@buslane.Program) -> RuntimeAnfProgram
+pub fn lower_cps_core_to_runtime_anf(RuntimeAnfInput) -> Result[AnfProgram, RuntimeAnfLoweringError]
+
+pub fn runtime_arguments_alpha_equivalent(Array[RuntimeArgument], Array[RuntimeArgument], (RuntimeTypeExpressionId) -> RuntimeTypeExpression?) -> Bool
 
 // Errors
+pub(all) suberror RuntimeAnfLoweringError {
+  InvalidRetention(@buslane.VerifyResult)
+  DuplicateRetainedValue(@buslane.ValueId)
+  UnknownRetainedValue(@buslane.ValueId)
+  InvalidExpressionMetadata(@buslane.VerifyResult)
+  TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
+  MissingType(@buslane.TypeId)
+  MissingDataConstructor(@buslane.DataConId)
+  MissingFunctionOrigin
+  InvalidRuntimeProjection(detail~ : String)
+  InvalidRuntimeAnf(RuntimeAnfVerificationFailure)
+  ResidualPerform(@buslane.OperationId)
+  ResidualHandle
+} derive(Eq, @debug.Debug)
+pub fn RuntimeAnfLoweringError::equal(Self, Self) -> Bool
+pub fn RuntimeAnfLoweringError::not_equal(Self, Self) -> Bool
+pub fn RuntimeAnfLoweringError::to_repr(Self) -> @debug.Repr
+
+pub(all) suberror RuntimeTypeInstantiationError {
+  MissingTypeExpression(RuntimeTypeExpressionId)
+  TypeExpressionArityMismatch(expected~ : Int, actual~ : Int)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeTypeInstantiationError::equal(Self, Self) -> Bool
+pub fn RuntimeTypeInstantiationError::not_equal(Self, Self) -> Bool
+pub fn RuntimeTypeInstantiationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) struct AnfAlternative {
   alt_constructor : @buslane.AltCon
-  type_binders : Array[@buslane.TypeParameterId]
+  evidence_binders : Array[RuntimeEvidenceParameter]
   value_binders : Array[@buslane.ValueId]
   body : AnfExpr
 } derive(Eq, @debug.Debug)
+pub fn AnfAlternative::equal(Self, Self) -> Bool
+pub fn AnfAlternative::not_equal(Self, Self) -> Bool
+pub fn AnfAlternative::pretty(Self) -> @prettyprinter.Document
+pub fn AnfAlternative::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfAlternative
 
 pub(all) enum AnfAtom {
@@ -28,22 +60,36 @@ pub(all) enum AnfAtom {
   Ref(@buslane.ValueId)
   Temp(AnfTempId)
   Function(AnfFunction)
-  TypeLambda(type_parameters~ : Array[@buslane.TypeParameterId], body~ : AnfExpr)
+  DirectFunction(AnfFunction)
+  JoinPoint(AnfFunction)
+  EvidenceLambda(parameters~ : Array[RuntimeEvidenceParameter], body~ : AnfExpr)
 } derive(Eq, @debug.Debug)
+pub fn AnfAtom::equal(Self, Self) -> Bool
+pub fn AnfAtom::not_equal(Self, Self) -> Bool
+pub fn AnfAtom::pretty(Self) -> @prettyprinter.Document
+pub fn AnfAtom::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfAtom
 
 pub(all) enum AnfBinding {
   Value(id~ : @buslane.ValueId, rhs~ : AnfRhs)
-  Temp(temp~ : AnfTempId, rhs~ : AnfRhs)
+  Temp(temp~ : AnfTempId, type_~ : RuntimeType, rhs~ : AnfRhs)
 } derive(Eq, @debug.Debug)
+pub fn AnfBinding::equal(Self, Self) -> Bool
+pub fn AnfBinding::not_equal(Self, Self) -> Bool
+pub fn AnfBinding::pretty(Self) -> @prettyprinter.Document
+pub fn AnfBinding::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfBinding
 
 pub(all) struct AnfConstruct {
   data_constructor : @buslane.DataConId
-  type_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
+  type_arguments : Array[RuntimeArgument]
+  hidden_arguments : Array[RuntimeArgument]
   payloads : Array[AnfAtom]
 } derive(Eq, @debug.Debug)
+pub fn AnfConstruct::equal(Self, Self) -> Bool
+pub fn AnfConstruct::not_equal(Self, Self) -> Bool
+pub fn AnfConstruct::pretty(Self) -> @prettyprinter.Document
+pub fn AnfConstruct::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfConstruct
 
 pub(all) enum AnfExpr {
@@ -51,87 +97,93 @@ pub(all) enum AnfExpr {
   Let(AnfBinding, AnfExpr)
   LetRec(Array[AnfRecursiveBinding], AnfExpr)
 } derive(Eq, @debug.Debug)
+pub fn AnfExpr::equal(Self, Self) -> Bool
+pub fn AnfExpr::not_equal(Self, Self) -> Bool
+pub fn AnfExpr::pretty(Self) -> @prettyprinter.Document
+pub fn AnfExpr::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfExpr
 
 pub(all) struct AnfFunction {
   id : AnfFunctionId
   source : @buslane.ValueId?
+  origin : @function_origin.FunctionOrigin
   parameters : Array[@buslane.ValueId]
-  result_type : @buslane.Type
+  result_type : RuntimeType
   body : AnfExpr
 } derive(Eq, @debug.Debug)
+pub fn AnfFunction::equal(Self, Self) -> Bool
+pub fn AnfFunction::not_equal(Self, Self) -> Bool
+pub fn AnfFunction::pretty(Self) -> @prettyprinter.Document
+pub fn AnfFunction::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfFunction
 
 pub(all) struct AnfFunctionId {
   value : Int
 } derive(Eq, Hash, @debug.Debug)
-
-pub(all) struct AnfHandle {
-  body : AnfExpr
-  result_binder : @buslane.ValueId
-  result_type : @buslane.Type
-  final_body : AnfExpr
-  handlers : Array[AnfHandlerTable]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for AnfHandle
-
-pub(all) struct AnfHandlerTable {
-  handled_effect : @buslane.Effect
-  operations : Array[AnfOperationAlternative]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for AnfHandlerTable
+pub fn AnfFunctionId::equal(Self, Self) -> Bool
+pub fn AnfFunctionId::hash(Self) -> Int
+pub fn AnfFunctionId::hash_combine(Self, Hasher) -> Unit
+pub fn AnfFunctionId::not_equal(Self, Self) -> Bool
+pub fn AnfFunctionId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct AnfMatch {
   scrutinee : AnfAtom
   binder : @buslane.ValueId
-  result_type : @buslane.Type
+  result_type : RuntimeType
   alternatives : Array[AnfAlternative]
 } derive(Eq, @debug.Debug)
+pub fn AnfMatch::equal(Self, Self) -> Bool
+pub fn AnfMatch::not_equal(Self, Self) -> Bool
+pub fn AnfMatch::pretty(Self) -> @prettyprinter.Document
+pub fn AnfMatch::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfMatch
 
-pub(all) struct AnfOperationAlternative {
-  operation : @buslane.OperationId
-  type_binders : Array[@buslane.TypeParameterId]
-  payload_binders : Array[@buslane.ValueId]
-  resume_binder : @buslane.ValueId
-  body : AnfExpr
+pub struct AnfProgram {
+  // private fields
 } derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for AnfOperationAlternative
-
-pub(all) struct AnfPerform {
-  operation : @buslane.OperationId
-  effect_arguments : Array[@buslane.GenericArgument]
-  hidden_witnesses : Array[@buslane.GenericArgument]
-  payloads : Array[AnfAtom]
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for AnfPerform
-
-pub(all) struct AnfProgram {
-  metadata : @buslane.MetadataRegistry
-  terms : Array[AnfTopTerm]
-} derive(Eq, @debug.Debug)
+pub fn AnfProgram::equal(Self, Self) -> Bool
+pub fn AnfProgram::metadata(Self) -> RuntimeMetadata
+pub fn AnfProgram::not_equal(Self, Self) -> Bool
+pub fn AnfProgram::pretty(Self) -> @prettyprinter.Document
+pub fn AnfProgram::terms(Self) -> ArrayView[AnfTopTerm]
+pub fn AnfProgram::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfProgram
 
 pub(all) struct AnfRecursiveBinding {
   id : @buslane.ValueId
   rhs : AnfAtom
 } derive(Eq, @debug.Debug)
+pub fn AnfRecursiveBinding::equal(Self, Self) -> Bool
+pub fn AnfRecursiveBinding::not_equal(Self, Self) -> Bool
+pub fn AnfRecursiveBinding::pretty(Self) -> @prettyprinter.Document
+pub fn AnfRecursiveBinding::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfRecursiveBinding
 
 pub(all) enum AnfRhs {
   Atom(AnfAtom)
   Call(callee~ : AnfAtom, arguments~ : Array[AnfAtom])
-  TypeApply(callee~ : AnfAtom, arguments~ : Array[@buslane.GenericArgument])
+  ApplyEvidence(callee~ : AnfAtom, arguments~ : Array[RuntimeArgument])
   Construct(AnfConstruct)
   Match(AnfMatch)
-  Perform(AnfPerform)
-  Handle(AnfHandle)
 } derive(Eq, @debug.Debug)
+pub fn AnfRhs::equal(Self, Self) -> Bool
+pub fn AnfRhs::not_equal(Self, Self) -> Bool
+pub fn AnfRhs::pretty(Self) -> @prettyprinter.Document
+pub fn AnfRhs::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfRhs
 
 pub(all) struct AnfTempId {
   index : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn AnfTempId::compare(Self, Self) -> Int
+pub fn AnfTempId::equal(Self, Self) -> Bool
+pub fn AnfTempId::not_equal(Self, Self) -> Bool
+pub fn AnfTempId::op_ge(Self, Self) -> Bool
+pub fn AnfTempId::op_gt(Self, Self) -> Bool
+pub fn AnfTempId::op_le(Self, Self) -> Bool
+pub fn AnfTempId::op_lt(Self, Self) -> Bool
+pub fn AnfTempId::pretty(Self) -> @prettyprinter.Document
+pub fn AnfTempId::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfTempId
 
 pub(all) enum AnfTopTerm {
@@ -139,12 +191,258 @@ pub(all) enum AnfTopTerm {
   LetRec(Array[AnfRecursiveBinding])
   External(@buslane.ValueId)
 } derive(Eq, @debug.Debug)
+pub fn AnfTopTerm::equal(Self, Self) -> Bool
+pub fn AnfTopTerm::not_equal(Self, Self) -> Bool
+pub fn AnfTopTerm::pretty(Self) -> @prettyprinter.Document
+pub fn AnfTopTerm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfTopTerm
 
-pub struct RuntimeAnfProgram {
-  program : AnfProgram
+pub(all) struct RuntimeAnfInput {
+  program : @buslane.VerifiedProgram
+  retained_values : Array[@buslane.ValueId]
+  function_origins : @function_origin.FunctionOriginCatalog
+}
+
+pub(all) enum RuntimeAnfVerificationError {
+  MissingValueMetadata(@buslane.ValueId)
+  MissingTypeMetadata(@buslane.TypeId)
+  MissingDataConstructorMetadata(@buslane.DataConId)
+  MissingTypeExpression(RuntimeTypeExpressionId)
+  MissingEvidenceParameter(RuntimeEvidenceId)
+  InvalidEvidenceParameter(RuntimeEvidenceParameter)
+  InvalidTypeExpression(RuntimeTypeExpressionId)
+  EvidenceArityMismatch(expected~ : Int, actual~ : Int)
+  DuplicateValue(@buslane.ValueId)
+  DuplicateTemp(AnfTempId)
+  DuplicateFunction(AnfFunctionId)
+  DuplicateEvidence(RuntimeEvidenceId)
+  UnboundValue(@buslane.ValueId)
+  UnboundTemp(AnfTempId)
+  UnboundEvidence(RuntimeEvidenceId)
+  InitializationOrderViolation(@buslane.ValueId)
+  RuntimeTypeMismatch(expected~ : RuntimeType, actual~ : RuntimeType)
+  RuntimeTypeInstantiationFailure(RuntimeTypeInstantiationError)
+  InvalidRuntimeArgument(RuntimeArgument)
+  NotCallable(RuntimeType)
+  NotPolymorphic(RuntimeType)
+  ArityMismatch(expected~ : Int, actual~ : Int)
+  InvalidNominalType(@buslane.TypeId)
+  InvalidDataConstructor(@buslane.DataConId)
+  InvalidAlternative
+  InvalidRecursiveGroup
+  InvalidTopLevelCallable
+  InvalidGenericValue
+  CallableDispositionMismatch(detail~ : String)
 } derive(Eq, @debug.Debug)
-pub fn RuntimeAnfProgram::anf(Self) -> AnfProgram
+pub fn RuntimeAnfVerificationError::equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationError::not_equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationError::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RuntimeAnfVerificationFailure {
+  kind : RuntimeAnfVerificationError
+  path : Array[RuntimeAnfVerificationFrame]
+} derive(Eq, @debug.Debug)
+pub fn RuntimeAnfVerificationFailure::equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationFailure::not_equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationFailure::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RuntimeAnfVerificationFrame {
+  MetadataValue(@buslane.ValueId)
+  MetadataType(@buslane.TypeId)
+  MetadataDataConstructor(@buslane.DataConId)
+  MetadataEvidence(RuntimeEvidenceId)
+  MetadataTypeExpression(RuntimeTypeExpressionId)
+  TopTerm(Int)
+  AnfFunction(AnfFunctionId)
+  ValueBinding(@buslane.ValueId)
+  TempBinding(AnfTempId)
+  RecursiveBinding(Int)
+  Alternative(Int)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeAnfVerificationFrame::equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationFrame::not_equal(Self, Self) -> Bool
+pub fn RuntimeAnfVerificationFrame::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RuntimeArgument {
+  type_expression : RuntimeTypeExpressionId
+  evidence : RuntimeEvidence
+} derive(Eq, @debug.Debug)
+pub fn RuntimeArgument::equal(Self, Self) -> Bool
+pub fn RuntimeArgument::not_equal(Self, Self) -> Bool
+pub fn RuntimeArgument::pretty(Self) -> @prettyprinter.Document
+pub fn RuntimeArgument::to_repr(Self) -> @debug.Repr
+pub impl @prettyprinter.Pretty for RuntimeArgument
+
+pub(all) struct RuntimeDataConstructorInfo {
+  owner : @buslane.TypeId
+  hidden_evidence_parameters : Array[RuntimeEvidenceParameter]
+  payload_types : Array[RuntimeType]
+} derive(Eq, @debug.Debug)
+pub fn RuntimeDataConstructorInfo::equal(Self, Self) -> Bool
+pub fn RuntimeDataConstructorInfo::not_equal(Self, Self) -> Bool
+pub fn RuntimeDataConstructorInfo::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RuntimeDataInfo {
+  kind : RuntimeNominalKind
+  evidence_parameters : Array[RuntimeEvidenceParameter]
+  constructors : Array[@buslane.DataConId]
+} derive(Eq, @debug.Debug)
+pub fn RuntimeDataInfo::equal(Self, Self) -> Bool
+pub fn RuntimeDataInfo::not_equal(Self, Self) -> Bool
+pub fn RuntimeDataInfo::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RuntimeEvidence {
+  Static(RuntimeLayout)
+  Parameter(RuntimeEvidenceId)
+  Apply(RuntimeEvidence, Array[RuntimeEvidence])
+  Lambda(Array[RuntimeEvidenceParameter], RuntimeEvidence)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeEvidence::equal(Self, Self) -> Bool
+pub fn RuntimeEvidence::not_equal(Self, Self) -> Bool
+pub fn RuntimeEvidence::pretty(Self) -> @prettyprinter.Document
+pub fn RuntimeEvidence::to_repr(Self) -> @debug.Repr
+pub impl @prettyprinter.Pretty for RuntimeEvidence
+
+pub(all) enum RuntimeEvidenceId {
+  Projected(Int)
+  Synthetic(Int)
+} derive(Compare, Eq, Hash, @debug.Debug)
+pub fn RuntimeEvidenceId::compare(Self, Self) -> Int
+pub fn RuntimeEvidenceId::equal(Self, Self) -> Bool
+pub fn RuntimeEvidenceId::hash(Self) -> Int
+pub fn RuntimeEvidenceId::hash_combine(Self, Hasher) -> Unit
+pub fn RuntimeEvidenceId::not_equal(Self, Self) -> Bool
+pub fn RuntimeEvidenceId::op_ge(Self, Self) -> Bool
+pub fn RuntimeEvidenceId::op_gt(Self, Self) -> Bool
+pub fn RuntimeEvidenceId::op_le(Self, Self) -> Bool
+pub fn RuntimeEvidenceId::op_lt(Self, Self) -> Bool
+pub fn RuntimeEvidenceId::pretty(Self) -> @prettyprinter.Document
+pub fn RuntimeEvidenceId::to_repr(Self) -> @debug.Repr
+pub impl @prettyprinter.Pretty for RuntimeEvidenceId
+
+pub(all) struct RuntimeEvidenceParameter {
+  id : RuntimeEvidenceId
+  arity : Int
+} derive(Eq, @debug.Debug)
+pub fn RuntimeEvidenceParameter::equal(Self, Self) -> Bool
+pub fn RuntimeEvidenceParameter::not_equal(Self, Self) -> Bool
+pub fn RuntimeEvidenceParameter::pretty(Self) -> @prettyprinter.Document
+pub fn RuntimeEvidenceParameter::to_repr(Self) -> @debug.Repr
+pub impl @prettyprinter.Pretty for RuntimeEvidenceParameter
+
+pub(all) enum RuntimeLayout {
+  Unit
+  Bool
+  I64
+  I32
+  Char
+  F64
+  F32
+  Byte
+  ByteSequence
+  Reference
+  Callable
+} derive(Eq, @debug.Debug)
+pub fn RuntimeLayout::equal(Self, Self) -> Bool
+pub fn RuntimeLayout::not_equal(Self, Self) -> Bool
+pub fn RuntimeLayout::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RuntimeMetadata {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn RuntimeMetadata::data_constructor_info(Self, @buslane.DataConId) -> RuntimeDataConstructorInfo?
+pub fn RuntimeMetadata::equal(Self, Self) -> Bool
+pub fn RuntimeMetadata::evidence_parameter(Self, RuntimeEvidenceId) -> RuntimeEvidenceParameter?
+pub fn RuntimeMetadata::not_equal(Self, Self) -> Bool
+pub fn RuntimeMetadata::parameter_type_expression(Self, RuntimeEvidenceId) -> RuntimeTypeExpressionId?
+pub fn RuntimeMetadata::runtime_type_catalog(Self) -> RuntimeTypeCatalog
+pub fn RuntimeMetadata::to_repr(Self) -> @debug.Repr
+pub fn RuntimeMetadata::type_expression(Self, RuntimeTypeExpressionId) -> RuntimeTypeExpression?
+pub fn RuntimeMetadata::type_expressions(Self) -> ArrayView[RuntimeTypeExpression]
+pub fn RuntimeMetadata::type_info(Self, @buslane.TypeId) -> RuntimeDataInfo?
+pub fn RuntimeMetadata::types_representation_equivalent(Self, RuntimeType, RuntimeType) -> Bool
+pub fn RuntimeMetadata::value_info(Self, @buslane.ValueId) -> RuntimeValueInfo?
+pub fn RuntimeMetadata::verified_data_constructor_info(Self, @buslane.DataConId) -> RuntimeDataConstructorInfo
+pub fn RuntimeMetadata::verified_type_info(Self, @buslane.TypeId) -> RuntimeDataInfo
+pub fn RuntimeMetadata::verified_value_info(Self, @buslane.ValueId) -> RuntimeValueInfo
+
+pub(all) enum RuntimeNominalKind {
+  Data
+  OpaqueReference
+} derive(Eq, @debug.Debug)
+pub fn RuntimeNominalKind::equal(Self, Self) -> Bool
+pub fn RuntimeNominalKind::not_equal(Self, Self) -> Bool
+pub fn RuntimeNominalKind::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RuntimeScalarType {
+  Bool
+  I64
+  I32
+  Char
+  F64
+  F32
+  Byte
+} derive(Eq, @debug.Debug)
+pub fn RuntimeScalarType::equal(Self, Self) -> Bool
+pub fn RuntimeScalarType::not_equal(Self, Self) -> Bool
+pub fn RuntimeScalarType::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RuntimeType {
+  Unit
+  Scalar(RuntimeScalarType)
+  ByteSequence
+  Data(@buslane.TypeId, Array[RuntimeArgument])
+  Callable(Array[RuntimeType], RuntimeType)
+  Erased(RuntimeTypeExpressionId, RuntimeEvidence)
+  Forall(Array[RuntimeEvidenceParameter], RuntimeType)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeType::equal(Self, Self) -> Bool
+pub fn RuntimeType::layout(Self) -> RuntimeLayout?
+pub fn RuntimeType::not_equal(Self, Self) -> Bool
+pub fn RuntimeType::pretty(Self) -> @prettyprinter.Document
+pub fn RuntimeType::to_repr(Self) -> @debug.Repr
+pub impl @prettyprinter.Pretty for RuntimeType
+
+pub(all) struct RuntimeTypeCatalog {
+  expressions : Array[RuntimeTypeExpression]
+}
+pub fn RuntimeTypeCatalog::argument_is_consistent(Self, RuntimeArgument) -> Bool raise RuntimeTypeInstantiationError
+pub fn RuntimeTypeCatalog::instantiate_argument(Self, RuntimeArgument, Array[(RuntimeEvidenceId, RuntimeArgument)]) -> RuntimeArgument raise RuntimeTypeInstantiationError
+pub fn RuntimeTypeCatalog::instantiate_type(Self, RuntimeType, Array[(RuntimeEvidenceId, RuntimeArgument)]) -> RuntimeType raise RuntimeTypeInstantiationError
+pub fn RuntimeTypeCatalog::intern(Self, RuntimeTypeExpression) -> RuntimeTypeExpressionId
+pub fn RuntimeTypeCatalog::type_expression(Self, RuntimeTypeExpressionId) -> RuntimeTypeExpression?
+pub fn RuntimeTypeCatalog::types_alpha_equivalent(Self, RuntimeType, RuntimeType) -> Bool
+
+pub(all) enum RuntimeTypeExpression {
+  Static(RuntimeType)
+  Parameter(RuntimeEvidenceId)
+  Apply(RuntimeTypeExpressionId, Array[RuntimeTypeExpressionId])
+  Lambda(Array[RuntimeEvidenceParameter], RuntimeTypeExpressionId)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeTypeExpression::equal(Self, Self) -> Bool
+pub fn RuntimeTypeExpression::not_equal(Self, Self) -> Bool
+pub fn RuntimeTypeExpression::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RuntimeTypeExpressionId {
+  index : Int
+} derive(Compare, Eq, Hash, @debug.Debug)
+pub fn RuntimeTypeExpressionId::compare(Self, Self) -> Int
+pub fn RuntimeTypeExpressionId::equal(Self, Self) -> Bool
+pub fn RuntimeTypeExpressionId::hash(Self) -> Int
+pub fn RuntimeTypeExpressionId::hash_combine(Self, Hasher) -> Unit
+pub fn RuntimeTypeExpressionId::not_equal(Self, Self) -> Bool
+pub fn RuntimeTypeExpressionId::op_ge(Self, Self) -> Bool
+pub fn RuntimeTypeExpressionId::op_gt(Self, Self) -> Bool
+pub fn RuntimeTypeExpressionId::op_le(Self, Self) -> Bool
+pub fn RuntimeTypeExpressionId::op_lt(Self, Self) -> Bool
+pub fn RuntimeTypeExpressionId::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RuntimeValueInfo {
+  type_ : RuntimeType
+} derive(Eq, @debug.Debug)
+pub fn RuntimeValueInfo::equal(Self, Self) -> Bool
+pub fn RuntimeValueInfo::not_equal(Self, Self) -> Bool
+pub fn RuntimeValueInfo::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

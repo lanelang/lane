@@ -127,7 +127,7 @@ fn Resolver::resolve_pattern_type_binder(
   loc : SourceSpan,
 ) -> ResolvedStructPatternField {
   let symbol = self.registry.define_type_parameter(name, loc)
-  let type_parameter = { symbol, name, name_loc: loc, kind: None, loc }
+  let type_parameter = { symbol, name, name_loc: loc, kind: None, loc, }
   scope.type_parameters.push(type_parameter)
   TypeBinder(name~, type_parameter~, loc~)
 }

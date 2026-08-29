@@ -81,11 +81,11 @@ fn CheckedDeclarationEnvironment::field_type(
     ) {
     Nominal(owner, arguments) => {
       guard self.checked_struct(owner) is Some(declaration) else {
-        diagnostics.push({ kind: NotAStruct(base_type), loc })
+        diagnostics.push({ kind: NotAStruct(base_type), loc, })
         return Error
       }
       guard declaration.field(field) is Some(field_declaration) else {
-        diagnostics.push({ kind: UnknownField(name~), loc })
+        diagnostics.push({ kind: UnknownField(name~), loc, })
         return Error
       }
       field_declaration.type_.substitute(
@@ -96,7 +96,7 @@ fn CheckedDeclarationEnvironment::field_type(
       if base_type is Error {
         Error
       } else {
-        diagnostics.push({ kind: NotAStruct(base_type), loc })
+        diagnostics.push({ kind: NotAStruct(base_type), loc, })
         Error
       }
     ComputationFailed => Error

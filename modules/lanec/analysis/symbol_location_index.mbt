@@ -19,7 +19,7 @@ priv struct SymbolLocationIndex {
 
 ///|
 fn SymbolLocationIndex::empty() -> SymbolLocationIndex {
-  { locations: @immut_hashmap.HashMap::new() }
+  { locations: @immut_hashmap.HashMap::new(), }
 }
 
 ///|

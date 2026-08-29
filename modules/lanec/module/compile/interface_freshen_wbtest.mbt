@@ -20,7 +20,7 @@ test "panic interface freshening rejects an unmapped type parameter" {
     optimization_hints: [],
   }
   let freshener = InterfaceSymbolFreshener(environment, interface)
-  ignore(freshener.remap_type_parameter({ index: 0 }))
+  ignore(freshener.remap_type_parameter({ index: 0, }))
 }
 
 ///|

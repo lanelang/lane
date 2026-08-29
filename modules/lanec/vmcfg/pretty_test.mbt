@@ -1,8 +1,8 @@
 ///|
 test "VM CFG pretty printer exposes control flow and ownership" {
   let image : Image = {
-    entry: { value: 1 },
-    initializer: Some({ value: 1 }),
+    entry: { value: 1, },
+    initializer: Some({ value: 1, }),
     data_family_count: 0,
     functions: [
       Body({
@@ -32,33 +32,27 @@ test "VM CFG pretty printer exposes control flow and ownership" {
         inputs: {
           environment: None,
           witnesses: [],
-          user_parameters: [{ value: 2 }],
+          user_parameters: [{ value: 2, }],
         },
         result: Unit,
         blocks: [
           {
             parameters: [],
             instructions: [
-              ConstString({ value: 0 }, { value: 0 }),
-              InitGlobal({ value: 0 }, { value: 0 }),
-              BorrowGlobal({ value: 1 }, { value: 0 }),
-              CallDirect(
-                { value: 2 },
-                None,
-                [],
-                [{ value: 1 }, { value: 2 }],
-                None,
-              ),
+              ConstString({ value: 0, }, { value: 0, }),
+              InitGlobal({ value: 0, }, { value: 0, }),
+              BorrowGlobal({ value: 1, }, { value: 0, }),
+              CallDirect({ value: 2, }, None, [], [{ value: 2, }], None),
             ],
             terminator: Return(None),
           },
         ],
       }),
       RuntimeImport({
-        abi_major: 1,
-        parameters: [String, I64],
+        module_name: "lane.test",
+        field_name: "lane.test.print",
+        parameters: [Direct(I64)],
         result: Unit,
-        symbol: "lane.test.print",
       }),
     ],
     globals: [
@@ -98,15 +92,15 @@ test "VM CFG pretty printer exposes control flow and ownership" {
       #|    const_string %v0, c0
       #|    init_global g0, %v0
       #|    borrow_global %v1, g0
-      #|    call_direct f2 env=none witnesses=[] arguments=[%v1, %v2]
+      #|    call_direct f2 env=none witnesses=[] arguments=[%v2]
       #|    return none
       #|}
       #|
       #|function f2 = runtime_import(
-      #|  symbol="lane.test.print",
-      #|  abi_major=1,
-      #|  parameters=[string, i64],
-      #|  result=unit
+      #|  module="lane.test",
+      #|  field="lane.test.print",
+      #|  parameters=[Direct(I64)],
+      #|  result=Unit
       #|)
       #|
       #|instance global table:
@@ -125,15 +119,17 @@ test "VM CFG pretty printer exposes control flow and ownership" {
 ///|
 test "VM CFG code view omits image summary" {
   let image : Image = {
-    entry: { value: 1 },
+    entry: { value: 1, },
     initializer: None,
     data_family_count: 0,
     functions: [
       Body({
         values: [],
-        inputs: { environment: None, witnesses: [], user_parameters: [] },
+        inputs: { environment: None, witnesses: [], user_parameters: [], },
         result: Unit,
-        blocks: [{ parameters: [], instructions: [], terminator: Return(None) }],
+        blocks: [
+          { parameters: [], instructions: [], terminator: Return(None), },
+        ],
       }),
     ],
     globals: [],

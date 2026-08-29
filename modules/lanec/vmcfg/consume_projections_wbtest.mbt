@@ -11,7 +11,7 @@ fn owned_string_value() -> ValueMetadata {
 
 ///|
 fn borrowed_string_value() -> ValueMetadata {
-  { ..owned_string_value(), ownership: Borrowed }
+  { ..owned_string_value(), ownership: Borrowed, }
 }
 
 ///|
@@ -21,19 +21,19 @@ test "select consuming field projection for returned owned member" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Value(I32, OwnedRef, ByteSequenceValue),
     blocks: [
       {
         parameters: [],
         instructions: [
-          BorrowField({ value: 0 }, { value: 0 }, 1, {
-            value_destination: { value: 1 },
+          BorrowField({ value: 0, }, { value: 0, }, 1, {
+            value_destination: { value: 1, },
             witness_destination: None,
           }),
         ],
-        terminator: Return(Some({ value: 1 })),
+        terminator: Return(Some({ value: 1, })),
       },
     ],
   }
@@ -79,12 +79,13 @@ test "select consuming field projection for returned owned member" {
       #|)
     ),
   )
-  let image = match finalize_without_bytecode_verification(test_image(body)) {
+  let image = match
+    finalize_test_image_without_physical_verification(test_image(body)) {
     Ok(image) => image
     Err(error) => fail("finalize failed: \{Repr(error)}")
   }
-  guard image.functions[0] is BytecodeBody(lowered) else {
-    fail("expected bytecode body")
+  guard image.functions[0] is PhysicalBody(lowered) else {
+    fail("expected physical body")
   }
   debug_inspect(
     lowered.blocks[0].instructions,
@@ -115,7 +116,7 @@ test "group consuming captures and preserve block-local borrows" {
       scalar_metadata(),
     ],
     inputs: {
-      environment: Some({ value: 0 }),
+      environment: Some({ value: 0, }),
       witnesses: [],
       user_parameters: [],
     },
@@ -124,17 +125,17 @@ test "group consuming captures and preserve block-local borrows" {
       {
         parameters: [],
         instructions: [
-          BorrowCapture({ value: 0 }, { value: 0 }, 0, {
-            value_destination: { value: 1 },
+          BorrowCapture({ value: 0, }, { value: 0, }, 0, {
+            value_destination: { value: 1, },
             witness_destination: None,
           }),
-          BorrowCapture({ value: 0 }, { value: 0 }, 1, {
-            value_destination: { value: 2 },
+          BorrowCapture({ value: 0, }, { value: 0, }, 1, {
+            value_destination: { value: 2, },
             witness_destination: None,
           }),
-          ByteSequenceLength({ value: 3 }, { value: 1 }),
+          ByteSequenceLength({ value: 3, }, { value: 1, }),
         ],
-        terminator: Return(Some({ value: 2 })),
+        terminator: Return(Some({ value: 2, })),
       },
     ],
   }
@@ -150,13 +151,13 @@ test "group consuming captures and preserve block-local borrows" {
       {
         parameters: [],
         instructions: [
-          BorrowCapture({ value: 0 }, { value: 0 }, 0, {
-            value_destination: { value: 1 },
+          BorrowCapture({ value: 0, }, { value: 0, }, 0, {
+            value_destination: { value: 1, },
             witness_destination: None,
           }),
-          ByteSequenceLength({ value: 3 }, { value: 1 }),
+          ByteSequenceLength({ value: 3, }, { value: 1, }),
         ],
-        terminator: Return(Some({ value: 3 })),
+        terminator: Return(Some({ value: 3, })),
       },
     ],
   }
@@ -174,23 +175,23 @@ test "repeated member projections remain borrowed" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }],
+      user_parameters: [{ value: 0, }],
     },
     result: Value(I32, OwnedRef, ByteSequenceValue),
     blocks: [
       {
         parameters: [],
         instructions: [
-          BorrowField({ value: 0 }, { value: 0 }, 1, {
-            value_destination: { value: 1 },
+          BorrowField({ value: 0, }, { value: 0, }, 1, {
+            value_destination: { value: 1, },
             witness_destination: None,
           }),
-          BorrowField({ value: 0 }, { value: 0 }, 1, {
-            value_destination: { value: 2 },
+          BorrowField({ value: 0, }, { value: 0, }, 1, {
+            value_destination: { value: 2, },
             witness_destination: None,
           }),
         ],
-        terminator: Return(Some({ value: 2 })),
+        terminator: Return(Some({ value: 2, })),
       },
     ],
   }

@@ -47,7 +47,7 @@ async fn ServerState::handle_message(
   match message {
     Request(request) => self.handle_request(request)
     BatchRequest(requests) => self.handle_batch_request(requests)
-    Response(_) | BatchResponse(_) => { outgoing: [], transition: Continue }
+    Response(_) | BatchResponse(_) => { outgoing: [], transition: Continue, }
   }
 }
 
@@ -65,7 +65,7 @@ async fn ServerState::handle_batch_request(
       transition = Exit(graceful~)
     }
   }
-  { outgoing, transition }
+  { outgoing, transition, }
 }
 
 ///|
@@ -102,7 +102,7 @@ async fn ServerState::dispatch_request(
 
 ///|
 fn continue_session() -> HandlerResult {
-  { outgoing: [], transition: Continue }
+  { outgoing: [], transition: Continue, }
 }
 
 ///|
@@ -144,7 +144,7 @@ fn ServerState::handle_shutdown(
 
 ///|
 fn ServerState::handle_exit(self : ServerState) -> HandlerResult {
-  { outgoing: [], transition: Exit(graceful=self.shutdown_requested) }
+  { outgoing: [], transition: Exit(graceful=self.shutdown_requested), }
 }
 
 ///|
@@ -197,7 +197,7 @@ async fn ServerState::handle_did_close(
       )
     }),
   )
-  { outgoing, transition: Continue }
+  { outgoing, transition: Continue, }
 }
 
 ///|
@@ -233,7 +233,7 @@ fn workspace_synchronization_result(
     )
   })
   outgoing.append(initialization.scan_issues.map(workspace_scan_issue_log))
-  { outgoing, transition: Continue }
+  { outgoing, transition: Continue, }
 }
 
 ///|
@@ -273,7 +273,7 @@ async fn ServerState::source_from_disk(
 ) -> @module_frontend.SourceInput? {
   guard file_uri_to_path(uri) is Some(path) else { return None }
   let text = @fs.read_file(path).text() catch { _ => return None }
-  Some({ source_id: uri, text })
+  Some({ source_id: uri, text, })
 }
 
 ///|
@@ -581,14 +581,14 @@ fn respond(
 ) -> HandlerResult {
   match request.id {
     Some(id) =>
-      { outgoing: [@jsonrpc.new_response(id, result)], transition: Continue }
-    None => { outgoing: [], transition: Continue }
+      { outgoing: [@jsonrpc.new_response(id, result)], transition: Continue, }
+    None => { outgoing: [], transition: Continue, }
   }
 }
 
 ///|
 fn invalid_params(message : String) -> @jsonrpc.WireError {
-  { code: -32602, message, data: None }
+  { code: -32602, message, data: None, }
 }
 
 ///|

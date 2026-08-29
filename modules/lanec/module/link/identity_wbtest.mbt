@@ -1,24 +1,24 @@
 ///|
 test "link identity maps preserve the first binding in every namespace" {
   let identities = LinkIdentityMaps()
-  let type_source : @buslane.TypeId = { index: 0 }
-  let type_target : @buslane.TypeId = { index: 10 }
-  let other_type_target : @buslane.TypeId = { index: 11 }
-  let type_parameter_source : @buslane.TypeParameterId = { index: 1 }
-  let type_parameter_target : @buslane.TypeParameterId = { index: 12 }
-  let other_type_parameter_target : @buslane.TypeParameterId = { index: 13 }
-  let value_source : @buslane.ValueId = { index: 2 }
-  let value_target : @buslane.ValueId = { index: 14 }
-  let other_value_target : @buslane.ValueId = { index: 15 }
-  let data_constructor_source : @buslane.DataConId = { index: 3 }
-  let data_constructor_target : @buslane.DataConId = { index: 16 }
-  let other_data_constructor_target : @buslane.DataConId = { index: 17 }
-  let effect_source : @buslane.EffectId = { index: 4 }
-  let effect_target : @buslane.EffectId = { index: 18 }
-  let other_effect_target : @buslane.EffectId = { index: 19 }
-  let operation_source : @buslane.OperationId = { index: 5 }
-  let operation_target : @buslane.OperationId = { index: 20 }
-  let other_operation_target : @buslane.OperationId = { index: 21 }
+  let type_source : @buslane.TypeId = { index: 0, }
+  let type_target : @buslane.TypeId = { index: 10, }
+  let other_type_target : @buslane.TypeId = { index: 11, }
+  let type_parameter_source : @buslane.TypeParameterId = { index: 1, }
+  let type_parameter_target : @buslane.TypeParameterId = { index: 12, }
+  let other_type_parameter_target : @buslane.TypeParameterId = { index: 13, }
+  let value_source : @buslane.ValueId = { index: 2, }
+  let value_target : @buslane.ValueId = { index: 14, }
+  let other_value_target : @buslane.ValueId = { index: 15, }
+  let data_constructor_source : @buslane.DataConId = { index: 3, }
+  let data_constructor_target : @buslane.DataConId = { index: 16, }
+  let other_data_constructor_target : @buslane.DataConId = { index: 17, }
+  let effect_source : @buslane.EffectId = { index: 4, }
+  let effect_target : @buslane.EffectId = { index: 18, }
+  let other_effect_target : @buslane.EffectId = { index: 19, }
+  let operation_source : @buslane.OperationId = { index: 5, }
+  let operation_target : @buslane.OperationId = { index: 20, }
+  let other_operation_target : @buslane.OperationId = { index: 21, }
   ignore(identities.bind_type("Module", type_source, type_target))
   ignore(
     identities.bind_type_parameter(

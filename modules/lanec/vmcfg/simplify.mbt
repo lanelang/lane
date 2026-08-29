@@ -14,13 +14,13 @@ fn simplify_body(body : FunctionBody) -> FunctionBody raise FinalizeError {
 
 ///|
 fn simplify_body_once(body : FunctionBody) -> FunctionBody raise FinalizeError {
-  let body = { ..body, blocks: propagate_local_scalar_values(body) }
-  let body = { ..body, blocks: body.blocks.map(fold_constant_terminator) }
-  let body = { ..body, blocks: remove_dead_scalar_instructions(body) }
-  let body = { ..body, blocks: remove_unused_block_parameters(body) }
-  let body = { ..body, blocks: thread_empty_jump_blocks(body) }
-  let body = { ..body, blocks: merge_linear_blocks(body.blocks) }
-  { ..body, blocks: remove_unreachable_blocks(body.blocks) }
+  let body = { ..body, blocks: propagate_local_scalar_values(body), }
+  let body = { ..body, blocks: body.blocks.map(fold_constant_terminator), }
+  let body = { ..body, blocks: remove_dead_scalar_instructions(body), }
+  let body = { ..body, blocks: remove_unused_block_parameters(body), }
+  let body = { ..body, blocks: thread_empty_jump_blocks(body), }
+  let body = { ..body, blocks: merge_linear_blocks(body.blocks), }
+  { ..body, blocks: remove_unreachable_blocks(body.blocks), }
 }
 
 ///|
@@ -325,7 +325,7 @@ fn remove_unused_block_parameters(
       instructions: block.instructions,
       terminator: map_terminator_edges(block.terminator, fn(edge) {
         let kept = kept_parameters[edge.target.value]
-        { ..edge, arguments: filter_edge_arguments(edge.arguments, kept) }
+        { ..edge, arguments: filter_edge_arguments(edge.arguments, kept), }
       }),
     }
   })
@@ -458,7 +458,7 @@ fn remove_unreachable_blocks(blocks : Array[Block]) -> Array[Block] {
     {
       ..block,
       terminator: map_terminator_edges(block.terminator, fn(edge) {
-        { ..edge, target: { value: remap[edge.target.value] } }
+        { ..edge, target: { value: remap[edge.target.value], }, }
       }),
     }
   })
@@ -523,7 +523,7 @@ fn map_terminator_values(
 
 ///|
 fn map_edge_values(edge : Edge, transform : (ValueId) -> ValueId) -> Edge {
-  { ..edge, arguments: edge.arguments.map(transform) }
+  { ..edge, arguments: edge.arguments.map(transform), }
 }
 
 ///|
@@ -695,6 +695,8 @@ fn map_instruction_values(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(transform(destination), transform(source))
+    WasiFdWrite(destination, fd, bytes) =>
+      WasiFdWrite(transform(destination), transform(fd), transform(bytes))
     I32Add(destination, left, right) =>
       I32Add(transform(destination), transform(left), transform(right))
     I32Sub(destination, left, right) =>

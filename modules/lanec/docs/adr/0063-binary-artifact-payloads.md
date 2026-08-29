@@ -1,5 +1,10 @@
 # Binary artifact payloads
 
+Status: Superseded for executable artifacts by the raw WebAssembly execution
+image contract in `../wasip1-webassembly-target-rfc.md`. The `.lmi` and `.lmo`
+container decisions remain current; references below to `.lbp` record the
+historical executable format.
+
 Lane artifact files should be real binary artifacts, not text artifacts wrapped
 in a binary header. `.lmi`, `.lmo`, and `.lbp` keep a Lane artifact container
 with magic bytes, format version, artifact kind, and payload length, but the

@@ -12,7 +12,7 @@ fn SemanticChecker::check_i64_literal(
   try @string.parse_int64(raw, base=10) catch {
     _ => self.invalid_i64_literal(raw, loc)
   } noraise {
-    value => { raw, value }
+    value => { raw, value, }
   }
 }
 
@@ -22,8 +22,8 @@ fn SemanticChecker::invalid_i64_literal(
   raw : String,
   loc : SourceSpan,
 ) -> @checked.CheckedI64Literal {
-  self.diagnostics.push({ kind: InvalidI64Literal(raw), loc })
-  { raw, value: 0L }
+  self.diagnostics.push({ kind: InvalidI64Literal(raw), loc, })
+  { raw, value: 0L, }
 }
 
 ///|
@@ -42,7 +42,7 @@ fn SemanticChecker::check_i32_literal(
       if value < -2147483648L || value > 2147483647L {
         self.invalid_i32_literal(raw, loc)
       } else {
-        { raw, value: value.to_int() }
+        { raw, value: value.to_int(), }
       }
   }
 }
@@ -53,8 +53,8 @@ fn SemanticChecker::invalid_i32_literal(
   raw : String,
   loc : SourceSpan,
 ) -> @checked.CheckedI32Literal {
-  self.diagnostics.push({ kind: InvalidI32Literal(raw), loc })
-  { raw, value: 0 }
+  self.diagnostics.push({ kind: InvalidI32Literal(raw), loc, })
+  { raw, value: 0, }
 }
 
 ///|
@@ -74,7 +74,7 @@ fn SemanticChecker::check_f64_literal(
   if value == 0.0 && floating_significand_has_nonzero_digit(raw) {
     return self.invalid_f64_literal(raw, loc)
   }
-  { raw, value }
+  { raw, value, }
 }
 
 ///|
@@ -83,8 +83,8 @@ fn SemanticChecker::invalid_f64_literal(
   raw : String,
   loc : SourceSpan,
 ) -> @checked.CheckedF64Literal {
-  self.diagnostics.push({ kind: InvalidF64Literal(raw), loc })
-  { raw, value: 0.0 }
+  self.diagnostics.push({ kind: InvalidF64Literal(raw), loc, })
+  { raw, value: 0.0, }
 }
 
 ///|
@@ -96,7 +96,7 @@ fn SemanticChecker::check_f32_literal(
   guard parse_f32_decimal(raw) is Some(value) else {
     return self.invalid_f32_literal(raw, loc)
   }
-  { raw, value }
+  { raw, value, }
 }
 
 ///|
@@ -105,8 +105,8 @@ fn SemanticChecker::invalid_f32_literal(
   raw : String,
   loc : SourceSpan,
 ) -> @checked.CheckedF32Literal {
-  self.diagnostics.push({ kind: InvalidF32Literal(raw), loc })
-  { raw, value: Float::from_double(0.0) }
+  self.diagnostics.push({ kind: InvalidF32Literal(raw), loc, })
+  { raw, value: Float::from_double(0.0), }
 }
 
 ///|

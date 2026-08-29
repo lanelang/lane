@@ -23,9 +23,14 @@ pub(all) enum BasicTypeProvider {
   VariantInfo
 } derive(Eq, Hash, @debug.Debug)
 pub fn BasicTypeProvider::all() -> Array[Self]
+pub fn BasicTypeProvider::equal(Self, Self) -> Bool
 pub fn BasicTypeProvider::find(String, String) -> Self?
+pub fn BasicTypeProvider::hash(Self) -> Int
+pub fn BasicTypeProvider::hash_combine(Self, Hasher) -> Unit
 pub fn BasicTypeProvider::module_path(Self) -> String
+pub fn BasicTypeProvider::not_equal(Self, Self) -> Bool
 pub fn BasicTypeProvider::qualified_name(Self) -> String
+pub fn BasicTypeProvider::to_repr(Self) -> @debug.Repr
 pub fn BasicTypeProvider::type_name(Self) -> String
 
 pub(all) enum BasicVariantProvider {
@@ -34,14 +39,22 @@ pub(all) enum BasicVariantProvider {
   ListCons
 } derive(Eq, Hash, @debug.Debug)
 pub fn BasicVariantProvider::all() -> Array[Self]
+pub fn BasicVariantProvider::equal(Self, Self) -> Bool
 pub fn BasicVariantProvider::find(BasicTypeProvider, String) -> Self?
+pub fn BasicVariantProvider::hash(Self) -> Int
+pub fn BasicVariantProvider::hash_combine(Self, Hasher) -> Unit
+pub fn BasicVariantProvider::not_equal(Self, Self) -> Bool
 pub fn BasicVariantProvider::owner(Self) -> BasicTypeProvider
+pub fn BasicVariantProvider::to_repr(Self) -> @debug.Repr
 pub fn BasicVariantProvider::variant_name(Self) -> String
 
 pub(all) struct HostSignature {
   parameters : Array[ValueKind]
   result : ValueKind
 } derive(Eq, @debug.Debug)
+pub fn HostSignature::equal(Self, Self) -> Bool
+pub fn HostSignature::not_equal(Self, Self) -> Bool
+pub fn HostSignature::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Intrinsic {
   Panic
@@ -105,26 +118,39 @@ pub(all) enum Intrinsic {
   BytesLength
   BytesGet
   BytesSet
+  WasiFdWrite
 } derive(Eq, @debug.Debug)
+pub fn Intrinsic::equal(Self, Self) -> Bool
 pub fn Intrinsic::from_name(String) -> Self?
 pub fn Intrinsic::name(Self) -> String
+pub fn Intrinsic::not_equal(Self, Self) -> Bool
 pub fn Intrinsic::signature(Self) -> IntrinsicSignature
+pub fn Intrinsic::to_repr(Self) -> @debug.Repr
 
 pub(all) enum IntrinsicEffect {
   Pure
   BuiltinIo
   BuiltinPanic
 } derive(Eq, @debug.Debug)
+pub fn IntrinsicEffect::equal(Self, Self) -> Bool
+pub fn IntrinsicEffect::not_equal(Self, Self) -> Bool
+pub fn IntrinsicEffect::to_repr(Self) -> @debug.Repr
 
 pub(all) enum IntrinsicFunctionImplementation {
   Direct
   Fatal(message_parameter~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn IntrinsicFunctionImplementation::equal(Self, Self) -> Bool
+pub fn IntrinsicFunctionImplementation::not_equal(Self, Self) -> Bool
+pub fn IntrinsicFunctionImplementation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum IntrinsicSignature {
   Value(IntrinsicType)
   Function(parameters~ : Array[IntrinsicType], result~ : IntrinsicType, effect~ : IntrinsicEffect, implementation~ : IntrinsicFunctionImplementation)
 } derive(Eq, @debug.Debug)
+pub fn IntrinsicSignature::equal(Self, Self) -> Bool
+pub fn IntrinsicSignature::not_equal(Self, Self) -> Bool
+pub fn IntrinsicSignature::to_repr(Self) -> @debug.Repr
 
 pub(all) enum IntrinsicType {
   Unit
@@ -139,6 +165,9 @@ pub(all) enum IntrinsicType {
   Bytes
   CanonicalBasicVoid
 } derive(Eq, @debug.Debug)
+pub fn IntrinsicType::equal(Self, Self) -> Bool
+pub fn IntrinsicType::not_equal(Self, Self) -> Bool
+pub fn IntrinsicType::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ValueKind {
   Unit
@@ -147,8 +176,10 @@ pub(all) enum ValueKind {
   F64
   F32
   String
-  Opaque
 } derive(Eq, @debug.Debug)
+pub fn ValueKind::equal(Self, Self) -> Bool
+pub fn ValueKind::not_equal(Self, Self) -> Bool
+pub fn ValueKind::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

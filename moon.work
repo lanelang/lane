@@ -4,6 +4,7 @@ members = [
   "./modules/diagnostic",
   "./modules/lane",
   "./modules/lane_wasm",
+  "./modules/lane_wasm_abi",
   "./modules/lanec",
-  "./modules/loisvm",
+  "./modules/lane_runtime",
 ]

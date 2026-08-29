@@ -95,5 +95,5 @@ source diagnostics in `lanec`.
 
 This contract does not define performance optimization. Dead code elimination,
 inlining, specialization, closure conversion, decision-tree optimization,
-layout lowering, bytecode lowering, and target-specific execution-image work all
+layout lowering, Physical Program construction, and target-specific execution-image work all
 belong after Buslane or after linked canonical core.

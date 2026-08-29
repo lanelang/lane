@@ -291,7 +291,7 @@ test "resolve module-qualified effect alias references" {
     optimization_hints: [],
   }
   let imported : @module_interface.ModuleInterfaceCatalog = {
-    modules: [{ ..interface, exports: interface.owned_exports() }],
+    modules: [{ ..interface, exports: interface.owned_exports(), }],
   }
   let file = expect_parse_ok(
     (
@@ -1008,17 +1008,17 @@ test "resolve operator aliases through operation names" {
       {
         body: Block(
           result=Binary(
-            target={ name: "op_add", reference: Symbol(operator_symbol) },
+            target={ name: "op_add", reference: Symbol(operator_symbol), },
             ..
           ),
           ..
         ),
-        ..,
+        ..
       }
     ) else {
     abort("expected resolved operator target")
   }
-  assert_eq(operator_symbol, { index: 0 })
+  assert_eq(operator_symbol, { index: 0, })
   inspect(
     @prettyprinter.render(result.source, width=100),
     content=(

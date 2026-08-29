@@ -57,21 +57,28 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
       ),
     ],
   }
-  let specialized = @effect_specialization.specialize(program, entry)
+  let specialized = @effect_specialization.specialize(
+    program.certify().unwrap(),
+    entry,
+  )
   // The generic original is no longer a term but is still in the registry.
   guard metadata.value_info(generic) is Some(_) else {
     fail("expected the replaced definition to keep its metadata")
   }
   let mut lifted_generic_type = None
   let mut lifted_verification = None
-  let lowered = lower_effects(specialized, entry, stage => {
-    if stage is MonadicContinuationsLifted(lifted) {
-      lifted_generic_type = lifted.metadata
-        .value_info(generic)
-        .map(info => info.type_)
-      lifted_verification = Some(@buslane.verify_program(lifted))
-    }
-  })
+  let lowered = lower_effects(
+    specialized,
+    entry,
+    Some(stage => {
+      if stage is MonadicContinuationsLifted(lifted) {
+        lifted_generic_type = lifted.program().metadata
+          .value_info(generic)
+          .map(info => info.type_)
+        lifted_verification = Some(@buslane.verify_program(lifted.program()))
+      }
+    }),
+  )
   assert_eq(lifted_generic_type, Some(generic_type))
   guard lifted_verification is Some(verified_lifted) else {
     fail("expected to verify the monadic-lift boundary")
@@ -79,7 +86,7 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
   if !verified_lifted.is_ok() {
     fail("monadic-lift program did not verify: \{Repr(verified_lifted)}")
   }
-  let verified = @buslane.verify_program(lowered)
+  let verified = @buslane.verify_program(lowered.program.program())
   if !verified.is_ok() {
     fail("lowered program did not verify: \{Repr(verified)}")
   }
@@ -327,15 +334,25 @@ fn assert_cps_stage_entry_effect(
   let mut lifted_actual = None
   let mut optimized_actual = None
   ignore(
-    lower_effects(source, entry, stage => {
-      match stage {
-        MonadicContinuationsLifted(program) =>
-          lifted_actual = synthesized_top_function_type(program, entry)
-        CpsCoreOptimized(program) =>
-          optimized_actual = synthesized_top_function_type(program, entry)
-        _ => ()
-      }
-    }),
+    lower_effects(
+      source.certify().unwrap(),
+      entry,
+      Some(stage => {
+        match stage {
+          MonadicContinuationsLifted(program) =>
+            lifted_actual = synthesized_top_function_type(
+              program.program(),
+              entry,
+            )
+          CpsCoreOptimized(program) =>
+            optimized_actual = synthesized_top_function_type(
+              program.program(),
+              entry,
+            )
+          _ => ()
+        }
+      }),
+    ),
   )
   let expected = Some(
     @buslane.Type::Function([], Primitive(Unit), expected_effect),

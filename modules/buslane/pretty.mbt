@@ -1036,7 +1036,7 @@ fn braced_block(docs : Array[Document]) -> Document {
 /// Arbitrary text is quoted, and every character a reader takes as an escape
 /// is written as one, so what a renderer emits is what a parser reads back.
 fn quoted(value : String) -> Document {
-  let quoted_text = StringBuilder::new()
+  let quoted_text = StringBuilder()
   quoted_text.write_char('"')
   for character in value.iter() {
     match text_string_escape(character) {

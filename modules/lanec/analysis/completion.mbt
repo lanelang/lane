@@ -196,7 +196,7 @@ fn add_completion_entry_with_insert_text(
     detail,
     documentation: None,
     insert_text,
-    replace: Some({ source_id, span: replace }),
+    replace: Some({ source_id, span: replace, }),
     sort_text: Some("\{rank}:\{label}"),
   })
 }

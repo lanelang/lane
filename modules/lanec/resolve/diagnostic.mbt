@@ -419,7 +419,7 @@ fn Resolver::report(
   kind : ResolveDiagnosticKind,
   loc : SourceSpan,
 ) -> Unit {
-  self.diagnostics.push({ kind, loc })
+  self.diagnostics.push({ kind, loc, })
 }
 
 ///|

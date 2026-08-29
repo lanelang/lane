@@ -2,6 +2,77 @@
 using @prettyprinter {type Document, empty, space, text}
 
 ///|
+pub impl @prettyprinter.Pretty for RuntimeEvidenceId with fn pretty(
+  id : RuntimeEvidenceId,
+) {
+  match id {
+    Projected(index) => text("evidence#\{index}")
+    Synthetic(index) => text("synthetic-evidence#\{index}")
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for RuntimeEvidenceParameter with fn pretty(
+  parameter : RuntimeEvidenceParameter,
+) {
+  if parameter.arity == 0 {
+    parameter.id.pretty()
+  } else {
+    parameter.id.pretty() + text("/\{parameter.arity}")
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for RuntimeEvidence with fn pretty(
+  evidence : RuntimeEvidence,
+) {
+  match evidence {
+    Static(layout) => text("layout(\{Repr(layout)})")
+    Parameter(id) => id.pretty()
+    Apply(callee, arguments) =>
+      callee.pretty() +
+      @pretty.parenthesized_inline(arguments.map(RuntimeEvidence::pretty))
+    Lambda(parameters, body) =>
+      text("layout-fn") +
+      @pretty.bracketed_inline(parameters.map(RuntimeEvidenceParameter::pretty)) +
+      space +
+      body.pretty()
+  }
+}
+
+///|
+pub impl @prettyprinter.Pretty for RuntimeArgument with fn pretty(
+  argument : RuntimeArgument,
+) {
+  text("shape#\{argument.type_expression.index}=") + argument.evidence.pretty()
+}
+
+///|
+pub impl @prettyprinter.Pretty for RuntimeType with fn pretty(
+  type_ : RuntimeType,
+) {
+  match type_ {
+    Unit => text("Unit")
+    Scalar(kind) => text("\{Repr(kind)}")
+    ByteSequence => text("ByteSequence")
+    Data(owner, _) => text("data#\{owner.index}")
+    Callable(parameters, result) =>
+      @pretty.parenthesized_inline(parameters.map(RuntimeType::pretty)) +
+      space +
+      text("->") +
+      space +
+      result.pretty()
+    Erased(expression, evidence) =>
+      text("erased#\{expression.index}[") + evidence.pretty() + text("]")
+    Forall(parameters, body) =>
+      text("forall") +
+      @pretty.bracketed_inline(parameters.map(RuntimeEvidenceParameter::pretty)) +
+      space +
+      body.pretty()
+  }
+}
+
+///|
 pub impl @prettyprinter.Pretty for AnfTempId with fn pretty(id : AnfTempId) {
   text("temp#\{id.index}")
 }
@@ -59,10 +130,14 @@ pub impl @prettyprinter.Pretty for AnfBinding with fn pretty(
       text("=") +
       space +
       anf_rhs_doc(rhs)
-    Temp(temp~, rhs~) =>
+    Temp(temp~, type_~, rhs~) =>
       text("let") +
       space +
       temp.pretty() +
+      space +
+      text(":") +
+      space +
+      type_.pretty() +
       space +
       text("=") +
       space +
@@ -80,50 +155,6 @@ pub impl @prettyprinter.Pretty for AnfConstruct with fn pretty(
   construct : AnfConstruct,
 ) {
   anf_construct_doc(construct)
-}
-
-///|
-pub impl @prettyprinter.Pretty for AnfPerform with fn pretty(
-  perform : AnfPerform,
-) {
-  anf_perform_doc(perform)
-}
-
-///|
-pub impl @prettyprinter.Pretty for AnfHandle with fn pretty(handle : AnfHandle) {
-  anf_handle_doc(handle)
-}
-
-///|
-pub impl @prettyprinter.Pretty for AnfHandlerTable with fn pretty(
-  table : AnfHandlerTable,
-) {
-  table.handled_effect.pretty() +
-  space +
-  @pretty.braced_block(table.operations.map(AnfOperationAlternative::pretty))
-}
-
-///|
-pub impl @prettyprinter.Pretty for AnfOperationAlternative with fn pretty(
-  alternative : AnfOperationAlternative,
-) {
-  alternative.operation.pretty() +
-  buslane_type_arguments_doc(
-    alternative.type_binders.map(fn(parameter) {
-      TypeArgument(Parameter(parameter))
-    }),
-  ) +
-  @pretty.parenthesized_inline(
-    alternative.payload_binders.map(@buslane.ValueId::pretty),
-  ) +
-  space +
-  text("resume") +
-  space +
-  alternative.resume_binder.pretty() +
-  space +
-  text("=>") +
-  space +
-  anf_expr_doc(alternative.body)
 }
 
 ///|
@@ -169,7 +200,7 @@ pub impl @prettyprinter.Pretty for AnfAlternative with fn pretty(
   alternative : AnfAlternative,
 ) {
   alternative.alt_constructor.pretty() +
-  anf_binders_doc(alternative.type_binders, alternative.value_binders) +
+  anf_binders_doc(alternative.evidence_binders, alternative.value_binders) +
   space +
   text("=>") +
   space +
@@ -222,56 +253,18 @@ fn anf_rhs_doc(rhs : AnfRhs) -> Document {
     Call(callee~, arguments~) =>
       anf_atom_doc(callee) +
       @pretty.parenthesized_inline(arguments.map(anf_atom_doc))
-    TypeApply(callee~, arguments~) =>
-      anf_atom_doc(callee) + buslane_generic_arguments_doc(arguments)
+    ApplyEvidence(callee~, arguments~) =>
+      anf_atom_doc(callee) + runtime_arguments_doc(arguments)
     Construct(construct) => anf_construct_doc(construct)
     Match(match_) => match_.pretty()
-    Perform(perform) => anf_perform_doc(perform)
-    Handle(handle) => anf_handle_doc(handle)
   }
-}
-
-///|
-fn anf_perform_doc(perform : AnfPerform) -> Document {
-  text("perform") +
-  space +
-  perform.operation.pretty() +
-  buslane_type_arguments_doc(perform.effect_arguments) +
-  buslane_hidden_witnesses_doc(perform.hidden_witnesses) +
-  @pretty.parenthesized_inline(perform.payloads.map(anf_atom_doc))
-}
-
-///|
-fn anf_handle_doc(handle : AnfHandle) -> Document {
-  text("handle") +
-  space +
-  anf_expr_doc(handle.body) +
-  space +
-  text("as") +
-  space +
-  handle.result_binder.pretty() +
-  space +
-  text("->") +
-  space +
-  handle.result_type.pretty() +
-  space +
-  @pretty.braced_block(
-    handle.handlers.map(AnfHandlerTable::pretty) +
-    [
-      text("final") +
-      space +
-      text("=>") +
-      space +
-      anf_expr_doc(handle.final_body),
-    ],
-  )
 }
 
 ///|
 fn anf_construct_doc(construct : AnfConstruct) -> Document {
   construct.data_constructor.pretty() +
-  buslane_type_arguments_doc(construct.type_arguments) +
-  buslane_hidden_witnesses_doc(construct.hidden_witnesses) +
+  runtime_arguments_doc(construct.type_arguments) +
+  runtime_hidden_arguments_doc(construct.hidden_arguments) +
   @pretty.parenthesized_inline(construct.payloads.map(anf_atom_doc))
 }
 
@@ -282,9 +275,11 @@ fn anf_atom_doc(atom : AnfAtom) -> Document {
     Ref(id) => id.pretty()
     Temp(temp) => temp.pretty()
     Function(function) => function.pretty()
-    TypeLambda(type_parameters~, body~) =>
+    DirectFunction(function) => text("direct") + space + function.pretty()
+    JoinPoint(function) => text("join") + space + function.pretty()
+    EvidenceLambda(parameters~, body~) =>
       text("fn") +
-      buslane_type_parameters_doc(type_parameters) +
+      runtime_evidence_parameters_doc(parameters) +
       space +
       anf_body_doc(body)
   }
@@ -292,10 +287,10 @@ fn anf_atom_doc(atom : AnfAtom) -> Document {
 
 ///|
 fn anf_binders_doc(
-  type_binders : Array[@buslane.TypeParameterId],
+  evidence_binders : Array[RuntimeEvidenceParameter],
   value_binders : Array[@buslane.ValueId],
 ) -> Document {
-  let binders = type_binders.map(@buslane.TypeParameterId::pretty) +
+  let binders = evidence_binders.map(RuntimeEvidenceParameter::pretty) +
     value_binders.map(@buslane.ValueId::pretty)
   if binders.is_empty() {
     empty
@@ -305,46 +300,31 @@ fn anf_binders_doc(
 }
 
 ///|
-fn buslane_type_parameters_doc(
-  parameters : Array[@buslane.TypeParameterId],
+fn runtime_evidence_parameters_doc(
+  parameters : Array[RuntimeEvidenceParameter],
 ) -> Document {
   if parameters.is_empty() {
     empty
   } else {
-    @pretty.bracketed_inline(parameters.map(@buslane.TypeParameterId::pretty))
+    @pretty.bracketed_inline(parameters.map(RuntimeEvidenceParameter::pretty))
   }
 }
 
 ///|
-fn buslane_type_arguments_doc(
-  arguments : Array[@buslane.GenericArgument],
-) -> Document {
+fn runtime_arguments_doc(arguments : Array[RuntimeArgument]) -> Document {
   if arguments.is_empty() {
     empty
   } else {
-    @pretty.bracketed_inline(arguments.map(@buslane.GenericArgument::pretty))
+    @pretty.bracketed_inline(arguments.map(RuntimeArgument::pretty))
   }
 }
 
 ///|
-fn buslane_generic_arguments_doc(
-  arguments : Array[@buslane.GenericArgument],
-) -> Document {
-  if arguments.is_empty() {
-    empty
-  } else {
-    @pretty.bracketed_inline(arguments.map(@buslane.GenericArgument::pretty))
-  }
-}
-
-///|
-fn buslane_hidden_witnesses_doc(
-  arguments : Array[@buslane.GenericArgument],
-) -> Document {
+fn runtime_hidden_arguments_doc(arguments : Array[RuntimeArgument]) -> Document {
   if arguments.is_empty() {
     empty
   } else {
     text(" exists") +
-    @pretty.bracketed_inline(arguments.map(@buslane.GenericArgument::pretty))
+    @pretty.bracketed_inline(arguments.map(RuntimeArgument::pretty))
   }
 }

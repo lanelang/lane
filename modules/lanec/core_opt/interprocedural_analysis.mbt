@@ -32,9 +32,9 @@ fn analyze_interprocedural(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
-) -> InterproceduralAnalysis {
+) -> InterproceduralAnalysis raise CoreOptimizeError {
   let core = analyze_core(program)
-  let occurrence = @occurrence.analyze({ program, entry, roots })
+  let occurrence = @occurrence.analyze({ program, entry, roots, })
   let callables = []
   for definition in core.definitions {
     guard callable_parts(definition.expression)
@@ -61,12 +61,12 @@ fn analyze_interprocedural(
     for value in scc.members {
       for callable_index, callable in callables {
         if callable.value == value {
-          callables[callable_index] = { ..callable, scc: scc_index }
+          callables[callable_index] = { ..callable, scc: scc_index, }
         }
       }
     }
   }
-  { core, callables, sccs }
+  { core, callables, sccs, }
 }
 
 ///|
@@ -77,32 +77,20 @@ fn build_call_graph_sccs(
 ) -> Array[CallGraphScc] {
   let count = callables.length()
   let adjacency : Array[Array[Int]] = Array::makei(count, _ => [])
-  let reverse : Array[Array[Int]] = Array::makei(count, _ => [])
   for caller_index, callable in callables {
     for callee in callable.callees {
       guard callable_index(callables, callee) is Some(callee_index) else {
         continue
       }
       adjacency[caller_index].push(callee_index)
-      reverse[callee_index].push(caller_index)
     }
   }
-  let visited = Array::make(count, false)
-  let order : Array[Int] = []
-  for index in 0..<count {
-    finish_call_graph_node(index, adjacency, visited, order)
-  }
-  let assigned = Array::make(count, false)
   let sccs : Array[CallGraphScc] = []
-  for index in order.rev_iter() {
-    if assigned[index] {
-      continue
-    }
-    let component : Array[Int] = []
-    collect_call_graph_component(index, reverse, assigned, component)
-    let members = component.map(member_index => callables[member_index].value)
-    let recursive = component.length() > 1 || adjacency[index].contains(index)
-    sccs.push({ members, recursive })
+  for component in @graph.strongly_connected_components(adjacency) {
+    sccs.push({
+      members: component.members.map(index => callables[index].value),
+      recursive: component.recursive,
+    })
   }
   sccs
 }
@@ -118,40 +106,6 @@ fn callable_index(
     }
   }
   None
-}
-
-///|
-fn finish_call_graph_node(
-  index : Int,
-  adjacency : Array[Array[Int]],
-  visited : Array[Bool],
-  order : Array[Int],
-) -> Unit {
-  if visited[index] {
-    return
-  }
-  visited[index] = true
-  for callee in adjacency[index] {
-    finish_call_graph_node(callee, adjacency, visited, order)
-  }
-  order.push(index)
-}
-
-///|
-fn collect_call_graph_component(
-  index : Int,
-  reverse : Array[Array[Int]],
-  assigned : Array[Bool],
-  component : Array[Int],
-) -> Unit {
-  if assigned[index] {
-    return
-  }
-  assigned[index] = true
-  component.push(index)
-  for caller in reverse[index] {
-    collect_call_graph_component(caller, reverse, assigned, component)
-  }
 }
 
 ///|
@@ -230,7 +184,7 @@ fn collect_known_callees(
       collect_known_callees(initializer, core, aliases, callees)
       let body_aliases = aliases.copy()
       if referenced_value(initializer) is Some(target) {
-        body_aliases.push({ value, target })
+        body_aliases.push({ value, target, })
       }
       collect_known_callees(body, core, body_aliases, callees)
     }
@@ -238,7 +192,7 @@ fn collect_known_callees(
       let body_aliases = aliases.copy()
       for binding in bindings {
         if referenced_value(binding.rhs) is Some(target) {
-          body_aliases.push({ value: binding.id, target })
+          body_aliases.push({ value: binding.id, target, })
         }
       }
       for binding in bindings {

@@ -1,9 +1,20 @@
 # Lane Artifact Boundary
 
-`Milky2018/lanec/artifact` is the sole public owner of persisted Lane artifact schemas, fingerprints, semantic validation, inspection, binary encoding and decoding, and adapters from validated artifacts to the module linker.
+`Milky2018/lanec/artifact` owns Lane's persisted interface and module-object
+schemas, including fingerprints, inspection, and binary codecs.
+Compiler and command callers consume this package rather than private codec or
+orchestration packages.
 
-Compiler and CLI callers import this package instead of compiler orchestration packages or codec implementation paths. `lanec/module/compile` produces complete in-memory modules and converts them into the artifact types owned here; `lanec/module/link` consumes link objects and remains independent of persisted encoding and execution targets.
+Interface and module-object decoding proves container framing and payload
+syntax. Their semantic metadata remains untrusted until the compilation or
+linking validation boundary certifies it.
 
-The subordinate `Milky2018/lanec/artifact/model` package contains only the three immutable value types shared with the linker: `CompilationFingerprint`, `ImportedInterfaceFingerprint`, and `ModuleImportedReference`. It exists to keep the dependency graph acyclic and is not a separate artifact API for compiler or CLI callers.
+Executable output is a standards-valid raw WebAssembly module, not a Lane
+artifact. Before execution, `lane_runtime/wasm` parses and validates that
+module, authenticates host bindings against its actual import section, resolves
+named control globals, and constructs the executable instance atomically.
+Failure returns no partially trusted program.
 
-Schema versions change only when their corresponding persisted representation changes. Interface and module-object decoders validate container framing and payload syntax, but their compiler metadata remains untrusted until the compilation or linking validation boundary consumes it. Linked-program encoding and decoding are different: both pass the complete LoisVM bytecode image through the LoisVM-owned verifier, so a successful linked-program decode is already trusted for execution. Inspection follows the decoder for each artifact kind and never establishes an additional trust boundary.
+The compiler's Physical Program is not persisted and has no artifact codec.
+Artifact inspection covers only Lane interface and module-object artifacts;
+standard WebAssembly tooling owns executable inspection.

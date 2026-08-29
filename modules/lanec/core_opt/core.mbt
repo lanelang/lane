@@ -1,6 +1,6 @@
 ///|
 pub(all) struct CoreOptimizeRequest {
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
 } derive(Debug, Eq)
@@ -37,6 +37,9 @@ pub(all) suberror CoreOptimizeError {
   ExpressionFactsCompilerDefect(@buslane.VerifyResult)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
+  MissingFunctionOriginCompilerDefect
+  ConflictingFunctionOriginCompilerDefect
+  OutputVerificationCompilerDefect(@buslane.VerifyResult)
 } derive(Debug, Eq)
 
 ///|
@@ -74,8 +77,8 @@ fn core_effects_definitionally_equal(
 ///|
 pub fn optimize(
   request : CoreOptimizeRequest,
-) -> Result[@buslane.Program, CoreOptimizeError] {
-  optimize_observed(request, _ => ())
+) -> Result[@buslane.VerifiedProgram, CoreOptimizeError] {
+  optimize_observed_with_origins(request, None, _ => ())
 }
 
 ///|
@@ -84,8 +87,27 @@ pub fn optimize(
 pub fn optimize_observed(
   request : CoreOptimizeRequest,
   observe : (CoreOptimizationObservation) -> Unit,
-) -> Result[@buslane.Program, CoreOptimizeError] {
-  try optimize_or_raise(request, observe) catch {
+) -> Result[@buslane.VerifiedProgram, CoreOptimizeError] {
+  optimize_observed_with_origins(request, None, observe)
+}
+
+///|
+/// Optimizes CPS Core while transferring transformation-owned provenance to
+/// every rebuilt or cloned function object.
+pub fn optimize_preserving_function_origins(
+  request : CoreOptimizeRequest,
+  function_origins : @function_origin.FunctionOriginCatalog,
+) -> Result[@buslane.VerifiedProgram, CoreOptimizeError] {
+  optimize_observed_with_origins(request, Some(function_origins), _ => ())
+}
+
+///|
+fn optimize_observed_with_origins(
+  request : CoreOptimizeRequest,
+  function_origins : @function_origin.FunctionOriginCatalog?,
+  observe : (CoreOptimizationObservation) -> Unit,
+) -> Result[@buslane.VerifiedProgram, CoreOptimizeError] {
+  try optimize_or_raise(request, function_origins, observe) catch {
     error => Err(error)
   } noraise {
     program => Ok(program)
@@ -95,34 +117,71 @@ pub fn optimize_observed(
 ///|
 fn optimize_or_raise(
   request : CoreOptimizeRequest,
+  function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
-) -> @buslane.Program raise CoreOptimizeError {
-  if request.program.metadata.value_info(request.entry) is None {
+) -> @buslane.VerifiedProgram raise CoreOptimizeError {
+  let (input, input_function_clones) = request.program.program_with_function_clones()
+  if function_origins is Some(catalog) &&
+    !catalog.transfer_clones(input_function_clones[:]) {
+    raise MissingFunctionOriginCompilerDefect
+  }
+  if input.metadata.value_info(request.entry) is None {
     raise UnknownRoot(request.entry)
   }
   for root in request.roots {
-    if request.program.metadata.value_info(root) is None {
+    if input.metadata.value_info(root) is None {
       raise UnknownRoot(root)
     }
   }
   let program : @buslane.Program = {
-    metadata: request.program.metadata.snapshot(),
-    terms: request.program.terms,
+    metadata: input.metadata.snapshot(),
+    terms: input.terms,
   }
-  let simplified = cleanup_core(program, request.entry, request.roots, observe)
+  let simplified = cleanup_core(
+    program,
+    request.entry,
+    request.roots,
+    function_origins,
+    observe,
+  )
   let optimized = execute_inline_pipeline(
     simplified,
     request.entry,
     request.roots,
+    function_origins,
     observe,
   )
   observe(
     ProgramChanged(
-      net_calls_removed=core_program_call_count(request.program) -
+      net_calls_removed=core_program_call_count(input) -
         core_program_call_count(optimized),
-      net_top_terms_removed=request.program.terms.length() -
-        optimized.terms.length(),
+      net_top_terms_removed=input.terms.length() - optimized.terms.length(),
     ),
   )
-  optimized
+  match optimized.certify_with_function_clones() {
+    Ok((program, output_function_clones)) => {
+      if function_origins is Some(catalog) &&
+        !catalog.transfer_clones(output_function_clones[:]) {
+        raise MissingFunctionOriginCompilerDefect
+      }
+      program
+    }
+    Err(result) => raise OutputVerificationCompilerDefect(result)
+  }
+}
+
+///|
+fn transfer_function_origin(
+  function_origins : @function_origin.FunctionOriginCatalog?,
+  source : @buslane.FunctionExpr,
+  target : @buslane.FunctionExpr,
+) -> Unit raise CoreOptimizeError {
+  if function_origins is Some(catalog) {
+    guard catalog.origin(source) is Some(_) else {
+      raise MissingFunctionOriginCompilerDefect
+    }
+    if !catalog.transfer(source, target) {
+      raise ConflictingFunctionOriginCompilerDefect
+    }
+  }
 }

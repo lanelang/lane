@@ -39,12 +39,12 @@ fn import_alias_fixture() -> ImportAliasFixture {
     exports: [],
     optimization_hints: [],
   }
-  let library = { ..library, exports: library.owned_exports() }
+  let library = { ..library, exports: library.owned_exports(), }
   let list_module = @module_interface.ModuleInterface::{
     module_path: "Basic.Data.List",
     source_id: Some("file:///List.lane"),
     type_references: [
-      { symbol: list, module_path: "Basic.Data.List", name: "List" },
+      { symbol: list, module_path: "Basic.Data.List", name: "List", },
     ],
     effect_references: [],
     types: [
@@ -79,7 +79,7 @@ fn import_alias_fixture() -> ImportAliasFixture {
     exports: [],
     optimization_hints: [],
   }
-  let list_module = { ..list_module, exports: list_module.owned_exports() }
+  let list_module = { ..list_module, exports: list_module.owned_exports(), }
   let tuple_module = @module_interface.ModuleInterface::{
     module_path: "Basic.Data.Tuple",
     source_id: Some("file:///Tuple.lane"),
@@ -109,10 +109,10 @@ fn import_alias_fixture() -> ImportAliasFixture {
     exports: [],
     optimization_hints: [],
   }
-  let tuple_module = { ..tuple_module, exports: tuple_module.owned_exports() }
+  let tuple_module = { ..tuple_module, exports: tuple_module.owned_exports(), }
   {
     registry,
-    imported: { modules: [library, list_module, tuple_module] },
+    imported: { modules: [library, list_module, tuple_module], },
     value,
     empty,
     tuple,
@@ -450,7 +450,7 @@ test "tuple sugar resolves canonically through an aliased import" {
     authored.body
     is Block(
       result=QualifiedVariant(
-        type_name=Qualified({ module_binding: "Pair", name: "Tuple" }),
+        type_name=Qualified({ module_binding: "Pair", name: "Tuple", }),
         reference=Symbol(authored_tuple),
         ..
       ),
@@ -467,17 +467,19 @@ test "tuple sugar resolves canonically through an aliased import" {
             arms=[
               {
                 pattern: QualifiedVariant(
-                  type_name=Qualified({ module_binding: "Pair", name: "Tuple" }),
+                  type_name=Qualified(
+                    { module_binding: "Pair", name: "Tuple", }
+                  ),
                   ..
                 ),
-                ..,
+                ..
               },
             ],
             ..
           ),
           ..
         ),
-        ..,
+        ..
       }
     ) else {
     abort("expected structured authored tuple owners")

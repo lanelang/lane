@@ -19,7 +19,7 @@ fn elaborate_buslane_source(
     Some(source) => Some(lower_checked_source_file_to_buslane(source))
     None => None
   }
-  { program, diagnostics: result.diagnostics }
+  { program, diagnostics: result.diagnostics, }
 }
 
 ///|
@@ -276,7 +276,7 @@ fn struct_literal_lowering_order(
       let payload_order = collect_struct_literal_lowering_order(
         program, initializer, evaluation_order,
       )
-      return { evaluation_order, payload_order }
+      return { evaluation_order, payload_order, }
     }
   }
   abort("expected struct literal binding")
@@ -479,7 +479,7 @@ test "pre-buslane lowering contract covers source-only forms and witnesses" {
       #|  op.add(a, b)
       #|}
       #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
-      #|let external_int : () -> I64 = extern("%external_int")
+      #|let external_int : () -> I64 = extern("lane.test", "%external_int")
       #|struct Box[A] {
       #|  value : A
       #|}
@@ -705,10 +705,10 @@ test "buslane lowering registry covers nominal and effect declarations" {
   guard objects.objects.get(0) is Some(object) else {
     abort("expected lowered object")
   }
-  assert_eq(object.metadata.types.length(), 1)
-  assert_eq(object.metadata.data_constructors.length(), 1)
-  assert_eq(object.metadata.effects.length(), 1)
-  assert_eq(object.metadata.operations.length(), 1)
+  assert_eq(object.program.metadata.types.length(), 1)
+  assert_eq(object.program.metadata.data_constructors.length(), 1)
+  assert_eq(object.program.metadata.effects.length(), 1)
+  assert_eq(object.program.metadata.operations.length(), 1)
   guard object.exports.any(fn(item) { item.reference is Type(_) }) else {
     abort("expected type export")
   }
@@ -738,7 +738,7 @@ test "buslane lowering registry covers imported references" {
       #|}
     ),
     registry,
-    { modules: [] },
+    { modules: [], },
   )
   if !lib.diagnostics.is_empty() {
     abort(@prettyprinter.render(lib.diagnostics, width=100))
@@ -767,14 +767,11 @@ test "buslane lowering registry covers imported references" {
   guard main.source is Some(main_source) else { abort("expected checked main") }
   let object = lower_checked_source_file_to_buslane_object_with_imports(
     main_source,
-    { direct: imported, available: imported },
+    { direct: imported, available: imported, },
   )
   guard object is Ok(object) else { abort("expected imported lowering") }
   debug_inspect(
-    struct_literal_lowering_order(
-      { metadata: object.metadata, terms: object.terms },
-      "answer",
-    ),
+    struct_literal_lowering_order(object.program, "answer"),
     content=(
       #|{
       #|  evaluation_order: ["second", "first"],

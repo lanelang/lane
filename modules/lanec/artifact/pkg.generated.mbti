@@ -8,10 +8,10 @@ import {
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/elaborate/buslane_lowering",
   "Milky2018/lanec/executable",
-  "Milky2018/lanec/loisvm_lowering",
   "Milky2018/lanec/module",
   "Milky2018/lanec/module/link",
-  "Milky2018/loisvm/bytecode",
+  "Milky2018/lanec/physical_lowering",
+  "Milky2018/lanec/wasm_target",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
 }
@@ -23,9 +23,7 @@ pub let compiled_module_artifact_schema_version : Int
 
 pub let compiled_module_set_artifact_schema_version : Int
 
-pub fn executable_to_loisvm_artifact(@executable.ExecutableProgram) -> Result[LinkedProgramArtifact, @loisvm_lowering.LoisvmLoweringError]
-
-pub fn executable_to_loisvm_binary(@executable.ExecutableProgram) -> Result[Bytes, LoisvmBinaryError]
+pub fn executable_to_wasm_binary(@executable.ExecutableProgram) -> Result[Bytes, WasmExecutableError]
 
 pub fn imported_environment_fingerprints(@module.ModuleInterfaceCatalog) -> Array[@model.ImportedInterfaceFingerprint]
 
@@ -34,12 +32,6 @@ pub fn interface_fingerprint(@module.ModuleInterface) -> @model.CompilationFinge
 pub fn link_module_artifacts(CompiledModuleSetArtifact) -> @link.LinkResult
 
 pub fn link_module_object_artifacts(Array[ModuleObjectArtifact]) -> @link.LinkResult
-
-pub fn linked_program_artifact_to_binary(LinkedProgramArtifact) -> Result[Bytes, @bytecode.BytecodeVerificationError]
-
-pub fn loisvm_linked_program_to_binary(@bytecode.BytecodeImage) -> Result[Bytes, @bytecode.BytecodeVerificationError]
-
-pub fn lower_executable_to_loisvm_bytecode(@executable.ExecutableProgram) -> Result[@bytecode.BytecodeImage, @loisvm_lowering.LoisvmLoweringError]
 
 pub fn module_fingerprint(@module.ModuleInterface, Array[@model.ImportedInterfaceFingerprint]) -> @model.CompilationFingerprint
 
@@ -53,10 +45,6 @@ pub fn module_object_artifact_to_binary(ModuleObjectArtifact) -> Bytes
 
 pub fn module_object_fingerprint(@model.CompilationFingerprint, @model.CompilationFingerprint, @canonical_basic_abi.CanonicalBasicAbiRuntimeContract, @buslane.MetadataRegistry, Array[@buslane.TopTerm], @buslane_lowering.BuslaneExternalMap, Array[@buslane_lowering.BuslaneEntry], Array[@buslane_lowering.BuslaneModuleExport], Array[@model.ModuleImportedReference], Array[@model.ImportedInterfaceFingerprint]) -> @model.CompilationFingerprint
 
-pub fn parse_linked_program_artifact_binary(Bytes) -> Result[LinkedProgramArtifact, String]
-
-pub fn parse_loisvm_linked_program_binary(Bytes) -> Result[@bytecode.BytecodeImage, String]
-
 pub fn parse_module_interface_artifact_binary(Bytes) -> Result[ModuleInterfaceArtifact, String]
 
 pub fn parse_module_object_artifact_binary(Bytes) -> Result[ModuleObjectArtifact, String]
@@ -65,6 +53,7 @@ pub fn validate_module_interface_artifacts(Array[ModuleInterfaceArtifact]) -> Ar
 
 // Errors
 type ArtifactBinaryDecodeError derive(@debug.Debug)
+pub fn ArtifactBinaryDecodeError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) struct CompiledModuleArtifact {
@@ -72,23 +61,18 @@ pub(all) struct CompiledModuleArtifact {
   interface : ModuleInterfaceArtifact
   object : ModuleObjectArtifact
 } derive(Eq, @debug.Debug)
+pub fn CompiledModuleArtifact::equal(Self, Self) -> Bool
+pub fn CompiledModuleArtifact::not_equal(Self, Self) -> Bool
+pub fn CompiledModuleArtifact::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompiledModuleSetArtifact {
   schema_version : Int
   root_module_path_text : String
   modules : Array[CompiledModuleArtifact]
-  reachable_module_path_texts : Array[String]
 } derive(Eq, @debug.Debug)
-
-pub(all) struct LinkedProgramArtifact {
-  bytecode : @bytecode.BytecodeImage
-} derive(Eq, @debug.Debug)
-pub impl @prettyprinter.Pretty for LinkedProgramArtifact
-
-pub(all) enum LoisvmBinaryError {
-  Lowering(@loisvm_lowering.LoisvmLoweringError)
-  BytecodeVerificationCompilerDefect(@bytecode.BytecodeVerificationError)
-} derive(Eq, @debug.Debug)
+pub fn CompiledModuleSetArtifact::equal(Self, Self) -> Bool
+pub fn CompiledModuleSetArtifact::not_equal(Self, Self) -> Bool
+pub fn CompiledModuleSetArtifact::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ModuleInterfaceArtifact {
   schema_version : Int
@@ -98,8 +82,12 @@ pub(all) struct ModuleInterfaceArtifact {
   module_fingerprint : @model.CompilationFingerprint
   imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
+pub fn ModuleInterfaceArtifact::equal(Self, Self) -> Bool
 pub fn ModuleInterfaceArtifact::imported_fingerprint_diagnostic(Self, String, @model.CompilationFingerprint) -> @diagnostic.CompilerDiagnostic?
 pub fn ModuleInterfaceArtifact::imported_interface_fingerprint(Self, String) -> @model.CompilationFingerprint?
+pub fn ModuleInterfaceArtifact::not_equal(Self, Self) -> Bool
+pub fn ModuleInterfaceArtifact::pretty(Self) -> @prettyprinter.Document
+pub fn ModuleInterfaceArtifact::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ModuleInterfaceArtifact
 
 pub(all) struct ModuleObjectArtifact {
@@ -117,7 +105,19 @@ pub(all) struct ModuleObjectArtifact {
   object_fingerprint : @model.CompilationFingerprint
   imported_interface_fingerprints : Array[@model.ImportedInterfaceFingerprint]
 } derive(Eq, @debug.Debug)
+pub fn ModuleObjectArtifact::equal(Self, Self) -> Bool
+pub fn ModuleObjectArtifact::not_equal(Self, Self) -> Bool
+pub fn ModuleObjectArtifact::pretty(Self) -> @prettyprinter.Document
+pub fn ModuleObjectArtifact::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ModuleObjectArtifact
+
+pub(all) enum WasmExecutableError {
+  Lowering(@physical_lowering.PhysicalLoweringError)
+  WasmCompilation(@wasm_target.WasmCompileError)
+} derive(Eq, @debug.Debug)
+pub fn WasmExecutableError::equal(Self, Self) -> Bool
+pub fn WasmExecutableError::not_equal(Self, Self) -> Bool
+pub fn WasmExecutableError::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 pub using @model {type CompilationFingerprint}

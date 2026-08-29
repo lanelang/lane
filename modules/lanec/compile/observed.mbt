@@ -37,7 +37,7 @@ fn render_resolved_source(
   width : Int,
 ) -> String {
   @prettyprinter.render(
-    ResolvedCode::{ declarations: source.declarations },
+    ResolvedCode::{ declarations: source.declarations, },
     width~,
   )
 }
@@ -48,12 +48,12 @@ fn render_checked_source(
   width : Int,
 ) -> String {
   @prettyprinter.render(
-    CheckedCode::{ declarations: source.declarations },
+    CheckedCode::{ declarations: source.declarations, },
     width~,
   )
 }
 
 ///|
 fn render_buslane_program(program : @buslane.Program, width : Int) -> String {
-  @prettyprinter.render(BuslaneCode::{ terms: program.terms }, width~)
+  @prettyprinter.render(BuslaneCode::{ terms: program.terms, }, width~)
 }

@@ -19,6 +19,9 @@ pub fn format_source_with_options(String, FormatOptions) -> Result[String, Array
 pub(all) struct FormatOptions {
   width : Int
 } derive(Eq, @debug.Debug)
+pub fn FormatOptions::equal(Self, Self) -> Bool
+pub fn FormatOptions::not_equal(Self, Self) -> Bool
+pub fn FormatOptions::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

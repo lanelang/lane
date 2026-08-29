@@ -3,10 +3,10 @@ import {
   "Milky2018/lanec/checked",
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/lexer",
-  "Milky2018/lanec/lint",
   "Milky2018/lanec/module/frontend" @module_frontend,
   "Milky2018/lanec/module" @module_interface,
   "Milky2018/lanec/resolve",
+  "Milky2018/lanec/source_elaboration",
   "Milky2018/lanec/symbol",
   "Milky2018/lanec/syntax",
   "Milky2018/lanec/typecheck",
@@ -14,7 +14,3 @@ import {
   "moonbitlang/core/hashset",
   "moonbitlang/core/immut/hashmap" @immut_hashmap,
 }
-
-import {
-  "Milky2018/lanec/module/compile" @module_compile,
-} for "wbtest"

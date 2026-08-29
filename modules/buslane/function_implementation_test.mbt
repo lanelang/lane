@@ -226,7 +226,7 @@ test "verify buslane widens a direct local function implementation" {
       Let(
         result,
         LetRec(
-          [{ id: local_function, rhs: constant_int_function() }],
+          [{ id: local_function, rhs: constant_int_function(), }],
           Literal(I64(0L)),
         ),
       ),

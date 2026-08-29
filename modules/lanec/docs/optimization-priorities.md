@@ -7,145 +7,140 @@ The measurements identify missing facts and transformations; future work must
 re-measure the same boundaries instead of tuning limits until one snapshot
 looks smaller.
 
-## Observed baseline
+## Current reproducible baseline
 
-The measurements below came from the 2026-08-11 compiler and a local Basic
-`test/entry.lane:test_entry` build with `--lib-dir . --no-basic`. The Basic
-worktree contained uncommitted changes, so these values are diagnostic evidence
-rather than a reproducible release baseline. A committed Basic revision must be
-pinned before turning them into regression gates.
+The current baseline was recorded on 2026-08-29 at Lane commit
+`2d3188534de69eb485d69d72027815321ee1120a` with pinned Basic
+`b4b95e1c04f785b61a65fffc2b4433f20c118a22`, the Wasmoon dependency family at
+`0.12.6`, MoonBit nightly 2026-08-26, and Apple Silicon running macOS 26.5.2.
+It uses two committed inputs:
 
-The complete run took about 8.60 seconds, while non-executing exploration
-through Wasm generation took about 0.39 seconds. Approximately 95 percent of the
-wall time therefore remained at the Wasmoon JIT and execution boundary. The
-generated image still gave that boundary substantially more work than the
-source program justified:
+```sh
+lane explore examples/valid/37_coroutine_scheduler.lane:answer \
+  --lib-dir ../basic --no-basic -o scheduler.html
+lane explore ../basic/test/entry.lane:test_entry \
+  --lib-dir ../basic --no-basic -o basic.html
+```
 
-| Observation | Value |
-| --- | ---: |
-| Lane bytecode functions | 705 |
-| Total Wasm functions, including imports and generated helpers | 851 |
-| Bytecode functions with one explicit static reference | 602 |
-| Bytecode functions with at most 5 operations | 344 |
-| Bytecode functions with at most 10 operations | 523 |
-| Direct calls, including tail calls | 500 |
-| Indirect calls, including tail calls | 438 |
-| `make_env` operations after VM CFG finalization | 650 |
-| `make_closure` operations after VM CFG finalization | 646 |
-| Callable table entries | 672 |
-| `const_layout` operations | 981 |
-| `erase_*` operations | 597 |
-| `unerase_*` operations | 376 |
-| `retain_copy` operations | 623 |
-| `release` operations | 410 |
-| Instance globals | 66 |
-| Shape destructor functions | 126 |
-| Distinct rendered shape destructor bodies | 72 |
+Explore Protocol v11 is the owner-produced structural observation boundary.
+All counts below are typed scale, provenance, call-resolution, and expansion
+facts from the report model; rendered IR and WAT were not searched to infer
+compiler facts.
 
-## Callable-flow and adapter result
+| Stage | Coroutine Scheduler | Basic test entry |
+| --- | ---: | ---: |
+| Core optimized functions / nodes / calls | 15 / 234 / 30 | 146 / 3,956 / 631 |
+| Selective-CPS functions / nodes / calls | 45 / 416 / 59 | 286 / 4,757 / 699 |
+| CPS-Core optimized functions / nodes / calls | 39 / 373 / 53 | 254 / 4,252 / 658 |
+| Runtime ANF functions / nodes / calls | 39 / 659 / 53 | 254 / 7,263 / 658 |
+| Initial VM CFG functions / instructions / values | 60 / 307 / 562 | 381 / 3,932 / 6,214 |
+| Physical functions / instructions / slots | 60 / 349 / 414 | 381 / 4,573 / 4,030 |
+| Wasm functions / instructions / locals | 104 / 7,140 / 480 | 492 / 61,928 / 4,782 |
+| Wasm imports / table entries | 1 / 80 | 3 / 363 |
 
-The 2026-08-11 callable-flow and deferred-adaptation implementation was
-measured against clean Basic revision `8a7be0e`. The immediately preceding
-compiler produced 705 bytecode functions, 7,192 bytecode instructions, 438
-indirect calls, 646 closures, and 650 environments. Its Wasm contained 848
-functions, 144,733 instructions, 11,372 locals, and 671 table entries.
+The function growth is not owned by Wasm alone. Selective CPS triples the
+scheduler's 15 Core functions to 45 before cleanup returns 39. Runtime ANF then
+becomes 60 Physical functions; 20 are structural callable adapters and 13 are
+handler/CPS/monadic functions. Basic similarly grows from 254 Runtime ANF
+functions to 381 Physical functions, including 73 structural callable adapters
+and 115 handler/CPS/monadic functions.
 
-With exact callable flow and non-escaping callable-adapter fusion, the same
-program produces 702 bytecode functions, 6,453 bytecode instructions, 411
-indirect calls, 486 closures, and 486 environments. The Wasm contains 845
-functions, 134,655 instructions, 11,041 locals, and 659 table entries. Three
-complete `test.sh` runs took 6.81, 6.95, and 6.66 seconds, compared with the
-preceding 8.43 to 9.27 second range. Non-executing Explore took 0.40 seconds.
+The remaining Physical facts are:
 
-These results demonstrate removal of callable representation plumbing. They do
-not demonstrate general generic-representation specialization: the resulting
-bytecode still contains 601 erase and 375 unerase operations.
+| Physical fact | Coroutine Scheduler | Basic test entry |
+| --- | ---: | ---: |
+| Direct / indirect calls | 22 / 43 | 451 / 148 |
+| Exact-target calls still indirect because the environment is packed | 9 | 35 |
+| Closures / environments | 48 / 50 | 361 / 381 |
+| Erase / unerase | 15 / 11 | 327 / 146 |
+| Retain / release | 13 / 29 | 372 / 286 |
+| Callable ABIs / object shapes | 29 / 24 | 121 / 84 |
+| Duplicate runtime-ABI workers | 0 | 0 |
 
-## Representation-specialization result
+## Where the Wasm expansion comes from
 
-Demand-driven first-order representation workers were measured on 2026-08-11
-against the same clean Basic revision `8a7be0e`. The plan deduplicates by
-canonical runtime ABI, proves recursive demand closure, retains generic
-fallbacks for open uses, and relies on exact whole-image reachability to remove
-only physically unreachable functions.
+The Wasm emitter's exhaustive expansion accounting sums exactly to each
+module's instruction total:
 
-Relative to the callable-flow baseline, Lane bytecode functions increase from
-702 to 731 while instructions decrease from 6,453 to 5,933. Erase operations
-fall from 601 to 440 and unerase operations from 375 to 325. Closures and
-environments each fall from 486 to 456. The Wasm image increases from 845 to 876
-functions, but rendered instructions decrease from 134,655 to 129,753, locals
-from 11,041 to 10,623, and table entries from 659 to 633. Thus Explore exposes
-the multiversioning cost rather than hiding it, while both executable code size
-and representation plumbing decrease.
+| Expansion owner | Scheduler | Basic | Basic share |
+| --- | ---: | ---: | ---: |
+| Physical object operations | 1,740 | 16,303 | 26.3% |
+| ARC unwind | 1,148 | 9,584 | 15.5% |
+| ARC frame-state maintenance | 822 | 8,184 | 13.2% |
+| Physical callable operations | 695 | 5,576 | 9.0% |
+| Runtime guards | 684 | 4,215 | 6.8% |
+| Physical control transfer | 620 | 3,714 | 6.0% |
+| CFG structuring | 185 | 3,217 | 5.2% |
+| Physical ownership operations | 152 | 2,816 | 4.5% |
+| Physical scalar operations | 94 | 2,340 | 3.8% |
+| Physical erasure operations | 90 | 1,485 | 2.4% |
+| Function ABI | 284 | 1,414 | 2.3% |
+| Helper support | 196 | 1,155 | 1.9% |
+| Runtime support | 355 | 767 | 1.2% |
+| Byte sequence, global, cleanup, and entry work | 75 | 1,158 | 1.9% |
+| **Total** | **7,140** | **61,928** | **100%** |
 
-Three complete `test.sh` runs took 5.45, 5.47, and 5.44 seconds. Non-executing
-Explore took 0.39 seconds. The preceding callable-flow baseline took 6.66 to
-6.95 seconds for `test.sh` and 0.40 seconds for Explore.
+Object operations plus ARC frame state and unwind account for 52.0% of the
+scheduler and 55.0% of Basic. This is the dominant boundary to study, but the
+totals alone do not prove redundancy: objects require headers, shape-aware
+cleanup, and ownership transfer, while fatal unwinding requires path-sensitive
+live-owner state.
 
-Layout witnesses and erasure bridges account for 1,954 of 8,168 bytecode
-operations, about 24 percent. The current VM CFG devirtualizer changes only 11
-indirect calls to direct calls and removes only 6 of 652 initial closure
-constructions and 3 of 653 initial environment constructions.
+Wasm function count is also fully attributable. Basic's 492 defined functions
+are 381 Physical bodies, 84 shape destructors, 15 runtime functions, 11 shared
+helpers, and one entry wrapper; its three imports are counted separately. The
+scheduler's 104 are 60 Physical bodies, 24 shape destructors, eight runtime
+functions, 11 shared helpers, and one entry wrapper. Both reports have zero
+unreachable Wasm support roles, so reachable-support pruning has no residual
+dead family to delete.
 
-The largest three Lane functions expand to approximately 5,941, 5,248, and
-2,736 rendered Wasm instructions. The generated entry lifecycle contributes
-another approximately 1,809 instructions, including 66 unrolled global
-completeness checks and separate normal and exceptional cleanup paths. In total,
-approximately 8,168 bytecode operations expand to 153,000 rendered Wasm
-instructions.
+Locals principally preserve the Physical storage plan. Basic's 4,782 locals
+partition exactly into 4,030 Physical slots, 620 ARC-unwind locals, 99 CFG
+locals, and 33 runtime-support locals. The scheduler splits 480 into 414, 39,
+nine, and 18 respectively. Reducing locals therefore primarily means reducing
+Physical live ranges and slots rather than applying a Wasm-local peephole.
 
-## Priority zero: trustworthy measurement
+Two concrete costs require different treatment:
 
-Optimization work needs a deterministic, machine-readable feedback loop before
-the numbers above become targets.
+- Callable-flow already proves 35 Basic and nine scheduler indirect calls have
+  exactly one target, but their environment remains inside a packed callable.
+  This is demonstrated removable dispatch work and is tracked separately by
+  ISS-423; the packed callable may still be required by source semantics.
+- Eleven logical call-depth instructions are emitted in every Physical body.
+  They account for 4,191 of Basic's 4,215 runtime-guard instructions and 660 of
+  the scheduler's 684. This is not accidental guard duplication: it implements
+  the configurable execution limit in ADR-0112. Removing it requires an
+  explicit execution-policy change or an engine-owned equivalent, not a local
+  Wasm cleanup.
 
-Explore Protocol v5 retains the structural observability introduced in v2 and
-now delivers the first two requirements below: stage
-metrics are collected from typed IR, and function lineage is carried by ANF,
-LoisVM canonicalization, and Wasm emission owners. Per-function scale is
-published only at those identity-owning stages; earlier tree stages remain
-aggregate-only. The remaining work starts with a pinned clean Basic baseline.
+## Historical baselines
 
-1. Add per-stage metrics to Explore without making the human-facing IR text a
-   serialization format. At minimum, record function count, operation count,
-   maximum function size, direct and indirect call counts, closure and
-   environment construction counts, callable table size, layout-erasure bridge
-   counts, ARC counts, object-shape count, and generated helper count.
-2. Preserve function provenance from Buslane values through ANF, VM CFG,
-   bytecode, and Wasm. Presentation consumes this relationship; it must not
-   infer it from function order or rendered identifiers.
-3. The Wasm text renderer now explicitly covers every instruction emitted by
-   LoisVM. Public round-trip tests parse and validate the complete text and
-   preserve special floating-point constant bits.
-4. Pin a clean Basic revision and record compilation, JIT, and execution time
-   separately. Image-size gates must accompany the timing gate so a runtime
-   change cannot hide compiler output growth.
+Measurements from 2026-08-11 covered the deleted semantic-runtime and bytecode
+architecture. They included 702-731 physical functions, 5,933-6,453 physical
+instructions, 845-876 Wasm functions, and 129,753-134,655 rendered Wasm
+instructions for an earlier Basic revision. They remain useful evidence for why
+callable-flow and representation specialization were introduced, but they are
+not a baseline for the current raw-Wasm pipeline.
 
-These metrics are evidence, not policy. No optimization decision should be
-defined by the observed function IDs or by machine-specific wall-clock values.
+Explore Protocol v11 provides owner-produced aggregate metrics and preserves
+function provenance at identity-owning stages. Tree stages remain
+aggregate-only, and ordinary compilation does not construct observations. These
+metrics are evidence, not optimization policy: decisions must not depend on
+observed function IDs, rendered text, machine-specific timing, or numeric growth
+heuristics.
 
 ## Priority one: remove structural expansion
 
 ### 1. Summarize immutable top-level values to weak-head normal form
 
-Core optimization currently recognizes a static constructor only when the top
-definition is syntactically a `Construct`. It misses closed pure initializers
-whose final value lies behind a `Let` or `LetRec` spine. In the observed program,
-one such value ends in a known `datacon#8` but is projected through a `match` 19
-times.
+Delivered by ISS-410. `CoreAnalysis` is the sole producer of cycle-aware,
+conservative literal and constructor head facts through pure aliases and local
+`Let` spines. Known-match reduction consumes this fact rather than inspecting a
+top-level definition's syntax. Effectful spines and cycles remain unknown.
 
-`CoreAnalysis` should be the sole owner of a conservative static-value summary:
-
-- unknown;
-- literal;
-- constructor with summarized payloads;
-- known callable with captured substitutions.
-
-The analysis must preserve strict evaluation and effects while looking through
-closed, pure binding spines. Match reduction, field projection, known-call
-analysis, and reachability then consume the same summary. This should expose
-dictionary fields as known callables, eliminate repeated constructor matches,
-and enable the later priorities without inventing another fact producer.
+Callable identity deliberately remains with the interprocedural callable-flow
+owner. Adding callables to the static-head summary would duplicate a richer
+fact rather than deepen this analysis.
 
 ### 2. Replace peephole devirtualization with callable-flow analysis
 
@@ -170,70 +165,49 @@ Truly polymorphic code needs layout witnesses and erased values. A call whose
 type arguments and companion witnesses are concrete should not retain the same
 runtime plumbing merely because it passed through a generic definition.
 
-Introduce demand-driven representation specialization that is profitable only
-when it removes concrete ABI work. It must:
+The correctness baseline is the Canonical Generic ABI from ADR-0138. Generic
+functions and generic nominal storage must lower correctly when representation
+specialization is disabled. Specialization is then an optional program rewrite
+that is useful only when it removes concrete ABI work. It must:
 
 - propagate the concrete layout through the specialized body;
 - cancel matching erase and unerase operations;
 - eliminate constant witness arguments and captures;
 - canonicalize identity adapters and compose adjacent adapters;
-- avoid unrestricted whole-program monomorphization.
+- create at most one worker for a closed canonical ABI key;
+- leave open, indirect, unsupported, and recursively expanding uses generic;
+- rewrite actual definitions and calls rather than publishing planner output
+  for lowering to consume; and
+- remain removable without changing valid-program acceptance or behavior.
 
 The optimization owns representation specialization. Effect specialization and
-source type substitution remain separate semantic operations.
+source type substitution remain separate semantic operations. Generic nominal
+storage initially stays declaration-owned and uniform; non-escaping aggregates
+may be scalar-replaced without introducing specialized nominal families.
 
-The callable-adapter portion was delivered on 2026-08-11: callable adaptation
-is now a deferred structural lowering value, direct invocation fuses it into
-the source call, and only first-class escape materializes an adapter closure.
-Demand-driven first-order generic representation specialization is now also
-delivered. One immutable plan owns canonical runtime-ABI keys, one worker per
-key, and exact recursive-SCC closure; the generic body remains available for
-all other calls. Explore regression gates show one worker shared by `Bool` and
-`I32`, zero erase/unerase operations on those concrete paths, and rejection of
-the expanding `T -> Box[T]` recursive family. Erased callable payloads now use
-the ABI declared by their formal erased position in both directions, so CPS
-answer specialization cannot silently change a continuation's dynamic call
-contract. Higher-kinded layout-constructor evidence and general bridge
-cancellation outside planned direct calls remain open in this priority.
+Structural callable adaptation is part of representation elaboration, not
+specialization. A direct invocation may fuse the conversion; only first-class
+escape materializes a worker. The worker is keyed by the complete structural
+source and target contracts, and function-table processing does not rediscover
+its identity from emitted instructions.
 
-The Coroutine Scheduler follow-up classified the remaining lowering artifacts
-instead of treating every erased operation as interchangeable. Of its 48
-`erase_*`/`unerase_*` instructions, 44 were inside 30 callable-adapter workers.
-Those workers represented only 20 distinct structural contracts: synthetic
-parameter identities had caused ten duplicate physical bodies, and one further
-worker was a definitionally aligned identity conversion. Exact structural adapter
-equivalence and identity elimination reduce the VM CFG to 19 adapter workers
-and 29 total representation bridges. VM CFG functions fall from 87 to 76,
-instructions from 500 to 428, and indirect calls from 63 to 52; finalized
-bytecode instructions fall from 426 to 373.
+Earlier implementations reduced Scheduler adapter and bridge counts but did so
+through a persistent Callable Instance Plan, Representation Constraint Graph,
+specialized data-family catalog, Recursive Callable Contract Graph, and
+structural Physical ANF. Those measurements remain useful historical baselines;
+the architecture is superseded because lowering depended on the optimization.
+ISS-390 first restores independently correct generic lowering and deletes the
+parallel models. ISS-363 and ISS-368 then own optional CPS-aware specialization
+and its measured optimization results.
 
-The remaining 25 adapter-local bridges cross real CPS answer-type
-erased/concrete ABI boundaries; the other four occur in ordinary functions.
-Deleting them locally would change ownership or call ABI. Removing those
-boundaries requires a future exact higher-kinded/CPS representation
-specialization whose plan proves the finite answer-ABI demand set. It is not
-adapter deduplication or peephole cancellation.
+### 4. Trust verified Physical Program facts in the Wasm compiler
 
-The first CPS-aware follow-up runs the ordinary effect-aware Core optimizer
-again after monadic lift. Selective CPS preserves `Empty` as observational
-purity; runtime effect projection now occurs only while constructing ANF. On
-example 37 this reduces the initial VM CFG from 76 to 62 functions, 428 to 388
-instructions, 52 to 44 indirect calls, 51 to 46 closures/environments, and 29
-to 26 representation bridges. Final bytecode has 337 instructions, and Wasm
-has 116 functions, 10,419 instructions, and 87 table entries. A deep-ABI
-consumer-only worker experiment was rejected because its small bridge reduction
-increased closures, layouts, and Wasm size. The remaining work is therefore the
-typed producer-and-consumer instance plan in ADR-0136, not another local
-lowering trigger.
-
-### 4. Trust verified bytecode facts in the Wasm compiler
-
-Bytecode verification already proves global initialization order, rejects
+Physical Program verification already proves global initialization order, rejects
 duplicate initialization, and requires complete normal initialization. The Wasm
 compiler nevertheless emits runtime checks around every global initialization
 and borrow and emits a second completeness scan in the entry wrapper.
 
-The bytecode verifier should remain the sole owner of these static invariants.
+The Physical Program verifier should remain the sole owner of these static invariants.
 Wasm compilation may consume a successfully verified image without repeating
 them. Dynamic checks whose result depends on runtime data, such as bounds,
 allocation failure, and indirect-call ABI identity, remain required.
@@ -294,49 +268,79 @@ optimization policy.
 
 ### 7. Propagate constructors and scalar-replace aggregates
 
-Extend constructor knowledge through local bindings and pure initializer
-summaries. A known construct followed by projection, match, reconstruction, or a
-non-escaping use should pass its fields directly. This targets the observed 225
-`make_data`, 277 `borrow_field`, 61 `consume_fields`, and 196 Core matches.
+Delivered by ISS-411. Core optimization now removes a local known-constructor
+allocation only after one lexical traversal proves that every use is a
+destructuring match, no whole value escapes, no nested function or recursive
+group captures it, and no existential binder is opened. Payloads are bound at
+the original constructor point, preserving strict left-to-right, exactly-once
+evaluation. Unsupported uses retain the original aggregate; there is no
+fallback representation and no downstream escape analysis.
+
+The pinned Basic result is intentionally modest: one Physical function, 21
+Physical instructions, 15 slots, and 295 Wasm instructions disappear. The
+focused example reaches zero object shapes. This is the correct proof boundary,
+not a promise that every aggregate is scalar-replaceable.
 
 ### 8. Intern generated shape destructors
 
-The current Wasm backend emits one destructor function per object shape. In the
-observed image, 126 functions contain only 72 distinct rendered bodies. Intern a
-structured destructor plan before function and callable-table allocation, then
-map every compatible shape to the shared function. This is preferable to a
-generic runtime interpreter as the first step because it reduces JIT work
-without adding release-time dispatch.
+This is not a current scheduled optimization. The earlier claim that 126
+functions contained 72 distinct bodies came from the deleted backend and from
+rendered-text comparison. The current Basic image has 84 object shapes and
+attributes 18,847 Wasm instructions to object operations, but those aggregate
+facts do not prove duplicate destructor semantics. A future proposal must first
+add owner-produced structured destructor-plan identity and demonstrate actual
+duplication; it must not infer sharing from rendered bodies.
 
-### 9. Propagate erased values and witnesses as one fact
+### 9. Preserve erased payload and witness contracts across ABI boundaries
 
-VM CFG scalar propagation deliberately excludes erased companion slots, leaving
-many repeated `const_layout` operations. Model an erased payload and its layout
-witness as one paired representation fact. Pair-aware constant propagation may
-reuse witnesses and cancel locally inverse bridges without separating the
-ownership proof from its companion.
+ISS-413 investigated whether the post-milestone Basic totals—327 erasures, 146
+unerasures, and 2,659 Wasm instructions attributed to erasure—contained local
+inverse bridges or duplicate static witnesses. A complete-contract experiment
+changed neither Basic nor the coroutine scheduler. The remaining bridges cross
+generic calls, aggregate storage, or dynamic callable boundaries; they are the
+canonical generic ABI rather than local VM CFG redundancy.
+
+`ValueMetadata.erased_companion` remains the payload/witness relation, erasure
+instructions remain the representation-transfer owner, and ARC remains the
+ownership-transfer owner. Do not add a local pair-propagation pass without new
+owner-produced evidence. A future reduction must come from closed-ABI
+specialization that removes the boundary itself.
 
 ### 10. Hoist immutable global borrows
 
-After verification, an Instance Global is immutable until lifecycle cleanup.
-Repeated borrows of the same global within a function may share one loaded
-value, subject to the paired erased-witness rule. This should be expressed as a
-VM CFG value fact rather than a Wasm text peephole.
+This remains a possible consequence of closed-ABI specialization, not an active
+task. Current Explore facts do not count repeated same-global borrows, so there
+is no owner-produced evidence that a separate global optimization is
+profitable.
 
 ### 11. Coalesce ARC operations after upstream simplification
 
-Run ownership-aware retain/release coalescing only after callable
-devirtualization and aggregate scalar replacement. Those transformations remove
-the objects that cause many current ARC operations; optimizing ARC first would
-spend complexity preserving temporary lowering artifacts. The ARC-final
-ownership graph must prove every removed retain/release pair.
+Delivered by ISS-414. The Physical Program remains the ownership-semantics
+owner: Basic still contains 372 retains and 286 releases. The Wasm target now
+projects verified slot metadata once into a typed Frame Cleanup Plan and shares
+one complete helper for reference, callable, and erased cleanup. Per-frame
+unwind code only supplies the verified slot values and liveness. It no longer
+reconstructs or expands the release policy for every owning slot.
+
+Explore now separates frame-state maintenance, per-frame unwind, and shared
+cleanup support. On the pinned programs, the structural result is:
+
+| Program | Wasm instructions before | after | ARC unwind before | after | shared cleanup |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Basic | 72,672 | 61,928 | 20,351 | 9,584 | 23 |
+| coroutine scheduler | 8,346 | 7,140 | 2,377 | 1,148 | 23 |
+
+The three extra direct helpers do not enter the callable table. Physical
+function, instruction, slot, retain/release, and representation-bridge counts
+are unchanged. This is deliberately implementation sharing at the Wasm
+boundary, not an unsupported claim that ARC demands were removed.
 
 ## Priority three: conventional residual optimization
 
 After the structural work above, apply standard sparse conditional constant
 propagation, cross-block scalar constant propagation, dead branch removal, and
 local Wasm canonicalization. The current image has only 46 boolean branches and
-29 tag switches at bytecode level, so these passes are unlikely to dominate the
+29 tag switches at Physical Program level, so these passes are unlikely to dominate the
 present JIT problem.
 
 Wasmoon lazy compilation, caching, and compiler throughput remain useful but
@@ -345,18 +349,24 @@ eagerly compile avoidable functions and representation plumbing.
 
 ## Recommended implementation order
 
-1. Pin a clean Basic baseline using the delivered Explore v2 metrics and
-   provenance.
-2. Remove duplicated global runtime checks and compact entry lifecycle cleanup.
-3. Add the Core static-value summary and consume it in match and projection
-   reduction.
-4. Extend the delivered first-order representation workers with canonical
-   higher-kinded evidence keys and general bridge cancellation.
-5. Add constructor scalar replacement, pair-aware witness propagation, and
-   immutable-global borrow reuse.
-6. Coalesce residual ARC operations.
-7. Intern identical shape destructor plans.
-8. Apply conventional CFG and Wasm cleanup to the smaller program.
+ISS-410 through ISS-414 completed static-head ownership, local scalar
+replacement, erased-contract analysis, and shared ARC cleanup. The next order
+is evidence-driven:
+
+1. Complete ISS-423 by consuming the existing exact-target/packed-environment
+   fact at the VM CFG owner. This removes known indirect dispatch without
+   changing closure escape semantics or adding a heuristic.
+2. Add finer owner-produced object-operation and ARC-frame attribution before
+   choosing a representation or unwind rewrite. Their aggregate size is large,
+   but it mixes required semantics with potential implementation expansion.
+3. Decide whether configurable logical call depth remains part of Lane's
+   execution contract before changing its per-function Wasm instrumentation.
+
+The current evidence does not authorize another representation bridge,
+destructor-sharing, or ARC peephole pass. There are no duplicate runtime-ABI
+workers or unreachable Wasm support roles, and the remaining bridge counts cross
+real generic boundaries. New work needs a fact that identifies which specific
+boundary can be removed.
 
 Each completed item must update the pinned Explore metrics and the end-to-end
 Basic timing. A smaller source-level IR without a smaller executable image is

@@ -85,17 +85,17 @@ pub fn SourceSpan::SourceSpan(
   start_offset : Int,
   end_offset : Int,
 ) -> SourceSpan {
-  { source_id, start_offset, end_offset }
+  { source_id, start_offset, end_offset, }
 }
 
 ///|
 pub fn Label::primary(span : SourceSpan, message? : String) -> Label {
-  { style: Primary, span, message }
+  { style: Primary, span, message, }
 }
 
 ///|
 pub fn Label::secondary(span : SourceSpan, message? : String) -> Label {
-  { style: Secondary, span, message }
+  { style: Secondary, span, message, }
 }
 
 ///|

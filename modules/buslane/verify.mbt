@@ -139,6 +139,14 @@ pub struct VerifyResult {
 } derive(Debug, Eq)
 
 ///|
+/// A Buslane program accepted by the Buslane verifier. Compiler
+/// transformations consume this opaque value and must certify every newly
+/// produced program before returning it.
+pub struct VerifiedProgram {
+  priv program : Program
+} derive(Debug, Eq)
+
+///|
 priv struct VerifyContext {
   program : Program
   diagnostics : Array[VerifyDiagnostic]
@@ -211,7 +219,7 @@ pub fn ExpressionFactsQuery::new(program : Program) -> ExpressionFactsQuery {
   for index in 0..<program.metadata.type_parameters.length() {
     type_parameters.push({ index, })
   }
-  { program, values, type_parameters }
+  { program, values, type_parameters, }
 }
 
 ///|
@@ -226,8 +234,8 @@ pub fn ExpressionFactsQuery::synthesize(
   }
   let facts = context.synthesize_expr(
     expression,
-    { values: self.values, deferred: NoDeferredValues },
-    { parameters: self.type_parameters },
+    { values: self.values, deferred: NoDeferredValues, },
+    { parameters: self.type_parameters, },
   )
   let blockers = context.diagnostics.filter(diagnostic => {
     diagnostic.blocks_expression_facts()
@@ -235,7 +243,7 @@ pub fn ExpressionFactsQuery::synthesize(
   if blockers.is_empty() {
     Ok(facts)
   } else {
-    Err({ diagnostics: blockers })
+    Err({ diagnostics: blockers, })
   }
 }
 
@@ -269,7 +277,7 @@ pub fn ExpressionFactsQuery::has_empty_effect(
         error =>
           Err({
             diagnostics: [
-              { kind: TypeNormalizationFailure(error), provenance: [] },
+              { kind: TypeNormalizationFailure(error), provenance: [], },
             ],
           })
       }
@@ -279,10 +287,51 @@ pub fn ExpressionFactsQuery::has_empty_effect(
 ///|
 /// Verifies a complete Buslane program.
 pub fn verify_program(program : Program) -> VerifyResult {
-  let context = VerifyContext::{ program, diagnostics: [], frames: [] }
+  let context = VerifyContext::{ program, diagnostics: [], frames: [], }
   context.verify_metadata()
   context.verify_terms()
-  { diagnostics: context.diagnostics }
+  { diagnostics: context.diagnostics, }
+}
+
+///|
+/// Certifies a raw interchange program for compiler consumption.
+pub fn Program::certify(
+  self : Program,
+) -> Result[VerifiedProgram, VerifyResult] {
+  match self.certify_with_function_clones() {
+    Ok((program, _)) => Ok(program)
+    Err(result) => Err(result)
+  }
+}
+
+///|
+/// Certifies a raw program and returns the function identities rewritten by
+/// the certification snapshot. Compiler-owned identity side tables use this
+/// mapping to preserve their facts without weakening snapshot isolation.
+pub fn Program::certify_with_function_clones(
+  self : Program,
+) -> Result[(VerifiedProgram, Array[FunctionClone]), VerifyResult] {
+  let result = verify_program(self)
+  if result.is_ok() {
+    let (program, function_clones) = self.snapshot_with_function_clones()
+    Ok(({ program, }, function_clones))
+  } else {
+    Err(result)
+  }
+}
+
+///|
+/// Returns the certified program for read-only compiler transformation.
+pub fn VerifiedProgram::program(self : VerifiedProgram) -> Program {
+  self.program_with_function_clones().0
+}
+
+///|
+/// Returns an isolated compiler snapshot and its exact function identity map.
+pub fn VerifiedProgram::program_with_function_clones(
+  self : VerifiedProgram,
+) -> (Program, Array[FunctionClone]) {
+  self.program.snapshot_with_function_clones()
 }
 
 ///|
@@ -304,7 +353,7 @@ fn VerifyContext::report(
   self : VerifyContext,
   kind : VerifyDiagnosticKind,
 ) -> Unit {
-  self.diagnostics.push({ kind, provenance: self.frames.copy() })
+  self.diagnostics.push({ kind, provenance: self.frames.copy(), })
 }
 
 ///|
@@ -467,7 +516,7 @@ fn VerifyContext::verify_metadata(self : VerifyContext) -> Unit {
   for index, value in self.program.metadata.values {
     if value.kind.has_closed_metadata_type() {
       self.within(Metadata(Value({ index, }, value.name)), () => {
-        self.verify_value_type(value.type_, { parameters: [] })
+        self.verify_value_type(value.type_, { parameters: [], })
       })
     }
   }
@@ -522,7 +571,9 @@ fn VerifyContext::verify_operation_metadata(
   operation : OperationInfo,
 ) -> Unit {
   self.require_effect(operation.owner)
-  let scope = TypeScope::{ parameters: operation.hidden_type_parameters.copy() }
+  let scope = TypeScope::{
+    parameters: operation.hidden_type_parameters.copy(),
+  }
   if self.program.metadata.effect_info(operation.owner) is Some(owner) {
     for parameter in owner.parameters {
       scope.parameters.push(parameter)
@@ -715,7 +766,7 @@ fn VerifyContext::verify_top_let(
     initializer,
     info.type_,
     scope,
-    { parameters: [] },
+    { parameters: [], },
   )
   self.require_effect_equals(Empty, effect)
 }
@@ -741,7 +792,7 @@ fn VerifyContext::verify_top_letrec_binding(
     binding.rhs,
     info.type_,
     scope,
-    { parameters: [] },
+    { parameters: [], },
   )
   self.require_effect_equals(Empty, effect)
 }
@@ -902,7 +953,7 @@ fn VerifyContext::synthesize_call(
   guard callee_result.type_
     is Function(parameter_types, result_type, latent_effect) else {
     self.report(NotFunction(callee_result.type_))
-    return { type_: Primitive(Unit), effect: callee_result.effect }
+    return { type_: Primitive(Unit), effect: callee_result.effect, }
   }
   let effects = [callee_result.effect]
   if parameter_types.length() != arguments.length() {
@@ -928,7 +979,7 @@ fn VerifyContext::synthesize_call(
     effects.push(argument_effect)
   }
   effects.push(latent_effect)
-  { type_: result_type, effect: self.effect_union(effects) }
+  { type_: result_type, effect: self.effect_union(effects), }
 }
 
 ///|
@@ -972,18 +1023,18 @@ fn VerifyContext::synthesize_type_apply(
   )
   guard callee_result.type_ is Forall(parameters, body) else {
     self.report(NotForall(callee_result.type_))
-    return { type_: Primitive(Unit), effect: callee_result.effect }
+    return { type_: Primitive(Unit), effect: callee_result.effect, }
   }
   if parameters.length() != arguments.length() {
     self.report(
       ArityMismatch(expected=parameters.length(), actual=arguments.length()),
     )
-    return { type_: body, effect: callee_result.effect }
+    return { type_: body, effect: callee_result.effect, }
   }
   let substitution = self.verified_substitution(
     parameters, arguments, type_scope,
   )
-  { type_: self.substituted(body, substitution), effect: callee_result.effect }
+  { type_: self.substituted(body, substitution), effect: callee_result.effect, }
 }
 
 ///|
@@ -1148,7 +1199,7 @@ fn VerifyContext::synthesize_handle(
   self.verify_value_type(handle.result_type, type_scope)
   guard self.verify_binder(handle.result_binder, type_scope)
     is Some(result_info) else {
-    return { type_: handle.result_type, effect: self.effect_union(effects) }
+    return { type_: handle.result_type, effect: self.effect_union(effects), }
   }
   if !self.types_definitionally_equal(result_info.type_, body_result.type_) {
     self.report(
@@ -1195,7 +1246,7 @@ fn VerifyContext::synthesize_handle(
       }
     })
   }
-  { type_: handle.result_type, effect: self.effect_union(effects) }
+  { type_: handle.result_type, effect: self.effect_union(effects), }
 }
 
 ///|
@@ -1406,6 +1457,8 @@ fn VerifyContext::synthesize_match(
   }
   self.verify_match_shape(match_, scrutinee_result.type_)
   let effects = [scrutinee_result.effect]
+  let alternative_scope = value_scope.copy()
+  alternative_scope.values.push(match_.binder)
   for index in 0..<match_.alternatives.length() {
     let alternative = match_.alternatives[index]
     let alternative_effect = self.within(Child(MatchAlternative(index)), () => {
@@ -1413,13 +1466,13 @@ fn VerifyContext::synthesize_match(
         alternative,
         scrutinee_result.type_,
         match_.result_type,
-        value_scope,
+        alternative_scope,
         type_scope,
       )
     })
     effects.push(alternative_effect)
   }
-  { type_: match_.result_type, effect: self.effect_union(effects) }
+  { type_: match_.result_type, effect: self.effect_union(effects), }
 }
 
 ///|
@@ -2056,12 +2109,12 @@ fn TypeScope::contains(self : TypeScope, id : TypeParameterId) -> Bool {
 
 ///|
 fn TypeScope::copy(self : TypeScope) -> TypeScope {
-  { parameters: self.parameters.copy() }
+  { parameters: self.parameters.copy(), }
 }
 
 ///|
 fn pure_expr(type_ : Type) -> ExpressionFacts {
-  { type_, effect: Empty }
+  { type_, effect: Empty, }
 }
 
 ///|

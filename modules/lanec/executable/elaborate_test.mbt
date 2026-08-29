@@ -2,9 +2,8 @@
 fn executable_test_entry(
   name : String,
   value : @buslane.ValueId,
-  type_ : @buslane.Type,
 ) -> @buslane_lowering.BuslaneEntry {
-  { module_path_text: "Main", name, value, type_ }
+  { module_path_text: "Main", name, value, }
 }
 
 ///|
@@ -12,7 +11,16 @@ fn pure_function(
   result_type : @buslane.Type,
   body : @buslane.Expr,
 ) -> @buslane.Expr {
-  Function({ parameters: [], result_type, body })
+  Function({ parameters: [], result_type, body, })
+}
+
+///|
+fn executable_test_program(
+  metadata : @buslane.MetadataRegistry,
+  terms : Array[@buslane.TopTerm],
+) -> @buslane.VerifiedProgram {
+  let program : @buslane.Program = { metadata, terms, }
+  program.certify().unwrap()
 }
 
 ///|
@@ -22,18 +30,15 @@ test "whole-program elaboration preserves the selected entry" {
   let function_type = @buslane.Type::Function([], unit_type, Empty)
   let first = metadata.define_value("first", Function, function_type)
   let second = metadata.define_value("second", Function, function_type)
-  let first_entry = executable_test_entry("first", first, function_type)
-  let second_entry = executable_test_entry("second", second, function_type)
+  let first_entry = executable_test_entry("first", first)
+  let second_entry = executable_test_entry("second", second)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
-    program: {
-      metadata,
-      terms: [
-        Let(first, pure_function(unit_type, Literal(Unit))),
-        Let(second, pure_function(unit_type, Literal(Unit))),
-      ],
-    },
-    externals: { builtins: [], runtime_imports: [] },
+    program: executable_test_program(metadata, [
+      Let(first, pure_function(unit_type, Literal(Unit))),
+      Let(second, pure_function(unit_type, Literal(Unit))),
+    ]),
+    externals: { builtins: [], runtime_imports: [], },
     entries: [first_entry, second_entry],
   }
   guard elaborate(linked, second_entry, test_execution_profile())
@@ -41,8 +46,7 @@ test "whole-program elaboration preserves the selected entry" {
     abort("expected executable elaboration to succeed")
   }
   assert_eq(executable.entry, second_entry)
-  assert_eq(executable.initializers, [])
-  assert_eq(executable.execution_roots, [Entry(second)])
+  assert_eq(executable.retained_values, [second])
 }
 
 ///|
@@ -64,35 +68,35 @@ test "whole-program elaboration records ordered reachable initializer roots" {
   let produce = metadata.define_value("produce", Function, producer_type)
   let observe = metadata.define_value("observe", External, observe_type)
   let main = metadata.define_value("main", Function, function_type)
-  let entry = executable_test_entry("main", main, function_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
-    program: {
-      metadata,
-      terms: [
-        Let(
-          produce,
-          Function({
-            parameters: [producer_parameter],
-            result_type: i64_type,
-            body: Ref(producer_parameter),
-          }),
-        ),
-        Let(first, Literal(I64(1))),
-        Let(second, Call(Ref(produce), [Ref(first)])),
-        Let(unused, Literal(I64(2))),
-        External(observe),
-        Let(main, pure_function(unit_type, Call(Ref(observe), [Ref(second)]))),
-      ],
-    },
+    program: executable_test_program(metadata, [
+      Let(
+        produce,
+        Function({
+          parameters: [producer_parameter],
+          result_type: i64_type,
+          body: Ref(producer_parameter),
+        }),
+      ),
+      Let(first, Literal(I64(1))),
+      Let(second, Call(Ref(produce), [Ref(first)])),
+      Let(unused, Literal(I64(2))),
+      External(observe),
+      Let(main, pure_function(unit_type, Call(Ref(observe), [Ref(second)]))),
+    ]),
     externals: {
       builtins: [],
       runtime_imports: [
         {
           value: observe,
-          symbol: "observe",
-          signature: { parameters: [I64], result: Unit },
-          type_: observe_type,
+          contract: {
+            module_name: "lane.test",
+            field_name: "observe",
+            parameters: [Direct(I64)],
+            result: Unit,
+          },
         },
       ],
     },
@@ -101,57 +105,39 @@ test "whole-program elaboration records ordered reachable initializer roots" {
   guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
     abort("expected executable elaboration to succeed")
   }
-  debug_inspect(
-    (executable.initializers, executable.execution_roots),
-    content=(
-      #|(
-      #|  [
-      #|    Value({ index: 0 }, Literal(I64(1))),
-      #|    Value({ index: 1 }, Ref({ index: 0 })),
-      #|  ],
-      #|  [Initializer(0), Initializer(1), Entry({ index: 6 })],
-      #|)
-    ),
-  )
+  assert_eq(executable.retained_values, [first, second, observe, main])
 }
 
 ///|
 test "whole-program elaboration accepts an Io entry without a root handler" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
-  let string_type = @buslane.Type::Primitive(String)
-  let println_type = @buslane.Type::Function(
-    [string_type],
-    unit_type,
-    Builtin(Io),
-  )
+  let i64_type = @buslane.Type::Primitive(I64)
+  let println_type = @buslane.Type::Function([i64_type], unit_type, Builtin(Io))
   let main_type = @buslane.Type::Function([], unit_type, Builtin(Io))
   let println = metadata.define_value("println", External, println_type)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
-    program: {
-      metadata,
-      terms: [
-        External(println),
-        Let(
-          main,
-          pure_function(
-            unit_type,
-            Call(Ref(println), [Literal(String("hello"))]),
-          ),
-        ),
-      ],
-    },
+    program: executable_test_program(metadata, [
+      External(println),
+      Let(
+        main,
+        pure_function(unit_type, Call(Ref(println), [Literal(I64(42L))])),
+      ),
+    ]),
     externals: {
       builtins: [],
       runtime_imports: [
         {
           value: println,
-          symbol: "println",
-          signature: { parameters: [String], result: Unit },
-          type_: println_type,
+          contract: {
+            module_name: "lane.test",
+            field_name: "println",
+            parameters: [Direct(I64)],
+            result: Unit,
+          },
         },
       ],
     },
@@ -164,34 +150,32 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
     (
       executable.entry,
       executable.externals,
-      executable.program.metadata.value_info(println).unwrap().type_,
-      executable.program.metadata.value_info(main).unwrap().type_,
+      executable.program.program().metadata.value_info(println).unwrap().type_,
+      executable.program.program().metadata.value_info(main).unwrap().type_,
     ),
     content=(
       #|(
-      #|  {
-      #|    module_path_text: "Main",
-      #|    name: "main",
-      #|    value: { index: 1 },
-      #|    type_: Function([], Primitive(Unit), Builtin(Io)),
-      #|  },
+      #|  { module_path_text: "Main", name: "main", value: { index: 1 } },
       #|  {
       #|    builtins: [],
       #|    runtime_imports: [
       #|      {
       #|        value: { index: 0 },
-      #|        symbol: "println",
-      #|        signature: { parameters: [String], result: Unit },
-      #|        type_: Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+      #|        contract: {
+      #|          module_name: "lane.test",
+      #|          field_name: "println",
+      #|          parameters: [Direct(I64)],
+      #|          result: Unit,
+      #|        },
       #|      },
       #|    ],
       #|  },
-      #|  Function([Primitive(String)], Primitive(Unit), Builtin(Io)),
+      #|  Function([Primitive(I64)], Primitive(Unit), Builtin(Io)),
       #|  Function([], Primitive(Unit), Builtin(Io)),
       #|)
     ),
   )
-  assert_true(@buslane.verify_program(executable.program).is_ok())
+  assert_true(@buslane.verify_program(executable.program.program()).is_ok())
 }
 
 ///|
@@ -202,14 +186,13 @@ test "whole-program elaboration accepts a closed external effect entry" {
   let external_effect = @buslane.Effect::Singleton(host_effect, [])
   let main_type = @buslane.Type::Function([], unit_type, external_effect)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
-    program: {
-      metadata,
-      terms: [Let(main, pure_function(unit_type, Literal(Unit)))],
-    },
-    externals: { builtins: [], runtime_imports: [] },
+    program: executable_test_program(metadata, [
+      Let(main, pure_function(unit_type, Literal(Unit))),
+    ]),
+    externals: { builtins: [], runtime_imports: [], },
     entries: [entry],
   }
   guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
@@ -217,11 +200,16 @@ test "whole-program elaboration accepts a closed external effect entry" {
   }
   debug_inspect(
     (
-      executable.entry.type_,
-      executable.program.metadata
+      @buslane_lowering.source_value_type(
+        executable.program.program().metadata,
+        executable.entry.value,
+      ),
+      executable.program.program().metadata
       .effect_info(host_effect)
       .map(info => info.flavor),
-      executable.program.metadata.value_info(main).map(info => info.type_),
+      executable.program.program().metadata
+      .value_info(main)
+      .map(info => info.type_),
     ),
     content=(
       #|(
@@ -234,7 +222,7 @@ test "whole-program elaboration accepts a closed external effect entry" {
 }
 
 ///|
-test "whole-program elaboration rejects unverified effect specialization before observation" {
+test "invalid Buslane cannot enter executable elaboration" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let char_type = @buslane.Type::Primitive(Char)
   let unit_type = @buslane.Type::Primitive(Unit)
@@ -244,58 +232,22 @@ test "whole-program elaboration rejects unverified effect specialization before 
   let parameter = metadata.define_value("parameter", Parameter, char_type)
   let consume = metadata.define_value("consume", Function, consume_type)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
-  let linked : @module_link.LinkedProgram = {
-    module_path_texts: ["Main"],
-    program: {
-      metadata,
-      terms: [
-        Let(invalid, Literal(Char(-1))),
-        Let(
-          consume,
-          Function({
-            parameters: [parameter],
-            result_type: unit_type,
-            body: Literal(Unit),
-          }),
-        ),
-        Let(main, pure_function(unit_type, Call(Ref(consume), [Ref(invalid)]))),
-      ],
-    },
-    externals: { builtins: [], runtime_imports: [] },
-    entries: [entry],
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(invalid, Literal(Char(-1))),
+      Let(
+        consume,
+        Function({
+          parameters: [parameter],
+          result_type: unit_type,
+          body: Literal(Unit),
+        }),
+      ),
+      Let(main, pure_function(unit_type, Call(Ref(consume), [Ref(invalid)]))),
+    ],
   }
-  let observed = []
-  let result = elaborate_observed(linked, entry, test_execution_profile(), stage => {
-    observed.push(stage)
-  })
-  assert_eq(observed.length(), 0)
-  debug_inspect(
-    result,
-    content=(
-      #|Err(
-      #|  UnverifiedProgram(
-      #|    stage="effect specialization",
-      #|    result={
-      #|      diagnostics: [
-      #|        {
-      #|          kind: InvalidCharLiteral(-1),
-      #|          provenance: [
-      #|            TopTerm(
-      #|              {
-      #|                id: { index: 0 },
-      #|                name: Some({ name_space: ValueName, occurrence: "invalid", unique: { value: 0 } }),
-      #|              },
-      #|            ),
-      #|            Expression(Literal),
-      #|          ],
-      #|        },
-      #|      ],
-      #|    },
-      #|  ),
-      #|)
-    ),
-  )
+  assert_true(source.certify() is Err(_))
 }
 
 ///|
@@ -306,27 +258,24 @@ test "whole-program elaboration rejects an algebraic entry effect" {
   let operation = metadata.define_operation("write", effect, [], [], unit_type)
   let main_type = @buslane.Type::Function([], unit_type, Singleton(effect, []))
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   let linked : @module_link.LinkedProgram = {
     module_path_texts: ["Main"],
-    program: {
-      metadata,
-      terms: [
-        Let(
-          main,
-          pure_function(
-            unit_type,
-            Perform({
-              operation,
-              effect_arguments: [],
-              hidden_witnesses: [],
-              payloads: [],
-            }),
-          ),
+    program: executable_test_program(metadata, [
+      Let(
+        main,
+        pure_function(
+          unit_type,
+          Perform({
+            operation,
+            effect_arguments: [],
+            hidden_witnesses: [],
+            payloads: [],
+          }),
         ),
-      ],
-    },
-    externals: { builtins: [], runtime_imports: [] },
+      ),
+    ]),
+    externals: { builtins: [], runtime_imports: [], },
     entries: [entry],
   }
   debug_inspect(
@@ -344,7 +293,7 @@ test "whole-program elaboration rejects an algebraic entry effect" {
 }
 
 ///|
-test "whole-program elaboration identifies specialization metadata defects" {
+test "invalid generic metadata cannot enter executable elaboration" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
   let effect_parameter = metadata.define_type_parameter("E", Effect)
@@ -358,48 +307,33 @@ test "whole-program elaboration identifies specialization metadata defects" {
   )
   let main_type = @buslane.Type::Function([], unit_type, Empty)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
-  let linked : @module_link.LinkedProgram = {
-    module_path_texts: ["Main"],
-    program: {
-      metadata,
-      terms: [
-        LetRec([
-          {
-            id: generic,
-            rhs: TypeLambda(
-              [effect_parameter],
-              Function({
-                parameters: [],
-                result_type: unit_type,
-                body: Literal(Unit),
-              }),
-            ),
-          },
-          {
-            id: main,
-            rhs: Function({
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: generic,
+          rhs: TypeLambda(
+            [effect_parameter],
+            Function({
               parameters: [],
               result_type: unit_type,
-              body: Call(TypeApply(Ref(generic), [TypeArgument(unit_type)]), []),
+              body: Literal(Unit),
             }),
-          },
-        ]),
-      ],
-    },
-    externals: { builtins: [], runtime_imports: [] },
-    entries: [entry],
+          ),
+        },
+        {
+          id: main,
+          rhs: Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Call(TypeApply(Ref(generic), [TypeArgument(unit_type)]), []),
+          }),
+        },
+      ]),
+    ],
   }
-  guard elaborate(linked, entry, test_execution_profile())
-    is Err(EffectSpecializationCompilerDefect(InvalidInputMetadata(context))) else {
-    fail("expected an effect-specialization compiler defect")
-  }
-  assert_eq(context, {
-    detail: "an effect parameter requires an effect argument",
-    site: Some(TopLevel(main)),
-    source: Some(TypeParameter(effect_parameter)),
-    specialization_key: [],
-  })
+  assert_true(source.certify() is Err(_))
 }
 
 ///|
@@ -419,24 +353,21 @@ fn elaborate_entry_with_effect(
   let unit_type = @buslane.Type::Primitive(Unit)
   let main_type = @buslane.Type::Function([], unit_type, effect)
   let main = metadata.define_value("main", Function, main_type)
-  let entry = executable_test_entry("main", main, main_type)
+  let entry = executable_test_entry("main", main)
   elaborate(
     {
       module_path_texts: ["Main"],
-      program: {
-        metadata,
-        terms: [
-          Let(
-            main,
-            Function({
-              parameters: [],
-              result_type: unit_type,
-              body: Literal(Unit),
-            }),
-          ),
-        ],
-      },
-      externals: { builtins: [], runtime_imports: [] },
+      program: executable_test_program(metadata, [
+        Let(
+          main,
+          Function({
+            parameters: [],
+            result_type: unit_type,
+            body: Literal(Unit),
+          }),
+        ),
+      ]),
+      externals: { builtins: [], runtime_imports: [], },
       entries: [entry],
     },
     entry,

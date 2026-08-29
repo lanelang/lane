@@ -39,7 +39,7 @@ fn CallSiteCursor::allocate(
   self : CallSiteCursor,
   caller : @buslane.ValueId,
 ) -> CallSiteKey {
-  let key = { caller, ordinal: self.next }
+  let key = { caller, ordinal: self.next, }
   self.next = self.next + 1
   key
 }
@@ -71,10 +71,10 @@ fn build_inline_plan(
     sites_by_caller: Array::makei(program.metadata.values.length(), _ => []),
   }
   for definition in analysis.core.definitions {
-    let cursor : CallSiteCursor = { next: 0 }
+    let cursor : CallSiteCursor = { next: 0, }
     planner.visit_expr(definition.value, cursor, definition.expression)
   }
-  { analysis, sites_by_caller: planner.sites_by_caller }
+  { analysis, sites_by_caller: planner.sites_by_caller, }
 }
 
 ///|
@@ -187,6 +187,7 @@ fn InlinePlanner::plan_nonrecursive_call(
     cloned.parameters,
     arguments,
     cloned.body,
+    None,
     _ => (),
   )
   let original = @buslane.Expr::Call(callee, arguments)
@@ -221,7 +222,7 @@ fn InlinePlan::find_site(
 ///|
 fn known_call(expression : @buslane.Expr) -> KnownCall? {
   match expression {
-    Ref(value) => Some({ value, generic_arguments: [] })
+    Ref(value) => Some({ value, generic_arguments: [], })
     TypeApply(callee, arguments) => {
       guard known_call(callee) is Some(call) else { return None }
       Some({

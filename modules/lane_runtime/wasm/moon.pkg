@@ -1,0 +1,23 @@
+import {
+  "Milky2018/lane_runtime/float_format",
+  "Milky2018/lane_runtime",
+  "Milky2018/lane_runtime/wasm_abi" @internal_abi,
+  "Milky2018/lane_wasm_abi" @wasm_abi,
+  "Milky2018/milkir",
+  "Milky2018/wasm_core/encoder" @wasm_encoder,
+  "Milky2018/wasm_core/types" @wasm_types,
+  "Milky2018/wasmoon",
+  "Milky2018/wasmoon/executor",
+  "Milky2018/wasmoon/parser",
+  "Milky2018/wasmoon/jit" @wasmoon_jit_runtime,
+  "Milky2018/wasmoon/runtime" @wasmoon_runtime,
+  "Milky2018/wasmoon/validator",
+  "Milky2018/wasmoon/wasm_frontend",
+  "Milky2018/wasmoon/wast" @wasmoon_wast,
+  "Milky2018/wasmoon/wasi",
+  "Milky2018/wasmoon_jit",
+  "Milky2018/wasmoon_jit/artifact" @wasmoon_artifact,
+  "moonbitlang/core/encoding/utf8",
+}
+
+supported_targets = "native"

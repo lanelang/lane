@@ -46,7 +46,7 @@ data, codecs, checked indexing, and eventually higher-level array APIs.
 - Permit efficient repeated updates when ownership proves the prior value dead.
 - Keep the compiler builtin contract closed and exactly typed.
 - Keep recoverable library types such as `Option` outside the compiler.
-- Use the same semantics in the LoisVM interpreter and Wasm compiled tier.
+- Use the same semantics in the WebAssembly interpreter and JIT.
 - Preserve Byte and Bytes through generic erasure, artifacts, analysis, and
   tooling like every other primitive type.
 
@@ -244,7 +244,7 @@ nor a way to observe the uniqueness test.
 
 This contract is compatible with future Perceus-style reuse analysis. Such an
 analysis may prove more arguments dead and reduce retains or copies without
-changing source typing, builtin signatures, bytecode semantics, or observable
+changing source typing, builtin signatures, Physical Program semantics, or observable
 results.
 
 ## Compiler architecture
@@ -312,35 +312,34 @@ printing, finalization, and verification must each model the new operations
 through their ordinary instruction contracts. `%bytes_set` consumption must
 not be reconstructed later from its builtin name.
 
-## LoisVM bytecode and execution
+## Physical Program and WebAssembly execution
 
-LoisVM gains corresponding dedicated bytecode instructions. Their verifier
+The Physical Program gains corresponding dedicated instructions. Their verifier
 contracts use the representation and cleanup combinations above. Byte does not
-add a new bytecode slot representation: it uses `I32 + Trivial`. Bytes does not
+add a new physical slot representation: it uses `I32 + Trivial`. Bytes does not
 add a new cleanup category: it uses `I32 + OwnedRef`.
 
-The bytecode image gains a Bytes layout recipe so generic layout witnesses,
-destruction, interpreter objects, and Wasm heap objects agree on the owned
+The Physical Program gains a Bytes layout recipe so generic layout witnesses,
+destruction, and Wasm heap objects agree on the owned
 reference. The String constant pool remains String-only because this RFC adds
 no Bytes literal or constant instruction.
 
-Both execution tiers implement identical valid-input behavior:
+Both Wasm engine modes implement identical valid-input behavior:
 
-- the interpreter adds a Bytes heap payload and executes all six operations;
 - the Wasm compiler emits scalar conversion code and Runtime Bytes Object
   allocation, access, bounds checks, uniqueness checks, copying, and release;
-- both defensively reject invalid length and index operands without publishing a
+- interpreter and JIT both reject invalid length and index operands without publishing a
   partial owner, without requiring identical failure classification or trap
   details;
 - resource exhaustion and allocation failure use the existing fatal runtime
   failure boundary only for allocations that remain after optimization and are
   actually executed.
 
-The linked program carries only the current bytecode format. Adding primitive,
-layout, and instruction tags advances the affected Buslane/artifact/linked
-program schema versions. Decoders reject older versions instead of adding
-legacy branches. New tags append to their closed namespaces and do not renumber
-existing tags.
+The linked executable is a raw WebAssembly module. Adding primitives or
+changing persisted semantic contracts advances the affected interface or
+module-object schema versions; executable compatibility is governed by the Lane
+WebAssembly profile. Decoders reject older Lane artifact versions instead of
+adding legacy branches.
 
 ## Standard-library boundary
 
@@ -427,12 +426,11 @@ Implementation should proceed in vertical, testable steps:
 1. Add the semantic primitive cases and exact intrinsic signature validation.
 2. Extend checked/Buslane conversion, display, equality, codecs, interfaces,
    artifacts, semantic fingerprints, and analysis.
-3. Add VMCFG and bytecode instruction models, codecs, disassembly, occurrence
-   semantics, and ownership behavior.
-4. Add Runtime Bytes Object support and interpreter execution.
-5. Add Wasm compiled-tier execution with the same panic and copy-on-write
-   behavior.
-6. Update schema versions, generated interfaces, bytecode documentation, and
+3. Add VMCFG and Physical Program operations, occurrence semantics, and
+   ownership behavior.
+4. Add Runtime Bytes Object support shared by both Wasm engine modes.
+5. Add WebAssembly emission with the same panic and copy-on-write behavior.
+6. Update schema versions, generated interfaces, target documentation, and
    complete examples.
 
 Each step must remove exhaustiveness fallbacks exposed by the new primitive.
@@ -486,14 +484,14 @@ overlap.
 
 - Buslane and artifact binary round trips preserve both primitive identities.
 - Artifact inspection and Buslane text use `Byte` and `Bytes`.
-- Bytecode encode/decode/disassemble round trips cover every new instruction
-  and the Bytes layout recipe.
-- Compiler-generated bytecode assigns the documented representation and cleanup
-  operands to every new instruction.
-- Interpreter and Wasm/JIT execution produce identical successful results for valid inputs.
-- Bytecode with invalid primitive operands is rejected safely by every backend,
-  but failure classification, trap details, and evaluation after undefined
-  behavior need not agree.
+- Physical Program verification covers every new operation and the Bytes layout
+  recipe.
+- Compiler-generated physical operations assign the documented representation
+  and cleanup operands to every new instruction.
+- Wasm interpreter and JIT execution produce identical successful results for valid inputs.
+- Invalid physical primitive operands are rejected before WebAssembly emission;
+  runtime failure classification, trap details, and evaluation after undefined
+  source behavior need not agree.
 - Current-format version mismatches are rejected before execution.
 
 ### Tooling

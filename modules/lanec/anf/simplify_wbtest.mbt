@@ -1,4 +1,21 @@
 ///|
+fn test_anf_program(
+  _metadata : @buslane.MetadataRegistry,
+  terms : Array[AnfTopTerm],
+) -> AnfProgram {
+  {
+    metadata: {
+      values: [],
+      types: [],
+      data_constructors: [],
+      evidence_parameters: [],
+      type_expressions: [],
+    },
+    terms,
+  }
+}
+
+///|
 test "simplify ANF atom aliases without reordering calls" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let function = metadata.define_value(
@@ -9,37 +26,35 @@ test "simplify ANF atom aliases without reordering calls" {
   let first = metadata.define_value("first", Local, Primitive(I64))
   let second = metadata.define_value("second", Local, Primitive(I64))
   let result = metadata.define_value("result", Local, Primitive(I64))
-  let first_temp = AnfTempId::{ index: 0 }
-  let alias_temp = AnfTempId::{ index: 1 }
-  let call_temp = AnfTempId::{ index: 2 }
-  let program = AnfProgram::{
-    metadata,
-    terms: [
-      External(function),
+  let first_temp = AnfTempId::{ index: 0, }
+  let alias_temp = AnfTempId::{ index: 1, }
+  let call_temp = AnfTempId::{ index: 2, }
+  let program = test_anf_program(metadata, [
+    External(function),
+    Let(
+      result,
       Let(
-        result,
+        Value(id=first, rhs=Atom(Literal(I64(42L)))),
         Let(
-          Value(id=first, rhs=Atom(Literal(I64(42L)))),
+          Temp(temp=first_temp, type_=Scalar(I64), rhs=Atom(Ref(first))),
           Let(
-            Temp(temp=first_temp, rhs=Atom(Ref(first))),
+            Value(id=second, rhs=Atom(Temp(first_temp))),
             Let(
-              Value(id=second, rhs=Atom(Temp(first_temp))),
+              Temp(temp=alias_temp, type_=Scalar(I64), rhs=Atom(Ref(second))),
               Let(
-                Temp(temp=alias_temp, rhs=Atom(Ref(second))),
-                Let(
-                  Temp(
-                    temp=call_temp,
-                    rhs=Call(callee=Ref(function), arguments=[Temp(alias_temp)]),
-                  ),
-                  Atom(Temp(call_temp)),
+                Temp(
+                  temp=call_temp,
+                  type_=Scalar(I64),
+                  rhs=Call(callee=Ref(function), arguments=[Temp(alias_temp)]),
                 ),
+                Atom(Temp(call_temp)),
               ),
             ),
           ),
         ),
       ),
-    ],
-  }
+    ),
+  ])
   debug_inspect(
     simplify_anf_program(program).terms,
     content=(
@@ -50,6 +65,7 @@ test "simplify ANF atom aliases without reordering calls" {
       #|    Let(
       #|      Temp(
       #|        temp={ index: 2 },
+      #|        type_=Scalar(I64),
       #|        rhs=Call(callee=Ref({ index: 0 }), arguments=[Literal(I64(42))]),
       #|      ),
       #|      Atom(Temp({ index: 2 })),
@@ -71,25 +87,27 @@ test "simplify ANF aliases inside function and match scopes" {
     Value,
     Function([Primitive(I64)], Primitive(I64), Empty),
   )
-  let match_result = AnfTempId::{ index: 0 }
+  let match_result = AnfTempId::{ index: 0, }
   let function = Function({
-    id: { value: 0 },
+    id: { value: 0, },
     source: Some(result),
+    origin: SourceWritten,
     parameters: [parameter],
-    result_type: Primitive(I64),
+    result_type: Scalar(I64),
     body: Let(
       Value(id=local_alias, rhs=Atom(Ref(parameter))),
       Let(
         Temp(
           temp=match_result,
+          type_=Scalar(I64),
           rhs=Match({
             scrutinee: Ref(local_alias),
             binder,
-            result_type: Primitive(I64),
+            result_type: Scalar(I64),
             alternatives: [
               {
                 alt_constructor: Default,
-                type_binders: [],
+                evidence_binders: [],
                 value_binders: [],
                 body: Atom(Ref(local_alias)),
               },
@@ -100,7 +118,7 @@ test "simplify ANF aliases inside function and match scopes" {
       ),
     ),
   })
-  let program = AnfProgram::{ metadata, terms: [Let(result, Atom(function))] }
+  let program = test_anf_program(metadata, [Let(result, Atom(function))])
   debug_inspect(
     simplify_anf_program(program).terms,
     content=(
@@ -112,20 +130,22 @@ test "simplify ANF aliases inside function and match scopes" {
       #|        {
       #|          id: { value: 0 },
       #|          source: Some({ index: 3 }),
+      #|          origin: SourceWritten,
       #|          parameters: [{ index: 0 }],
-      #|          result_type: Primitive(I64),
+      #|          result_type: Scalar(I64),
       #|          body: Let(
       #|            Temp(
       #|              temp={ index: 0 },
+      #|              type_=Scalar(I64),
       #|              rhs=Match(
       #|                {
       #|                  scrutinee: Ref({ index: 0 }),
       #|                  binder: { index: 2 },
-      #|                  result_type: Primitive(I64),
+      #|                  result_type: Scalar(I64),
       #|                  alternatives: [
       #|                    {
       #|                      alt_constructor: Default,
-      #|                      type_binders: [],
+      #|                      evidence_binders: [],
       #|                      value_binders: [],
       #|                      body: Atom(Ref({ index: 0 })),
       #|                    },

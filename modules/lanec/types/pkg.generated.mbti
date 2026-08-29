@@ -19,12 +19,18 @@ pub(all) suberror TypeComputationError {
   TypeNormalizationFuelExhausted
   EffectNormalizationFuelExhausted
 } derive(Eq, @debug.Debug)
+pub fn TypeComputationError::equal(Self, Self) -> Bool
+pub fn TypeComputationError::not_equal(Self, Self) -> Bool
+pub fn TypeComputationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum BuiltinEffect {
   Io
   Panic
 } derive(Eq, @debug.Debug)
+pub fn BuiltinEffect::equal(Self, Self) -> Bool
+pub fn BuiltinEffect::not_equal(Self, Self) -> Bool
+pub fn BuiltinEffect::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Effect {
   Empty
@@ -36,9 +42,13 @@ pub(all) enum Effect {
 pub fn Effect::alpha_equal(Self, Self) -> Bool
 pub fn Effect::alpha_subeffect_of(Self, Self) -> Bool
 pub fn Effect::canonicalize(Self) -> Self
+pub fn Effect::equal(Self, Self) -> Bool
 pub fn Effect::equals(Self, Self) -> Bool raise TypeComputationError
 pub fn Effect::is_subeffect_of(Self, Self) -> Bool raise TypeComputationError
+pub fn Effect::not_equal(Self, Self) -> Bool
+pub fn Effect::pretty(Self) -> @prettyprinter.Document
 pub fn Effect::substitute(Self, TypeSubstitution) -> Self
+pub fn Effect::to_repr(Self) -> @debug.Repr
 pub fn Effect::try_normalize(Self) -> Self raise TypeComputationError
 pub impl @prettyprinter.Pretty for Effect
 pub impl Eq for Effect
@@ -47,7 +57,11 @@ pub(all) enum GenericArgument {
   TypeArgument(Type)
   EffectArgument(Effect)
 } derive(Eq, @debug.Debug)
+pub fn GenericArgument::equal(Self, Self) -> Bool
+pub fn GenericArgument::not_equal(Self, Self) -> Bool
+pub fn GenericArgument::pretty(Self) -> @prettyprinter.Document
 pub fn GenericArgument::substitute(Self, TypeSubstitution) -> Self
+pub fn GenericArgument::to_repr(Self) -> @debug.Repr
 pub fn GenericArgument::try_normalize(Self) -> Self raise TypeComputationError
 pub impl @prettyprinter.Pretty for GenericArgument
 
@@ -56,6 +70,10 @@ pub(all) enum Kind {
   Effect
   Function(Array[Kind], Kind)
 } derive(Eq, @debug.Debug)
+pub fn Kind::equal(Self, Self) -> Bool
+pub fn Kind::not_equal(Self, Self) -> Bool
+pub fn Kind::pretty(Self) -> @prettyprinter.Document
+pub fn Kind::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for Kind
 
 pub(all) enum PrimitiveType {
@@ -71,8 +89,12 @@ pub(all) enum PrimitiveType {
   Bytes
 } derive(Eq, @debug.Debug)
 pub fn PrimitiveType::all() -> Array[Self]
+pub fn PrimitiveType::equal(Self, Self) -> Bool
 pub fn PrimitiveType::from_name(String) -> Self?
 pub fn PrimitiveType::name(Self) -> String
+pub fn PrimitiveType::not_equal(Self, Self) -> Bool
+pub fn PrimitiveType::pretty(Self) -> @prettyprinter.Document
+pub fn PrimitiveType::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for PrimitiveType
 
 pub(all) enum Type {
@@ -87,8 +109,12 @@ pub(all) enum Type {
 } derive(@debug.Debug)
 pub fn Type::alpha_equal(Self, Self) -> Bool
 pub fn Type::decompose_nominal(Self) -> (@symbol.TypeSymbolId, Array[GenericArgument])? raise TypeComputationError
+pub fn Type::equal(Self, Self) -> Bool
 pub fn Type::equals(Self, Self) -> Bool raise TypeComputationError
+pub fn Type::not_equal(Self, Self) -> Bool
+pub fn Type::pretty(Self) -> @prettyprinter.Document
 pub fn Type::substitute(Self, TypeSubstitution) -> Self
+pub fn Type::to_repr(Self) -> @debug.Repr
 pub fn Type::try_head_normalize(Self) -> Self raise TypeComputationError
 pub fn Type::try_normalize(Self) -> Self raise TypeComputationError
 pub impl @prettyprinter.Pretty for Type
@@ -99,23 +125,34 @@ pub(all) struct TypeParameter {
   name : String
   kind : Kind
 } derive(Eq, @debug.Debug)
+pub fn TypeParameter::equal(Self, Self) -> Bool
 pub fn TypeParameter::generic_argument(Self) -> GenericArgument
+pub fn TypeParameter::not_equal(Self, Self) -> Bool
+pub fn TypeParameter::pretty(Self) -> @prettyprinter.Document
+pub fn TypeParameter::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for TypeParameter
 
 pub struct TypeSubstitution {
   entries : Array[TypeSubstitutionEntry]
 } derive(Eq, @debug.Debug)
 pub fn TypeSubstitution::TypeSubstitution() -> Self
+pub fn TypeSubstitution::equal(Self, Self) -> Bool
 pub fn TypeSubstitution::insert(Self, @symbol.TypeParameterId, Type) -> Unit
 pub fn TypeSubstitution::insert_argument(Self, @symbol.TypeParameterId, GenericArgument) -> Unit
 pub fn TypeSubstitution::insert_effect(Self, @symbol.TypeParameterId, Effect) -> Unit
+pub fn TypeSubstitution::not_equal(Self, Self) -> Bool
+pub fn TypeSubstitution::pretty(Self) -> @prettyprinter.Document
 pub fn TypeSubstitution::single(@symbol.TypeParameterId, Type) -> Self
+pub fn TypeSubstitution::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for TypeSubstitution
 
 pub struct TypeSubstitutionEntry {
   parameter : @symbol.TypeParameterId
   replacement : GenericArgument
 } derive(Eq, @debug.Debug)
+pub fn TypeSubstitutionEntry::equal(Self, Self) -> Bool
+pub fn TypeSubstitutionEntry::not_equal(Self, Self) -> Bool
+pub fn TypeSubstitutionEntry::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

@@ -27,14 +27,6 @@ fn write_buslane_program_section(
 }
 
 ///|
-fn write_buslane_type(
-  writer : @bytecodec.ByteWriter,
-  type_ : @buslane.Type,
-) -> Unit {
-  @buslane_codec.write_type(writer, type_)
-}
-
-///|
 fn write_buslane_value_id(
   writer : @bytecodec.ByteWriter,
   id : @buslane.ValueId,
@@ -97,14 +89,11 @@ fn write_externals(
   for external in externals.builtins {
     write_buslane_value_id(writer, external.value())
     write_intrinsic(writer, external.intrinsic())
-    write_buslane_type(writer, external.type_())
   }
   writer.write_u32_le_int(externals.runtime_imports.length())
   for import_ in externals.runtime_imports {
     write_buslane_value_id(writer, import_.value)
-    writer.write_string(import_.symbol)
-    write_host_signature(writer, import_.signature)
-    write_buslane_type(writer, import_.type_)
+    write_wasm_import_contract(writer, import_.contract)
   }
 }
 
@@ -176,36 +165,53 @@ fn write_intrinsic(
       F64ToI64 => 58
       F32ToString => 59
       F64ToString => 60
+      WasiFdWrite => 61
     },
   )
 }
 
 ///|
-fn write_host_signature(
+fn write_wasm_import_contract(
   writer : @bytecodec.ByteWriter,
-  signature : @abi.HostSignature,
+  contract : @wasm_abi.ImportContract,
 ) -> Unit {
-  writer.write_u32_le_int(signature.parameters.length())
-  for parameter in signature.parameters {
-    write_host_value_kind(writer, parameter)
+  writer.write_string(contract.module_name)
+  writer.write_string(contract.field_name)
+  writer.write_u32_le_int(contract.parameters.length())
+  for parameter in contract.parameters {
+    write_wasm_import_parameter(writer, parameter)
   }
-  write_host_value_kind(writer, signature.result)
+  write_wasm_import_result(writer, contract.result)
 }
 
 ///|
-fn write_host_value_kind(
+fn write_wasm_import_parameter(
   writer : @bytecodec.ByteWriter,
-  kind : @abi.ValueKind,
+  parameter : @wasm_abi.ImportParameter,
 ) -> Unit {
   writer.write_u8(
-    match kind {
+    match parameter {
+      ErasedUnit => 0
+      Direct(I32) => 1
+      Direct(I64) => 2
+      Direct(F32) => 3
+      Direct(F64) => 4
+    },
+  )
+}
+
+///|
+fn write_wasm_import_result(
+  writer : @bytecodec.ByteWriter,
+  result : @wasm_abi.ImportResult,
+) -> Unit {
+  writer.write_u8(
+    match result {
       Unit => 0
-      Bool => 1
-      I64 => 2
-      F64 => 3
-      String => 4
-      Opaque => 5
-      F32 => 6
+      Direct(I32) => 1
+      Direct(I64) => 2
+      Direct(F32) => 3
+      Direct(F64) => 4
     },
   )
 }
@@ -229,7 +235,6 @@ fn write_entry(
   writer.write_string(entry.module_path_text)
   writer.write_string(entry.name)
   write_buslane_value_id(writer, entry.value)
-  write_buslane_type(writer, entry.type_)
 }
 
 ///|

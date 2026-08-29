@@ -439,7 +439,7 @@ fn SemanticChecker::synthesize_checked_struct_literal(
       generic_arguments,
     )
     let type_ = @types.nominal_type_generic(symbol, arguments)
-    self.diagnostics.push({ kind: NotAStruct(type_), loc })
+    self.diagnostics.push({ kind: NotAStruct(type_), loc, })
     return checked_expression_none_reported(Error)
   }
   let arguments = self.struct_literal_generic_arguments(
@@ -516,13 +516,13 @@ fn SemanticChecker::synthesize_checked_struct_literal(
         None => complete = false
       }
     } else {
-      self.diagnostics.push({ kind: UnknownField(name~), loc: field_loc })
+      self.diagnostics.push({ kind: UnknownField(name~), loc: field_loc, })
       complete = false
     }
   }
   for field in struct_declaration.fields {
     if !seen.contains(field.name) {
-      self.diagnostics.push({ kind: MissingField(name=field.name), loc })
+      self.diagnostics.push({ kind: MissingField(name=field.name), loc, })
       complete = false
     }
   }
@@ -665,7 +665,7 @@ fn struct_literal_generic_evidence(
     field_templates.push(field_declaration.type_)
     field_expressions.push(value)
   }
-  { field_templates, field_expressions }
+  { field_templates, field_expressions, }
 }
 
 ///|
@@ -719,7 +719,10 @@ fn SemanticChecker::check_struct_type_witnesses(
         }
       }
       None => {
-        self.diagnostics.push({ kind: UnknownTypeMember(name~), loc: field_loc })
+        self.diagnostics.push({
+          kind: UnknownTypeMember(name~),
+          loc: field_loc,
+        })
         complete = false
       }
     }
@@ -733,5 +736,5 @@ fn SemanticChecker::check_struct_type_witnesses(
       complete = false
     }
   }
-  { witnesses: witnesses.filter_map(fn(witness) { witness }), complete }
+  { witnesses: witnesses.filter_map(fn(witness) { witness }), complete, }
 }

@@ -24,12 +24,83 @@ test "higher-kinded top-level callable flow agrees across execution backends" {
       #|
       #|let mappable : Mappable[Box] = Mappable::{ map: box_map }
       #|let mapped : Box[I64] = mappable.map(increment, Box::box(41))
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  match mapped {
       #|    Box::box(value) => observe(value)
       #|  }
+      #|}
+    ),
+  )
+  assert_eq(actual, expected_i64_execution_matrix(42L, 0))
+}
+
+///|
+test "closed and generic paths share declaration-owned data representation" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|enum Box[T] {
+      #|  empty()
+      #|  box(T)
+      #|}
+      #|
+      #|fn[T] generic_roundtrip(value : Box[T]) -> Box[T] {
+      #|  value
+      #|}
+      #|
+      #|fn closed_roundtrip(value : Box[I64]) -> Box[I64] {
+      #|  value
+      #|}
+      #|
+      #|fn closed_path() -> I64 {
+      #|  let original : Box[I64] = Box::box(21)
+      #|  let left : Box[I64] = closed_roundtrip(original)
+      #|  let right : Box[I64] = generic_roundtrip[I64](original)
+      #|  match left {
+      #|    Box::empty() => 0
+      #|    Box::box(left_value) => match right {
+      #|      Box::empty() => 0
+      #|      Box::box(right_value) => builtin("%i64_add")(left_value, right_value)
+      #|    }
+      #|  }
+      #|}
+      #|
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  observe(closed_path())
+      #|}
+    ),
+  )
+  assert_eq(actual, expected_i64_execution_matrix(42L, 0))
+}
+
+///|
+test "phantom higher-kinded data arguments preserve their closed payload" {
+  let actual = execute_compiler_test_matrix(
+    (
+      #|module Main
+      #|
+      #|type Identity = type[T] => T
+      #|
+      #|enum Phantom[_F : [Type] -> Type, T] {
+      #|  phantom(T)
+      #|}
+      #|
+      #|fn[F : [Type] -> Type, T] unwrap(value : Phantom[F, T]) -> T {
+      #|  match value {
+      #|    Phantom::phantom(payload) => payload
+      #|  }
+      #|}
+      #|
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
+      #|
+      #|pub fn main() -> Unit ! Io {
+      #|  let value : Phantom[Identity, I64] = Phantom::phantom(42)
+      #|  observe(unwrap[Identity, I64](value))
       #|}
     ),
   )
@@ -44,7 +115,7 @@ test "rounded F32 operations agree across execution backends" {
       #|
       #|let f32_equal : (F32, F32) -> Bool = builtin("%f32_equal")
       #|let f32_to_f64 : (F32) -> F64 = builtin("%f32_to_f64")
-      #|let observe : (F64) -> Unit ! Io = extern("lane.test.observe_f64")
+      #|let observe : (F64) -> Unit ! Io = extern("lane.test", "lane.test.observe_f64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let rounded : F32 = 1.000000059604644775400625f32
@@ -58,13 +129,6 @@ test "rounded F32 operations agree across execution backends" {
     ),
   )
   assert_eq(actual, [
-    {
-      backend: DirectInterpreter,
-      result: Ok(()),
-      i64_values: [],
-      f64_bits: [0x3ff0000020000000UL],
-      callback_calls: 0,
-    },
     {
       backend: WasmInterpreter,
       result: Ok(()),
@@ -122,7 +186,7 @@ test "existential ADT operations agree across execution backends" {
       #|  insert,
       #|  contains,
       #|}
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe_i64")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe_i64")
       #|
       #|pub fn main() -> Unit ! Io {
       #|  let IntegerSet::{ Set, empty, insert, contains } = integer_set

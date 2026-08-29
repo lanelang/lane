@@ -392,7 +392,7 @@ pub fn SymbolRegistry::define_type(
   loc : SourceSpan,
 ) -> TypeSymbolId {
   let id = self.allocate_type()
-  self.metadata.types[id.index] = { id, name, kind, arity, loc }
+  self.metadata.types[id.index] = { id, name, kind, arity, loc, }
   id
 }
 
@@ -408,7 +408,7 @@ pub fn DeclarationSymbolScope::define_type(
     return self.registry.define_type(name, kind, arity, loc)
   }
   if self.previous is Some(previous) && previous.types.get(name) is Some(id) {
-    self.registry.metadata.types[id.index] = { id, name, kind, arity, loc }
+    self.registry.metadata.types[id.index] = { id, name, kind, arity, loc, }
     self.registry.declarations.types[name] = id
     return id
   }
@@ -424,7 +424,7 @@ pub fn SymbolRegistry::define_type_alias(
   loc : SourceSpan,
 ) -> TypeAliasSymbolId {
   let id = self.allocate_type_alias()
-  self.metadata.type_aliases[id.index] = { id, name, loc }
+  self.metadata.type_aliases[id.index] = { id, name, loc, }
   id
 }
 
@@ -439,7 +439,7 @@ pub fn DeclarationSymbolScope::define_type_alias(
   }
   if self.previous is Some(previous) &&
     previous.type_aliases.get(name) is Some(id) {
-    self.registry.metadata.type_aliases[id.index] = { id, name, loc }
+    self.registry.metadata.type_aliases[id.index] = { id, name, loc, }
     self.registry.declarations.type_aliases[name] = id
     return id
   }
@@ -455,7 +455,7 @@ pub fn SymbolRegistry::define_type_parameter(
   loc : SourceSpan,
 ) -> TypeParameterId {
   let id = self.allocate_type_parameter()
-  self.metadata.type_parameters[id.index] = { id, name, loc }
+  self.metadata.type_parameters[id.index] = { id, name, loc, }
   id
 }
 
@@ -523,7 +523,13 @@ pub fn SymbolRegistry::define_value(
   loc : SourceSpan,
 ) -> ValueSymbolId {
   let id = self.allocate_value()
-  self.metadata.values[id.index] = { id, name, kind, provenance: Authored, loc }
+  self.metadata.values[id.index] = {
+    id,
+    name,
+    kind,
+    provenance: Authored,
+    loc,
+  }
   id
 }
 
@@ -580,7 +586,7 @@ pub fn SymbolRegistry::define_field(
   loc : SourceSpan,
 ) -> FieldSymbolId {
   let id = self.allocate_field()
-  self.metadata.fields[id.index] = { id, owner, name, index, loc }
+  self.metadata.fields[id.index] = { id, owner, name, index, loc, }
   id
 }
 
@@ -614,7 +620,7 @@ pub fn SymbolRegistry::define_effect(
   flavor? : EffectFlavor = Algebraic,
 ) -> EffectSymbolId {
   let id = self.allocate_effect()
-  self.metadata.effects[id.index] = { id, name, flavor, arity, loc }
+  self.metadata.effects[id.index] = { id, name, flavor, arity, loc, }
   id
 }
 
@@ -630,7 +636,7 @@ pub fn DeclarationSymbolScope::define_effect(
     return self.registry.define_effect(name, arity, loc, flavor~)
   }
   if self.previous is Some(previous) && previous.effects.get(name) is Some(id) {
-    self.registry.metadata.effects[id.index] = { id, name, flavor, arity, loc }
+    self.registry.metadata.effects[id.index] = { id, name, flavor, arity, loc, }
     self.registry.declarations.effects[name] = id
     return id
   }
@@ -652,7 +658,7 @@ pub fn DeclarationSymbolScope::define_field(
     return self.registry.define_field(owner, name, index, loc)
   }
   if self.previous is Some(previous) && previous.fields.get(key) is Some(id) {
-    self.registry.metadata.fields[id.index] = { id, owner, name, index, loc }
+    self.registry.metadata.fields[id.index] = { id, owner, name, index, loc, }
     self.registry.declarations.fields[key] = id
     return id
   }

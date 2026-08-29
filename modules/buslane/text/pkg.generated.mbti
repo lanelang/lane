@@ -20,6 +20,7 @@ pub suberror ParseError {
   UnexpectedToken(Token, (Unit, Unit), Array[TokenKind])
   UnexpectedEndOfInput(Unit, Array[TokenKind])
 } derive(@debug.Debug)
+pub fn ParseError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub struct CanonicalTextWriter {
@@ -95,6 +96,7 @@ pub(all) enum Token {
   DOT
 } derive(@debug.Debug)
 pub fn Token::kind(Self) -> TokenKind
+pub fn Token::to_repr(Self) -> @debug.Repr
 
 pub(all) enum TokenKind {
   TK_LITERAL
@@ -161,6 +163,18 @@ pub(all) enum TokenKind {
   TK_BANG
   TK_DOT
 } derive(Compare, Eq, Hash)
+pub fn TokenKind::compare(Self, Self) -> Int
+pub fn TokenKind::equal(Self, Self) -> Bool
+pub fn TokenKind::hash(Self) -> Int
+pub fn TokenKind::hash_combine(Self, Hasher) -> Unit
+pub fn TokenKind::not_equal(Self, Self) -> Bool
+pub fn TokenKind::op_ge(Self, Self) -> Bool
+pub fn TokenKind::op_gt(Self, Self) -> Bool
+pub fn TokenKind::op_le(Self, Self) -> Bool
+pub fn TokenKind::op_lt(Self, Self) -> Bool
+pub fn TokenKind::output(Self, &Logger) -> Unit
+pub fn TokenKind::to_repr(Self) -> @debug.Repr
+pub fn TokenKind::to_string(Self) -> String
 pub impl Show for TokenKind
 pub impl @debug.Debug for TokenKind
 

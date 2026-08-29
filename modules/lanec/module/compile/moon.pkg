@@ -6,12 +6,13 @@ import {
   "Milky2018/lanec/checked",
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/elaborate/buslane_lowering",
-  "Milky2018/lanec/lint",
   "Milky2018/lanec/module/frontend" @module_frontend,
   "Milky2018/lanec/module/link" @module_link,
   "Milky2018/lanec/module" @module_interface,
   "Milky2018/lanec/resolve",
+  "Milky2018/lanec/source_elaboration",
   "Milky2018/lanec/symbol",
-  "Milky2018/lanec/typecheck",
   "Milky2018/lanec/types",
 }
+
+supported_targets = "+all"

@@ -173,7 +173,7 @@ fn EffectSpecializer::rewrite_let(
       )
       let group = EffectLocalDefinitionGroup::{
         owner: scope.owner,
-        definitions: [{ id, parameters, rhs: initializer }],
+        definitions: [{ id, parameters, rhs: initializer, }],
       }
       let body_scope = scope.enter_scope()
       body_scope.bind_local_definition_group(group)
@@ -234,7 +234,7 @@ fn EffectSpecializer::rewrite_let_rec(
   for binding in bindings {
     match effect_scheme_parameters(self.program.metadata, binding.id) {
       Some(parameters) => {
-        definitions.push({ id: binding.id, parameters, rhs: binding.rhs })
+        definitions.push({ id: binding.id, parameters, rhs: binding.rhs, })
         let site = SpecializationDefinitionSite::Local(
           owner=scope.owner,
           value=binding.id,
@@ -258,7 +258,7 @@ fn EffectSpecializer::rewrite_let_rec(
       }
     }
   }
-  let group = EffectLocalDefinitionGroup::{ owner: scope.owner, definitions }
+  let group = EffectLocalDefinitionGroup::{ owner: scope.owner, definitions, }
   if !definitions.is_empty() {
     recursive_scope.bind_local_definition_group(group)
   }

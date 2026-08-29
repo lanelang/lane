@@ -72,21 +72,21 @@ test "planner rejects conflicting constructor families for one key" {
   let first = metadata.define_data_constructor("first", box, [], [])
   let second = metadata.define_data_constructor("second", box, [], [])
   let bindings = [
-    { parameter: effect_parameter, argument: EffectArgument(Empty) },
+    { parameter: effect_parameter, argument: EffectArgument(Empty), },
   ]
   let planner = SpecializationPlanner::{
-    program: { metadata, terms: [] },
+    program: { metadata, terms: [], },
     definitions: [],
     visits: [],
     plan: {
       callable_demands: [],
-      data_demands: [{ source: box, bindings, constructors: [first] }],
+      data_demands: [{ source: box, bindings, constructors: [first], }],
       retained_top_terms: [],
       retained_declarations: [],
     },
   }
   try
-    planner.add_data_demand({ source: box, bindings, constructors: [second] })
+    planner.add_data_demand({ source: box, bindings, constructors: [second], })
   catch {
     PlannerInvariant(context) =>
       assert_eq(context, {
@@ -123,7 +123,7 @@ test "allocator missing-plan errors retain the requested specialization key" {
         site: None,
         source: Some(Type(box)),
         specialization_key: [
-          { parameter: effect_parameter, argument: EffectArgument(Empty) },
+          { parameter: effect_parameter, argument: EffectArgument(Empty), },
         ],
       })
     error => fail("unexpected specialization error: \{Repr(error)}")
@@ -131,7 +131,7 @@ test "allocator missing-plan errors retain the requested specialization key" {
     _ => fail("expected an allocator invariant error")
   }
   let bindings = [
-    { parameter: effect_parameter, argument: EffectArgument(Empty) },
+    { parameter: effect_parameter, argument: EffectArgument(Empty), },
   ]
   try specializer.planned_instance(TopLevel(generic), [], bindings) catch {
     AllocatorInvariant(context) =>
@@ -155,7 +155,7 @@ test "metadata allocation exhaustion retains context and typed cause" {
     metadata, effect_parameter,
   )
   let bindings = [
-    { parameter: effect_parameter, argument: EffectArgument(Empty) },
+    { parameter: effect_parameter, argument: EffectArgument(Empty), },
   ]
   let specializer = error_test_specializer(program, {
     callable_demands: [

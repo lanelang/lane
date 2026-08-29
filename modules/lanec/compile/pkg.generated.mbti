@@ -6,6 +6,8 @@ import {
   "Milky2018/lanec/artifact",
   "Milky2018/lanec/diagnostic",
   "Milky2018/lanec/executable",
+  "Milky2018/lanec/module/frontend",
+  "Milky2018/lanec/module/link",
   "moonbitlang/core/debug",
 }
 
@@ -30,6 +32,8 @@ pub fn link_module_objects(Array[@artifact.ModuleObjectArtifact]) -> Compilation
 
 pub fn link_modules(CompiledModules) -> CompilationOutcome[CompiledProgram]
 
+pub fn link_modules_observed(CompiledModules, (@link.LinkRetentionObservation) -> Unit) -> CompilationOutcome[CompiledProgram]
+
 // Errors
 
 // Types and methods
@@ -37,56 +41,93 @@ pub struct CompilationFailure {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CompilationFailure::diagnostics(Self) -> Array[@diagnostic.CompilerDiagnostic]
+pub fn CompilationFailure::equal(Self, Self) -> Bool
+pub fn CompilationFailure::not_equal(Self, Self) -> Bool
+pub fn CompilationFailure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CompilationOutcome[T] {
   Succeeded(T, CompilationWarnings)
   Failed(CompilationFailure)
 } derive(Eq, @debug.Debug)
 pub fn[T] CompilationOutcome::diagnostics(Self[T]) -> Array[@diagnostic.CompilerDiagnostic]
+pub fn[T : Eq] CompilationOutcome::equal(Self[T], Self[T]) -> Bool
+pub fn[T : Eq] CompilationOutcome::not_equal(Self[T], Self[T]) -> Bool
+pub fn[T : @debug.Debug] CompilationOutcome::to_repr(Self[T]) -> @debug.Repr
 
 pub(all) struct CompilationRequest {
-  root : SourceInput
-  libraries : Array[SourceInput]
+  root : @frontend.SourceInput
+  libraries : Array[@frontend.SourceInput]
 } derive(Eq, @debug.Debug)
+pub fn CompilationRequest::equal(Self, Self) -> Bool
+pub fn CompilationRequest::not_equal(Self, Self) -> Bool
+pub fn CompilationRequest::to_repr(Self) -> @debug.Repr
+
+pub(all) enum CompilationStageScale {
+  Source(SourceStageScale)
+  Buslane(@buslane.ProgramScale)
+} derive(Eq, @debug.Debug)
+pub fn CompilationStageScale::equal(Self, Self) -> Bool
+pub fn CompilationStageScale::not_equal(Self, Self) -> Bool
+pub fn CompilationStageScale::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CompilationStageSnapshot {
   module_path_text : String
   text : String
+  scale : CompilationStageScale
 } derive(Eq, @debug.Debug)
+pub fn CompilationStageSnapshot::equal(Self, Self) -> Bool
+pub fn CompilationStageSnapshot::not_equal(Self, Self) -> Bool
+pub fn CompilationStageSnapshot::to_repr(Self) -> @debug.Repr
 
 pub struct CompilationWarnings {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CompilationWarnings::diagnostics(Self) -> Array[@diagnostic.CompilerDiagnostic]
+pub fn CompilationWarnings::equal(Self, Self) -> Bool
+pub fn CompilationWarnings::not_equal(Self, Self) -> Bool
+pub fn CompilationWarnings::to_repr(Self) -> @debug.Repr
 
 pub struct CompiledEntry {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn CompiledEntry::equal(Self, Self) -> Bool
 pub fn CompiledEntry::module_path_text(Self) -> String
 pub fn CompiledEntry::name(Self) -> String
-pub fn CompiledEntry::type_(Self) -> @buslane.Type
-pub fn CompiledEntry::type_text(Self, width? : Int) -> String
+pub fn CompiledEntry::not_equal(Self, Self) -> Bool
+pub fn CompiledEntry::to_repr(Self) -> @debug.Repr
 
 pub struct CompiledModules {
   // private fields
 } derive(Eq, @debug.Debug)
 pub fn CompiledModules::artifact(Self) -> @artifact.CompiledModuleSetArtifact
+pub fn CompiledModules::equal(Self, Self) -> Bool
 pub fn CompiledModules::module_count(Self) -> Int
+pub fn CompiledModules::not_equal(Self, Self) -> Bool
 pub fn CompiledModules::root_module_path_text(Self) -> String
+pub fn CompiledModules::to_repr(Self) -> @debug.Repr
 
 pub struct CompiledProgram {
   // private fields
 } derive(Eq, @debug.Debug)
+pub fn CompiledProgram::buslane_scale(Self) -> @buslane.ProgramScale
 pub fn CompiledProgram::buslane_text(Self, width? : Int) -> String
 pub fn CompiledProgram::elaborate_entry(Self, CompiledEntry, @executable.ExecutionProfile) -> Result[@executable.ExecutableProgram, @executable.ExecutableElaborationError]
 pub fn CompiledProgram::elaborate_entry_observed(Self, CompiledEntry, @executable.ExecutionProfile, (@executable.ExecutableElaborationStage) -> Unit) -> Result[@executable.ExecutableProgram, @executable.ExecutableElaborationError]
 pub fn CompiledProgram::entries(Self) -> Array[CompiledEntry]
+pub fn CompiledProgram::entry_type(Self, CompiledEntry) -> @buslane.Type?
+pub fn CompiledProgram::entry_type_text(Self, CompiledEntry, width? : Int) -> String?
+pub fn CompiledProgram::equal(Self, Self) -> Bool
 pub fn CompiledProgram::module_path_texts(Self) -> Array[String]
+pub fn CompiledProgram::not_equal(Self, Self) -> Bool
+pub fn CompiledProgram::to_repr(Self) -> @debug.Repr
 
 pub(all) struct InterfaceCompilationRequest {
-  root : SourceInput
+  root : @frontend.SourceInput
   interfaces : Array[@artifact.ModuleInterfaceArtifact]
 } derive(Eq, @debug.Debug)
+pub fn InterfaceCompilationRequest::equal(Self, Self) -> Bool
+pub fn InterfaceCompilationRequest::not_equal(Self, Self) -> Bool
+pub fn InterfaceCompilationRequest::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SourceCompilationStage {
   Syntax(CompilationStageSnapshot)
@@ -94,11 +135,22 @@ pub(all) enum SourceCompilationStage {
   Checked(CompilationStageSnapshot)
   BuslaneModule(CompilationStageSnapshot)
 } derive(Eq, @debug.Debug)
+pub fn SourceCompilationStage::equal(Self, Self) -> Bool
+pub fn SourceCompilationStage::not_equal(Self, Self) -> Bool
+pub fn SourceCompilationStage::to_repr(Self) -> @debug.Repr
 
-pub(all) struct SourceInput {
-  source_id : String
-  text : String
+pub(all) struct SourceStageScale {
+  declarations : Int
+  imports : Int
+  functions : Int
+  nodes : Int
+  calls : Int
+  generic_binders : Int
+  type_applications : Int
 } derive(Eq, @debug.Debug)
+pub fn SourceStageScale::equal(Self, Self) -> Bool
+pub fn SourceStageScale::not_equal(Self, Self) -> Bool
+pub fn SourceStageScale::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

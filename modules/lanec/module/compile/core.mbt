@@ -1,11 +1,9 @@
 ///|
 pub(all) struct ModuleObject {
   module_path_text : String
-  checked : @checked.CheckedSourceFile
   interface_fingerprint : @artifact.CompilationFingerprint
   canonical_basic_abi : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract
-  metadata : @buslane.MetadataRegistry
-  terms : Array[@buslane.TopTerm]
+  program : @buslane.Program
   externals : @buslane_lowering.BuslaneExternalMap
   entries : Array[@buslane_lowering.BuslaneEntry]
   exports : Array[@buslane_lowering.BuslaneModuleExport]
@@ -21,6 +19,7 @@ pub(all) struct ModuleObject {
 /// Trusted output of compiling one source module inside this package. The
 /// interface and object share the same fresh symbol registry and fingerprints.
 pub struct CompiledModule {
+  checked : @checked.CheckedSourceFile
   interface : @module_interface.ModuleInterface
   object : ModuleObject
 } derive(Debug, Eq)
@@ -35,8 +34,7 @@ fn CompiledModule::to_link_object(
     interface: Some(self.interface),
     interface_fingerprint: object.interface_fingerprint,
     canonical_basic_abi: object.canonical_basic_abi,
-    metadata: object.metadata,
-    terms: object.terms,
+    program: object.program,
     externals: object.externals,
     entries: object.entries,
     exports: object.exports,
@@ -47,8 +45,8 @@ fn CompiledModule::to_link_object(
       object.fingerprint,
       object.interface_fingerprint,
       object.canonical_basic_abi,
-      object.metadata,
-      object.terms,
+      object.program.metadata,
+      object.program.terms,
       object.externals,
       object.entries,
       object.exports,
@@ -65,7 +63,6 @@ fn CompiledModule::to_link_object(
 pub(all) struct CompiledModuleSet {
   root_module_path_text : String
   modules : Array[CompiledModule]
-  reachable_module_path_texts : Array[String]
   diagnostics : Array[CompilerDiagnostic]
 } derive(Debug, Eq)
 
@@ -103,7 +100,6 @@ pub fn compile_module_graph_observed(
   Ok({
     root_module_path_text: checked.root_module_path_text,
     modules,
-    reachable_module_path_texts: checked.reachable_module_path_texts,
     diagnostics: checked.diagnostics,
   })
 }
@@ -117,7 +113,7 @@ fn check_module_graph(
   let visible_symbols : Array[@symbol.SymbolMetadataArena] = []
   let checked_modules : Array[CheckedModule] = []
   let diagnostics : Array[CompilerDiagnostic] = []
-  for input in graph.modules {
+  for input in graph.modules() {
     let environments = @module_interface.ModuleImportEnvironments::from_pool(
       input.header.imports.map(fn(import_) { import_.module_path_text }),
       checked_module_interfaces(checked_modules),
@@ -133,13 +129,9 @@ fn check_module_graph(
       Err(diagnostics) => return Err(diagnostics)
     }
   }
-  if find_checked_module(checked_modules, graph.root_module_path_text) is None {
-    return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
-  }
   Ok({
-    root_module_path_text: graph.root_module_path_text,
+    root_module_path_text: graph.root_module_path_text(),
     modules: checked_modules,
-    reachable_module_path_texts: graph.reachable_module_path_texts,
     diagnostics,
   })
 }
@@ -152,16 +144,15 @@ pub fn compile_module_from_interface_artifacts(
   root_source : @module_frontend.SourceInput,
   interfaces : Array[@artifact.ModuleInterfaceArtifact],
 ) -> Result[CompiledModuleSet, Array[CompilerDiagnostic]] {
-  let parsed = @module_frontend.parse_module_inputs(root_source, [])
-  if !parsed.diagnostics.is_empty() {
-    return Err(parsed.diagnostics)
-  }
-  guard parsed.modules.get(0) is Some(input) else {
-    return Err([compile_boundary_diagnostic(NoRootSourceModule, None)])
+  let parsed = @module_frontend.parse_source(root_source)
+  let input = match parsed {
+    Unavailable(source) => return Err(source.diagnostics)
+    Available(input) => input
   }
   let ordered_interfaces = reachable_interface_artifacts(
     input.header,
     interfaces,
+    root_source.source_id,
   )
   let import_diagnostics = ordered_interfaces.diagnostics
   if !import_diagnostics.is_empty() {
@@ -210,7 +201,6 @@ pub fn compile_module_from_interface_artifacts(
       Ok({
         root_module_path_text: compiled.object.module_path_text,
         modules: [compiled],
-        reachable_module_path_texts: [compiled.object.module_path_text],
         diagnostics: success.diagnostics,
       })
     }

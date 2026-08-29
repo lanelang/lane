@@ -26,10 +26,9 @@ fn BuslaneLowerer::define_builtin_external(
   intrinsic : @abi.Intrinsic,
   type_ : @buslane.Type,
 ) -> @buslane.ValueId raise BuslaneLoweringError {
-  let contract : BuslaneIntrinsicContract = { intrinsic, type_ }
-  let value = self.define_external(intrinsic.name(), contract.type_())
+  let value = self.define_external(intrinsic.name(), type_)
   self.builtin_externals.push(
-    BuslaneBuiltinExternal::from_contract(value, contract),
+    BuslaneBuiltinExternal::from_intrinsic(value, intrinsic),
   )
   value
 }
@@ -37,12 +36,11 @@ fn BuslaneLowerer::define_builtin_external(
 ///|
 fn BuslaneLowerer::define_runtime_import(
   self : BuslaneLowerer,
-  symbol : String,
-  signature : @abi.HostSignature,
+  contract : @wasm_abi.ImportContract,
   type_ : @buslane.Type,
 ) -> @buslane.ValueId raise BuslaneLoweringError {
-  let value = self.define_external(symbol, type_)
-  self.runtime_imports.push({ value, symbol, signature, type_ })
+  let value = self.define_external(contract.field_name, type_)
+  self.runtime_imports.push({ value, contract, })
   value
 }
 

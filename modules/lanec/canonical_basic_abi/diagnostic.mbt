@@ -15,7 +15,7 @@ pub fn CanonicalBasicAbiError::at(
   self : CanonicalBasicAbiError,
   loc : @basic.SourceSpan,
 ) -> CanonicalBasicAbiDiagnostic {
-  { error: self, loc }
+  { error: self, loc, }
 }
 
 ///|

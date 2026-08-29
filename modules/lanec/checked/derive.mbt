@@ -45,7 +45,7 @@ pub fn CheckedDeriveSum::make(
   {
     representation: suffixes[0],
     steps: variants.mapi(fn(index, head) {
-      { head, tail_type: suffixes[index + 1] }
+      { head, tail_type: suffixes[index + 1], }
     }),
   }
 }

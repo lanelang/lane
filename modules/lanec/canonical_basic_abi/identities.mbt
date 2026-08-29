@@ -111,7 +111,7 @@ pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_variant_symbol(
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::build(
   self : CanonicalBasicAbiIdentityCatalogBuilder,
 ) -> CanonicalBasicAbiIdentityCatalog {
-  { types: self.types.copy(), variants: self.variants.copy() }
+  { types: self.types.copy(), variants: self.variants.copy(), }
 }
 
 ///|

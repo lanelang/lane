@@ -325,8 +325,11 @@ The rule that generic type arguments used for checking are not represented in ex
 _Avoid_: runtime generic metadata, implicit type evidence
 
 **Uniform Value Representation**:
-A runtime representation where values share one execution-level value model rather than being specialized by generic type arguments.
-_Avoid_: monomorphized value layout, type-specialized runtime
+The canonical execution contract for open generic values: an erased payload is
+paired with the layout evidence needed to operate on it. Concrete values may
+retain natural scalar or reference ABIs, connected to the generic contract by
+explicit structural adaptation.
+_Avoid_: mandatory monomorphization, boxed-source kind, layout guess
 
 ## Relationships
 

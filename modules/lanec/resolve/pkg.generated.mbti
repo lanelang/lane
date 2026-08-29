@@ -25,6 +25,11 @@ pub(all) struct ResolveDiagnostic {
   kind : ResolveDiagnosticKind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolveDiagnostic::equal(Self, Self) -> Bool
+pub fn ResolveDiagnostic::not_equal(Self, Self) -> Bool
+pub fn ResolveDiagnostic::pretty(Self) -> @prettyprinter.Document
+pub fn ResolveDiagnostic::to_compiler_diagnostic(Self, @diagnostic.DiagnosticContext) -> @diagnostic.CompilerDiagnostic
+pub fn ResolveDiagnostic::to_repr(Self) -> @debug.Repr
 pub impl @diagnostic.ToCompilerDiagnostic for ResolveDiagnostic
 pub impl @prettyprinter.Pretty for ResolveDiagnostic
 
@@ -43,31 +48,51 @@ pub(all) enum ResolveDiagnosticKind {
   AmbiguousModuleValue(String)
   AmbiguousUnqualifiedVariant(name~ : String, candidates~ : Array[ResolveVariantCandidate])
 } derive(Eq, @debug.Debug)
+pub fn ResolveDiagnosticKind::equal(Self, Self) -> Bool
+pub fn ResolveDiagnosticKind::not_equal(Self, Self) -> Bool
+pub fn ResolveDiagnosticKind::pretty(Self) -> @prettyprinter.Document
+pub fn ResolveDiagnosticKind::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolveDiagnosticKind
 
 pub(all) struct ResolveResult {
   source : ResolvedSourceFile
   diagnostics : Array[ResolveDiagnostic]
 } derive(Eq, @debug.Debug)
+pub fn ResolveResult::equal(Self, Self) -> Bool
+pub fn ResolveResult::not_equal(Self, Self) -> Bool
+pub fn ResolveResult::pretty(Self) -> @prettyprinter.Document
+pub fn ResolveResult::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolveResult
 
 pub(all) struct ResolveVariantCandidate {
   owner : String
   variant : String
 } derive(Eq, @debug.Debug)
+pub fn ResolveVariantCandidate::equal(Self, Self) -> Bool
+pub fn ResolveVariantCandidate::not_equal(Self, Self) -> Bool
+pub fn ResolveVariantCandidate::pretty(Self) -> @prettyprinter.Document
+pub fn ResolveVariantCandidate::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolveVariantCandidate
 
 pub(all) enum ResolvedCallArgument {
   Positional(value~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Named(name~ : String, value~ : ResolvedExpr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedCallArgument::equal(Self, Self) -> Bool
 pub fn ResolvedCallArgument::for_each_child_expr(Self, (ResolvedExpr) -> Unit) -> Unit
+pub fn ResolvedCallArgument::not_equal(Self, Self) -> Bool
+pub fn ResolvedCallArgument::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedCallArgument::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedCallArgument
 
 pub(all) enum ResolvedEffectAliasArgument {
   TypeArgument(ResolvedType)
   EffectArgument(ResolvedEffectTerm)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedEffectAliasArgument::equal(Self, Self) -> Bool
+pub fn ResolvedEffectAliasArgument::not_equal(Self, Self) -> Bool
+pub fn ResolvedEffectAliasArgument::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedEffectAliasArgument::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedEffectAliasArgument
 
 pub(all) struct ResolvedEffectDeclaration {
@@ -80,6 +105,10 @@ pub(all) struct ResolvedEffectDeclaration {
   operations : Array[ResolvedEffectOperationDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedEffectDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedEffectDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedEffectDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedEffectDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedEffectDeclaration
 
 pub(all) struct ResolvedEffectOperationDeclaration {
@@ -92,12 +121,20 @@ pub(all) struct ResolvedEffectOperationDeclaration {
   result : ResolvedType
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedEffectOperationDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedEffectOperationDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedEffectOperationDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedEffectOperationDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedEffectOperationDeclaration
 
 pub(all) enum ResolvedEffectOperationName {
   Qualified(owner~ : ResolvedEffectTerm, operation~ : String, reference~ : ResolvedOperationReference, operation_loc~ : @basic.SourceSpan)
   Unqualified(operation~ : String, reference~ : ResolvedOperationReference, operation_loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedEffectOperationName::equal(Self, Self) -> Bool
+pub fn ResolvedEffectOperationName::not_equal(Self, Self) -> Bool
+pub fn ResolvedEffectOperationName::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedEffectOperationName::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedEffectOperationName
 
 pub(all) enum ResolvedEffectTerm {
@@ -110,6 +147,10 @@ pub(all) enum ResolvedEffectTerm {
   Union(items~ : Array[ResolvedEffectTerm], loc~ : @basic.SourceSpan)
   Unresolved(name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedEffectTerm::equal(Self, Self) -> Bool
+pub fn ResolvedEffectTerm::not_equal(Self, Self) -> Bool
+pub fn ResolvedEffectTerm::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedEffectTerm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedEffectTerm
 
 pub(all) struct ResolvedEnumDeclaration {
@@ -121,6 +162,10 @@ pub(all) struct ResolvedEnumDeclaration {
   variants : Array[ResolvedEnumVariant]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedEnumDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedEnumDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedEnumDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedEnumDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedEnumDeclaration
 
 pub(all) struct ResolvedEnumVariant {
@@ -132,6 +177,10 @@ pub(all) struct ResolvedEnumVariant {
   payload : Array[ResolvedType]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedEnumVariant::equal(Self, Self) -> Bool
+pub fn ResolvedEnumVariant::not_equal(Self, Self) -> Bool
+pub fn ResolvedEnumVariant::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedEnumVariant::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedEnumVariant
 
 pub(all) enum ResolvedExpr {
@@ -149,7 +198,7 @@ pub(all) enum ResolvedExpr {
   StructLiteral(type_name~ : ResolvedNominalName, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, generic_arguments~ : Array[ResolvedGenericArgument], fields~ : Array[ResolvedStructLiteralField], loc~ : @basic.SourceSpan)
   Derive(capability~ : ResolvedType, target~ : ResolvedType, arguments~ : Array[ResolvedCallArgument], source~ : @basic.DeriveSourceSite)
   Builtin(String, loc~ : @basic.SourceSpan)
-  Extern(String, loc~ : @basic.SourceSpan)
+  Extern(module_name~ : String, field_name~ : String, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedFunctionLiteralParameter], return_type~ : ResolvedType?, effect~ : ResolvedEffectTerm?, body~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   EffectOperationCall(name~ : ResolvedEffectOperationName, generic_witnesses~ : Array[ResolvedGenericArgument], arguments~ : Array[ResolvedExpr], loc~ : @basic.SourceSpan)
   GenericApplication(callee~ : ResolvedExpr, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
@@ -163,8 +212,12 @@ pub(all) enum ResolvedExpr {
   Binary(operator~ : @syntax.BinaryOperator, target~ : ResolvedOperatorTarget, left~ : ResolvedExpr, right~ : ResolvedExpr, loc~ : @basic.SourceSpan)
   Pipeline(left~ : ResolvedExpr, right~ : ResolvedExpr, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedExpr::equal(Self, Self) -> Bool
 pub fn ResolvedExpr::for_each_child_expr(Self, (Self) -> Unit) -> Unit
 pub fn ResolvedExpr::loc(Self) -> @basic.SourceSpan
+pub fn ResolvedExpr::not_equal(Self, Self) -> Bool
+pub fn ResolvedExpr::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedExpr::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedExpr
 
 pub(all) struct ResolvedExternalTypeDeclaration {
@@ -175,6 +228,10 @@ pub(all) struct ResolvedExternalTypeDeclaration {
   type_parameters : Array[ResolvedTypeParameter]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedExternalTypeDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedExternalTypeDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedExternalTypeDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedExternalTypeDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedExternalTypeDeclaration
 
 pub(all) struct ResolvedFieldDeclaration {
@@ -185,6 +242,10 @@ pub(all) struct ResolvedFieldDeclaration {
   index : Int
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedFieldDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedFieldDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedFieldDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedFieldDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedFieldDeclaration
 
 pub(all) enum ResolvedFieldReference {
@@ -192,6 +253,10 @@ pub(all) enum ResolvedFieldReference {
   Deferred(String)
   Unresolved(type_name~ : String, field~ : String)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedFieldReference::equal(Self, Self) -> Bool
+pub fn ResolvedFieldReference::not_equal(Self, Self) -> Bool
+pub fn ResolvedFieldReference::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedFieldReference::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedFieldReference
 
 pub(all) struct ResolvedFunctionDeclaration {
@@ -207,6 +272,10 @@ pub(all) struct ResolvedFunctionDeclaration {
   body : ResolvedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedFunctionDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedFunctionDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedFunctionDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedFunctionDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedFunctionDeclaration
 
 pub(all) struct ResolvedFunctionLiteralParameter {
@@ -217,12 +286,20 @@ pub(all) struct ResolvedFunctionLiteralParameter {
   type_annotation : ResolvedType?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedFunctionLiteralParameter::equal(Self, Self) -> Bool
+pub fn ResolvedFunctionLiteralParameter::not_equal(Self, Self) -> Bool
+pub fn ResolvedFunctionLiteralParameter::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedFunctionLiteralParameter::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedFunctionLiteralParameter
 
 pub(all) enum ResolvedGenericArgument {
   TypeArgument(ResolvedType)
   EffectArgument(ResolvedEffectTerm)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedGenericArgument::equal(Self, Self) -> Bool
+pub fn ResolvedGenericArgument::not_equal(Self, Self) -> Bool
+pub fn ResolvedGenericArgument::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedGenericArgument::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedGenericArgument
 
 pub(all) struct ResolvedHandlerFinalBranch {
@@ -232,6 +309,10 @@ pub(all) struct ResolvedHandlerFinalBranch {
   body : ResolvedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedHandlerFinalBranch::equal(Self, Self) -> Bool
+pub fn ResolvedHandlerFinalBranch::not_equal(Self, Self) -> Bool
+pub fn ResolvedHandlerFinalBranch::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedHandlerFinalBranch::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedHandlerFinalBranch
 
 pub(all) struct ResolvedHandlerOperationArm {
@@ -244,12 +325,20 @@ pub(all) struct ResolvedHandlerOperationArm {
   body : ResolvedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedHandlerOperationArm::equal(Self, Self) -> Bool
+pub fn ResolvedHandlerOperationArm::not_equal(Self, Self) -> Bool
+pub fn ResolvedHandlerOperationArm::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedHandlerOperationArm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedHandlerOperationArm
 
 pub(all) struct ResolvedHandlerWithBlock {
   arms : Array[ResolvedHandlerOperationArm]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedHandlerWithBlock::equal(Self, Self) -> Bool
+pub fn ResolvedHandlerWithBlock::not_equal(Self, Self) -> Bool
+pub fn ResolvedHandlerWithBlock::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedHandlerWithBlock::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedHandlerWithBlock
 
 pub(all) struct ResolvedImportExposure {
@@ -258,34 +347,53 @@ pub(all) struct ResolvedImportExposure {
   kind : ResolvedImportExposureKind
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedImportExposure::equal(Self, Self) -> Bool
+pub fn ResolvedImportExposure::not_equal(Self, Self) -> Bool
+pub fn ResolvedImportExposure::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ResolvedImportExposureKind {
   QualifiedModuleBinding(name~ : String, name_loc~ : @basic.SourceSpan)
   OpenBinding
   SelectiveBinding(name~ : String, is_public~ : Bool)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedImportExposureKind::equal(Self, Self) -> Bool
+pub fn ResolvedImportExposureKind::not_equal(Self, Self) -> Bool
+pub fn ResolvedImportExposureKind::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ResolvedImportExposureSymbol {
   exposure_id : Int
   symbol : ResolvedImportSymbol
 } derive(Eq, @debug.Debug)
+pub fn ResolvedImportExposureSymbol::equal(Self, Self) -> Bool
+pub fn ResolvedImportExposureSymbol::not_equal(Self, Self) -> Bool
+pub fn ResolvedImportExposureSymbol::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ResolvedImportSymbol {
   TypeSymbol(@symbol.TypeSymbolId)
   EffectSymbol(@symbol.EffectSymbolId)
   ValueSymbol(@symbol.ValueSymbolId)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedImportSymbol::equal(Self, Self) -> Bool
+pub fn ResolvedImportSymbol::not_equal(Self, Self) -> Bool
+pub fn ResolvedImportSymbol::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ResolvedImportUse {
   exposure_id : Int
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedImportUse::equal(Self, Self) -> Bool
+pub fn ResolvedImportUse::not_equal(Self, Self) -> Bool
+pub fn ResolvedImportUse::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ResolvedKind {
   Type(loc~ : @basic.SourceSpan)
   Effect(loc~ : @basic.SourceSpan)
   Function(parameters~ : Array[ResolvedKind], result~ : ResolvedKind, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedKind::equal(Self, Self) -> Bool
+pub fn ResolvedKind::not_equal(Self, Self) -> Bool
+pub fn ResolvedKind::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedKind::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedKind
 
 pub(all) struct ResolvedLetDeclaration {
@@ -298,6 +406,10 @@ pub(all) struct ResolvedLetDeclaration {
   initializer : ResolvedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedLetDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedLetDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedLetDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedLetDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedLetDeclaration
 
 pub(all) enum ResolvedLocalItem {
@@ -306,7 +418,11 @@ pub(all) enum ResolvedLocalItem {
   Function(ResolvedFunctionDeclaration)
   Expression(ResolvedExpr)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedLocalItem::equal(Self, Self) -> Bool
 pub fn ResolvedLocalItem::for_each_child_expr(Self, (ResolvedExpr) -> Unit) -> Unit
+pub fn ResolvedLocalItem::not_equal(Self, Self) -> Bool
+pub fn ResolvedLocalItem::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedLocalItem::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedLocalItem
 
 pub(all) struct ResolvedMatchArm {
@@ -314,30 +430,46 @@ pub(all) struct ResolvedMatchArm {
   body : ResolvedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedMatchArm::equal(Self, Self) -> Bool
+pub fn ResolvedMatchArm::not_equal(Self, Self) -> Bool
+pub fn ResolvedMatchArm::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedMatchArm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedMatchArm
 
 pub(all) struct ResolvedModuleBindingReference {
   exposure_id : Int
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedModuleBindingReference::equal(Self, Self) -> Bool
+pub fn ResolvedModuleBindingReference::not_equal(Self, Self) -> Bool
+pub fn ResolvedModuleBindingReference::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ResolvedNominalName {
   Unqualified(String)
   Qualified(ResolvedQualifiedName)
 } derive(Eq, @debug.Debug)
 pub fn ResolvedNominalName::display_text(Self) -> String
+pub fn ResolvedNominalName::equal(Self, Self) -> Bool
 pub fn ResolvedNominalName::local_name(Self) -> String
+pub fn ResolvedNominalName::not_equal(Self, Self) -> Bool
+pub fn ResolvedNominalName::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ResolvedOperationReference {
   Symbol(@symbol.OperationSymbolId)
   Unresolved(String)
   Ambiguous(name~ : String, candidates~ : Array[@symbol.OperationSymbolId])
 } derive(Eq, @debug.Debug)
+pub fn ResolvedOperationReference::equal(Self, Self) -> Bool
+pub fn ResolvedOperationReference::not_equal(Self, Self) -> Bool
+pub fn ResolvedOperationReference::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ResolvedOperatorTarget {
   name : String
   reference : ResolvedValueReference
 } derive(Eq, @debug.Debug)
+pub fn ResolvedOperatorTarget::equal(Self, Self) -> Bool
+pub fn ResolvedOperatorTarget::not_equal(Self, Self) -> Bool
+pub fn ResolvedOperatorTarget::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ResolvedPattern {
   Wildcard(@basic.SourceSpan)
@@ -351,6 +483,10 @@ pub(all) enum ResolvedPattern {
   UnqualifiedVariant(variant~ : String, variant_loc~ : @basic.SourceSpan, type_binders~ : Array[ResolvedTypeParameter], arguments~ : Array[ResolvedPattern], loc~ : @basic.SourceSpan)
   Struct(type_name~ : ResolvedNominalName, type_name_loc~ : @basic.SourceSpan, reference~ : ResolvedTypeReference, fields~ : Array[ResolvedStructPatternField], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedPattern::equal(Self, Self) -> Bool
+pub fn ResolvedPattern::not_equal(Self, Self) -> Bool
+pub fn ResolvedPattern::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedPattern::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedPattern
 
 pub(all) struct ResolvedPatternLetDeclaration {
@@ -359,6 +495,10 @@ pub(all) struct ResolvedPatternLetDeclaration {
   initializer : ResolvedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedPatternLetDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedPatternLetDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedPatternLetDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedPatternLetDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedPatternLetDeclaration
 
 pub(all) struct ResolvedPublicExport {
@@ -366,11 +506,17 @@ pub(all) struct ResolvedPublicExport {
   declaration : @module.ModuleInterfaceDeclaration
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedPublicExport::equal(Self, Self) -> Bool
+pub fn ResolvedPublicExport::not_equal(Self, Self) -> Bool
+pub fn ResolvedPublicExport::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ResolvedQualifiedName {
   module_binding : String
   name : String
 } derive(Eq, @debug.Debug)
+pub fn ResolvedQualifiedName::equal(Self, Self) -> Bool
+pub fn ResolvedQualifiedName::not_equal(Self, Self) -> Bool
+pub fn ResolvedQualifiedName::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ResolvedSourceFile {
   module_path : @syntax.ModulePath
@@ -385,6 +531,10 @@ pub(all) struct ResolvedSourceFile {
   declarations : Array[ResolvedTopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedSourceFile::equal(Self, Self) -> Bool
+pub fn ResolvedSourceFile::not_equal(Self, Self) -> Bool
+pub fn ResolvedSourceFile::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedSourceFile::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedSourceFile
 
 pub(all) struct ResolvedStructDeclaration {
@@ -396,18 +546,30 @@ pub(all) struct ResolvedStructDeclaration {
   members : Array[ResolvedStructMember]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedStructDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedStructDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedStructDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedStructDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedStructDeclaration
 
 pub(all) enum ResolvedStructLiteralField {
   Value(name~ : String, value~ : ResolvedExpr?, punned_reference~ : ResolvedValueReference?, loc~ : @basic.SourceSpan)
   TypeWitness(name~ : String, witness~ : ResolvedGenericArgument, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedStructLiteralField::equal(Self, Self) -> Bool
+pub fn ResolvedStructLiteralField::not_equal(Self, Self) -> Bool
+pub fn ResolvedStructLiteralField::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedStructLiteralField::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedStructLiteralField
 
 pub(all) enum ResolvedStructMember {
   TypeMember(ResolvedTypeMemberDeclaration)
   Field(ResolvedFieldDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedStructMember::equal(Self, Self) -> Bool
+pub fn ResolvedStructMember::not_equal(Self, Self) -> Bool
+pub fn ResolvedStructMember::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedStructMember::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedStructMember
 
 pub(all) enum ResolvedStructPatternField {
@@ -415,6 +577,10 @@ pub(all) enum ResolvedStructPatternField {
   TypeBinder(name~ : String, type_parameter~ : ResolvedTypeParameter, loc~ : @basic.SourceSpan)
   TypeWildcard(type_parameter~ : ResolvedTypeParameter, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedStructPatternField::equal(Self, Self) -> Bool
+pub fn ResolvedStructPatternField::not_equal(Self, Self) -> Bool
+pub fn ResolvedStructPatternField::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedStructPatternField::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedStructPatternField
 
 pub(all) enum ResolvedTopLevelDeclaration {
@@ -426,6 +592,10 @@ pub(all) enum ResolvedTopLevelDeclaration {
   Function(ResolvedFunctionDeclaration)
   Let(ResolvedLetDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedTopLevelDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedTopLevelDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedTopLevelDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedTopLevelDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedTopLevelDeclaration
 
 pub(all) enum ResolvedType {
@@ -438,12 +608,20 @@ pub(all) enum ResolvedType {
   Function(type_parameters~ : Array[ResolvedTypeParameter], parameters~ : Array[ResolvedType], result~ : ResolvedType, effect~ : ResolvedEffectTerm, loc~ : @basic.SourceSpan)
   Unresolved(name~ : String, arguments~ : Array[ResolvedGenericArgument], loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedType::equal(Self, Self) -> Bool
+pub fn ResolvedType::not_equal(Self, Self) -> Bool
+pub fn ResolvedType::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedType::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedType
 
 pub(all) enum ResolvedTypeAliasBody {
   TypeBody(ResolvedType)
   EffectBody(ResolvedEffectTerm)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedTypeAliasBody::equal(Self, Self) -> Bool
+pub fn ResolvedTypeAliasBody::not_equal(Self, Self) -> Bool
+pub fn ResolvedTypeAliasBody::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedTypeAliasBody::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedTypeAliasBody
 
 pub(all) struct ResolvedTypeAliasDeclaration {
@@ -456,6 +634,10 @@ pub(all) struct ResolvedTypeAliasDeclaration {
   body : ResolvedTypeAliasBody
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedTypeAliasDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedTypeAliasDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedTypeAliasDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedTypeAliasDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedTypeAliasDeclaration
 
 pub(all) struct ResolvedTypeMemberDeclaration {
@@ -467,6 +649,10 @@ pub(all) struct ResolvedTypeMemberDeclaration {
   index : Int
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedTypeMemberDeclaration::equal(Self, Self) -> Bool
+pub fn ResolvedTypeMemberDeclaration::not_equal(Self, Self) -> Bool
+pub fn ResolvedTypeMemberDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedTypeMemberDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedTypeMemberDeclaration
 
 pub(all) struct ResolvedTypeParameter {
@@ -476,12 +662,19 @@ pub(all) struct ResolvedTypeParameter {
   kind : ResolvedKind?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedTypeParameter::equal(Self, Self) -> Bool
+pub fn ResolvedTypeParameter::not_equal(Self, Self) -> Bool
+pub fn ResolvedTypeParameter::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedTypeParameter::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedTypeParameter
 
 pub(all) enum ResolvedTypeReference {
   Symbol(@symbol.TypeSymbolId)
   Unresolved(ResolvedNominalName)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedTypeReference::equal(Self, Self) -> Bool
+pub fn ResolvedTypeReference::not_equal(Self, Self) -> Bool
+pub fn ResolvedTypeReference::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ResolvedValueParameter {
   symbol : @symbol.ValueSymbolId
@@ -492,12 +685,20 @@ pub(all) struct ResolvedValueParameter {
   type_ : ResolvedType
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn ResolvedValueParameter::equal(Self, Self) -> Bool
+pub fn ResolvedValueParameter::not_equal(Self, Self) -> Bool
+pub fn ResolvedValueParameter::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedValueParameter::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedValueParameter
 
 pub(all) enum ResolvedValueReference {
   Symbol(@symbol.ValueSymbolId)
   Unresolved(String)
 } derive(Eq, @debug.Debug)
+pub fn ResolvedValueReference::equal(Self, Self) -> Bool
+pub fn ResolvedValueReference::not_equal(Self, Self) -> Bool
+pub fn ResolvedValueReference::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedValueReference::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedValueReference
 
 pub(all) enum ResolvedVariantReference {
@@ -506,6 +707,10 @@ pub(all) enum ResolvedVariantReference {
   UnresolvedUnqualified(String)
   Ambiguous(name~ : String, candidates~ : Array[@symbol.VariantSymbolId])
 } derive(Eq, @debug.Debug)
+pub fn ResolvedVariantReference::equal(Self, Self) -> Bool
+pub fn ResolvedVariantReference::not_equal(Self, Self) -> Bool
+pub fn ResolvedVariantReference::pretty(Self) -> @prettyprinter.Document
+pub fn ResolvedVariantReference::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ResolvedVariantReference
 
 // Type aliases

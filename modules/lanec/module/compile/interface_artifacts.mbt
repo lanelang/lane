@@ -8,10 +8,11 @@ priv struct OrderedInterfaceArtifactsResult {
 fn reachable_interface_artifacts(
   header : @module_frontend.ModuleHeader,
   interfaces : Array[@artifact.ModuleInterfaceArtifact],
+  source_id : String,
 ) -> OrderedInterfaceArtifactsResult {
   let diagnostics = @artifact.validate_module_interface_artifacts(interfaces)
   if !diagnostics.is_empty() {
-    return { interfaces: [], diagnostics }
+    return { interfaces: [], diagnostics, }
   }
   let ordered = []
   let visiting : Array[String] = []
@@ -20,25 +21,25 @@ fn reachable_interface_artifacts(
     visit_interface_artifact(
       interfaces,
       import_.module_path_text,
-      Some(import_.import_span),
       None,
       header.module_path_text,
+      SourceInput(source_id~, span=Some(import_.import_span)),
       visiting,
       visited,
       ordered,
       diagnostics,
     )
   }
-  { interfaces: ordered, diagnostics }
+  { interfaces: ordered, diagnostics, }
 }
 
 ///|
 fn visit_interface_artifact(
   interfaces : Array[@artifact.ModuleInterfaceArtifact],
   module_path_text : String,
-  span : @basic.SourceSpan?,
   expected_fingerprint : @artifact.CompilationFingerprint?,
   importer_path_text : String,
+  provenance : @module_frontend.ModuleDependencyProvenance,
   visiting : Array[String],
   visited : Array[String],
   ordered : Array[@artifact.ModuleInterfaceArtifact],
@@ -49,21 +50,21 @@ fn visit_interface_artifact(
   }
   if visiting.contains(module_path_text) {
     diagnostics.push(
-      compile_boundary_diagnostic(ImportCycle(module_path_text), None),
+      @module_frontend.ModuleDependencyFailure::import_cycle(
+        module_path_text, provenance,
+      ).diagnostic(),
     )
     return
   }
   guard find_module_interface_artifact(interfaces, module_path_text)
     is Some(interface) else {
     diagnostics.push(
-      compile_boundary_diagnostic(
-        MissingImportWithCandidates(
-          module_=module_path_text,
-          source_modules=[],
-          interface_modules=interface_candidates(interfaces),
-        ),
-        span,
-      ),
+      @module_frontend.ModuleDependencyFailure::missing_import(
+        module_path_text,
+        source_modules=[],
+        interface_modules=interface_candidates(interfaces),
+        provenance~,
+      ).diagnostic(),
     )
     return
   }
@@ -88,9 +89,16 @@ fn visit_interface_artifact(
     visit_interface_artifact(
       interfaces,
       dependency,
-      None,
       interface.imported_interface_fingerprint(dependency),
       module_path_text,
+      InterfaceArtifact(
+        source_id=match provenance {
+          SourceInput(source_id~, ..) | InterfaceArtifact(source_id~, ..) =>
+            source_id
+        },
+        importer_module_path_text=module_path_text,
+        span=None,
+      ),
       visiting,
       visited,
       ordered,
@@ -146,5 +154,5 @@ fn CheckedModule::with_imported_interface_fingerprints(
   imported : Array[@artifact.ImportedInterfaceFingerprint],
 ) -> CheckedModule {
   let fingerprint = @artifact.module_fingerprint(self.interface, imported)
-  { ..self, fingerprint, imported_interface_fingerprints: imported }
+  { ..self, fingerprint, imported_interface_fingerprints: imported, }
 }

@@ -17,6 +17,9 @@ pub(all) enum Applicability {
   Unspecified
 } derive(Eq, @debug.Debug)
 pub fn Applicability::as_text(Self) -> String
+pub fn Applicability::equal(Self, Self) -> Bool
+pub fn Applicability::not_equal(Self, Self) -> Bool
+pub fn Applicability::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Diagnostic {
   severity : Severity
@@ -30,32 +33,47 @@ pub(all) struct Diagnostic {
   related_locations : Array[RelatedLocation]
   related : Array[Diagnostic]
 } derive(Eq, @debug.Debug)
+pub fn Diagnostic::equal(Self, Self) -> Bool
 pub fn Diagnostic::error(String, code? : String, labels? : Array[Label], notes? : Array[String], helps? : Array[String], facts? : Array[DiagnosticFact], suggestions? : Array[Suggestion], related_locations? : Array[RelatedLocation], related? : Array[Self]) -> Self
+pub fn Diagnostic::not_equal(Self, Self) -> Bool
+pub fn Diagnostic::to_repr(Self) -> @debug.Repr
 
 pub(all) struct DiagnosticFact {
   name : String
   value : String
   span : SourceSpan?
 } derive(Eq, @debug.Debug)
+pub fn DiagnosticFact::equal(Self, Self) -> Bool
+pub fn DiagnosticFact::not_equal(Self, Self) -> Bool
+pub fn DiagnosticFact::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Label {
   style : LabelStyle
   span : SourceSpan
   message : String?
 } derive(Eq, @debug.Debug)
+pub fn Label::equal(Self, Self) -> Bool
+pub fn Label::not_equal(Self, Self) -> Bool
 pub fn Label::primary(SourceSpan, message? : String) -> Self
 pub fn Label::secondary(SourceSpan, message? : String) -> Self
+pub fn Label::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LabelStyle {
   Primary
   Secondary
 } derive(Eq, @debug.Debug)
+pub fn LabelStyle::equal(Self, Self) -> Bool
 pub fn LabelStyle::marker(Self) -> String
+pub fn LabelStyle::not_equal(Self, Self) -> Bool
+pub fn LabelStyle::to_repr(Self) -> @debug.Repr
 
 pub(all) struct RelatedLocation {
   span : SourceSpan
   message : String
 } derive(Eq, @debug.Debug)
+pub fn RelatedLocation::equal(Self, Self) -> Bool
+pub fn RelatedLocation::not_equal(Self, Self) -> Bool
+pub fn RelatedLocation::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Severity {
   Error
@@ -64,10 +82,21 @@ pub(all) enum Severity {
   Hint
 } derive(Eq, @debug.Debug)
 pub fn Severity::as_text(Self) -> String
+pub fn Severity::equal(Self, Self) -> Bool
+pub fn Severity::not_equal(Self, Self) -> Bool
+pub fn Severity::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SourceId {
   value : Int
 } derive(Compare, Eq, @debug.Debug)
+pub fn SourceId::compare(Self, Self) -> Int
+pub fn SourceId::equal(Self, Self) -> Bool
+pub fn SourceId::not_equal(Self, Self) -> Bool
+pub fn SourceId::op_ge(Self, Self) -> Bool
+pub fn SourceId::op_gt(Self, Self) -> Bool
+pub fn SourceId::op_le(Self, Self) -> Bool
+pub fn SourceId::op_lt(Self, Self) -> Bool
+pub fn SourceId::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SourceSpan {
   source_id : SourceId
@@ -75,17 +104,26 @@ pub(all) struct SourceSpan {
   end_offset : Int
 } derive(Eq, @debug.Debug)
 pub fn SourceSpan::SourceSpan(SourceId, Int, Int) -> Self
+pub fn SourceSpan::equal(Self, Self) -> Bool
+pub fn SourceSpan::not_equal(Self, Self) -> Bool
+pub fn SourceSpan::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Suggestion {
   message : String
   edits : Array[TextEdit]
   applicability : Applicability
 } derive(Eq, @debug.Debug)
+pub fn Suggestion::equal(Self, Self) -> Bool
+pub fn Suggestion::not_equal(Self, Self) -> Bool
+pub fn Suggestion::to_repr(Self) -> @debug.Repr
 
 pub(all) struct TextEdit {
   span : SourceSpan
   replacement : String
 } derive(Eq, @debug.Debug)
+pub fn TextEdit::equal(Self, Self) -> Bool
+pub fn TextEdit::not_equal(Self, Self) -> Bool
+pub fn TextEdit::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

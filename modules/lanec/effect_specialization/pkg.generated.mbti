@@ -7,7 +7,7 @@ import {
 }
 
 // Values
-pub fn specialize(@buslane.Program, @buslane.ValueId) -> @buslane.Program raise SpecializationError
+pub fn specialize(@buslane.VerifiedProgram, @buslane.ValueId) -> @buslane.VerifiedProgram raise SpecializationError
 
 // Errors
 pub(all) suberror SpecializationError {
@@ -18,18 +18,28 @@ pub(all) suberror SpecializationError {
   PlannerInvariant(SpecializationErrorContext)
   AllocatorInvariant(SpecializationErrorContext)
   RewriterInvariant(SpecializationErrorContext)
+  OutputVerificationCompilerDefect(@buslane.VerifyResult)
 } derive(Eq, @debug.Debug)
+pub fn SpecializationError::equal(Self, Self) -> Bool
+pub fn SpecializationError::not_equal(Self, Self) -> Bool
+pub fn SpecializationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) struct EffectSpecializationBinding {
   parameter : @buslane.TypeParameterId
   argument : @buslane.GenericArgument
 } derive(Eq, @debug.Debug)
+pub fn EffectSpecializationBinding::equal(Self, Self) -> Bool
+pub fn EffectSpecializationBinding::not_equal(Self, Self) -> Bool
+pub fn EffectSpecializationBinding::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SpecializationDefinitionSite {
   TopLevel(@buslane.ValueId)
   Local(owner~ : @buslane.ValueId, value~ : @buslane.ValueId)
 } derive(Eq, @debug.Debug)
+pub fn SpecializationDefinitionSite::equal(Self, Self) -> Bool
+pub fn SpecializationDefinitionSite::not_equal(Self, Self) -> Bool
+pub fn SpecializationDefinitionSite::to_repr(Self) -> @debug.Repr
 
 pub(all) struct SpecializationErrorContext {
   detail : String
@@ -37,6 +47,9 @@ pub(all) struct SpecializationErrorContext {
   source : SpecializationSource?
   specialization_key : Array[EffectSpecializationBinding]
 } derive(Eq, @debug.Debug)
+pub fn SpecializationErrorContext::equal(Self, Self) -> Bool
+pub fn SpecializationErrorContext::not_equal(Self, Self) -> Bool
+pub fn SpecializationErrorContext::to_repr(Self) -> @debug.Repr
 
 pub(all) enum SpecializationSource {
   Value(@buslane.ValueId)
@@ -46,6 +59,9 @@ pub(all) enum SpecializationSource {
   Effect(@buslane.EffectId)
   Operation(@buslane.OperationId)
 } derive(Eq, @debug.Debug)
+pub fn SpecializationSource::equal(Self, Self) -> Bool
+pub fn SpecializationSource::not_equal(Self, Self) -> Bool
+pub fn SpecializationSource::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

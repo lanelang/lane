@@ -104,7 +104,7 @@ fn TypeExpressionChecker::check_effect(
       for argument in arguments {
         ignore(self.check_generic_argument(Type, argument))
       }
-      self.diagnostics.push({ kind: UnresolvedType(name), loc })
+      self.diagnostics.push({ kind: UnresolvedType(name), loc, })
       Empty
     }
   }
@@ -123,7 +123,7 @@ priv struct EffectSubstitution {
 
 ///|
 fn EffectSubstitution::EffectSubstitution() -> EffectSubstitution {
-  { entries: [] }
+  { entries: [], }
 }
 
 ///|
@@ -132,7 +132,7 @@ fn EffectSubstitution::insert(
   parameter : TypeParameterId,
   replacement : @types.Effect,
 ) -> Unit {
-  self.entries.push({ parameter, replacement })
+  self.entries.push({ parameter, replacement, })
 }
 
 ///|
@@ -573,7 +573,7 @@ fn SemanticChecker::expect_effect(
   loc : SourceSpan,
 ) -> Unit {
   if self.effect_allowed(expected, actual, loc) is Some(false) {
-    self.diagnostics.push({ kind: EffectMismatch(expected~, actual~), loc })
+    self.diagnostics.push({ kind: EffectMismatch(expected~, actual~), loc, })
   }
 }
 

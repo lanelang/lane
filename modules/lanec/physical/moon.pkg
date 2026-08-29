@@ -1,0 +1,5 @@
+import {
+  "Milky2018/lane_wasm_abi" @wasm_abi,
+  "moonbit-community/prettyprinter",
+  "moonbitlang/core/encoding/utf8",
+}

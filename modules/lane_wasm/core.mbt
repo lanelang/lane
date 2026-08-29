@@ -46,7 +46,7 @@ fn explore_request(request_text : String) -> ExploreResult {
     Succeeded => status_ok
     Failed(_) => status_diagnostics
   }
-  { status, json: report_json(report).stringify() }
+  { status, json: report_json(report).stringify(), }
 }
 
 ///|
@@ -79,7 +79,7 @@ fn entries_request(request_text : String) -> ExploreResult {
       "type": entry.type_text,
     }),
   }
-  { status, json: response.stringify() }
+  { status, json: response.stringify(), }
 }
 
 ///|
@@ -115,7 +115,10 @@ fn parse_explore_request(
 ///|
 fn parse_entry_request(
   request_text : String,
-) -> Result[(@compile.SourceInput, Array[@compile.SourceInput]), String] {
+) -> Result[
+  (@module_frontend.SourceInput, Array[@module_frontend.SourceInput]),
+  String,
+] {
   let json = @json.parse(request_text) catch {
     _ => return Err("expected JSON request")
   }
@@ -125,7 +128,10 @@ fn parse_entry_request(
 ///|
 fn parse_source_set(
   json : Json,
-) -> Result[(@compile.SourceInput, Array[@compile.SourceInput]), String] {
+) -> Result[
+  (@module_frontend.SourceInput, Array[@module_frontend.SourceInput]),
+  String,
+] {
   guard json is { "root": root_json, "libraries": Array(library_jsons), .. } else {
     return Err("expected `root` and `libraries` fields in the request object")
   }
@@ -144,13 +150,15 @@ fn parse_source_set(
 }
 
 ///|
-fn parse_source_input(json : Json) -> Result[@compile.SourceInput, String] {
+fn parse_source_input(
+  json : Json,
+) -> Result[@module_frontend.SourceInput, String] {
   match json {
     { "sourceId": String(source_id), "text": String(text), .. } =>
       if source_id.is_empty() {
         Err("sourceId must not be empty")
       } else {
-        Ok({ source_id, text })
+        Ok({ source_id, text, })
       }
     _ => Err("expected string fields `sourceId` and `text`")
   }
@@ -217,6 +225,12 @@ fn stage_json(stage : @driver.ExploreStage) -> Json {
       fields["functions"] = snapshot.scale.functions
         .map(function_scale_json)
         .to_json()
+      fields["modules"] = snapshot.scale.modules
+        .map(module_scale_json)
+        .to_json()
+      fields["indirectCalls"] = snapshot.indirect_calls
+        .map(indirect_call_json)
+        .to_json()
     }
     Failed(diagnostics) => {
       fields["status"] = "failed"
@@ -225,6 +239,83 @@ fn stage_json(stage : @driver.ExploreStage) -> Json {
     Unavailable => fields["status"] = "unavailable"
   }
   fields.to_json()
+}
+
+///|
+fn indirect_call_json(call : @driver.ExploreIndirectCallObservation) -> Json {
+  {
+    "function": function_ref_json(call.function),
+    "ordinal": call.ordinal,
+    "origins": call.origins.map(indirect_call_origin_json).to_json(),
+    "resolution": indirect_call_resolution_json(call.resolution),
+    "boundaries": call.boundaries.map(callable_flow_boundary_json).to_json(),
+  }
+}
+
+///|
+fn indirect_call_origin_json(
+  origin : @driver.ExploreIndirectCallOrigin,
+) -> Json {
+  (match origin {
+    SourceBound => "sourceBound"
+    SourceAnonymous => "sourceAnonymous"
+    HandlerElaboration => "handlerElaboration"
+    MonadicTransformation => "monadicTransformation"
+    SelectiveCps => "selectiveCps"
+    CallableAdapter => "callableAdapter"
+    RepresentationWorker => "representationWorker"
+    Initialization => "initialization"
+    RuntimeSupport => "runtimeSupport"
+  }).to_json()
+}
+
+///|
+fn callable_flow_boundary_json(
+  boundary : @driver.ExploreCallableFlowBoundary,
+) -> Json {
+  (match boundary {
+    Alias => "alias"
+    BlockParameter => "blockParameter"
+    FunctionParameter => "functionParameter"
+    FunctionResult => "functionResult"
+    AggregateStorage => "aggregateStorage"
+    GlobalStorage => "globalStorage"
+    OpaqueInput => "opaqueInput"
+    OpaqueOperation => "opaqueOperation"
+  }).to_json()
+}
+
+///|
+fn indirect_call_resolution_json(
+  resolution : @driver.ExploreIndirectCallResolution,
+) -> Json {
+  match resolution {
+    ExactTarget(target, environment) =>
+      {
+        "kind": "exact",
+        "target": function_ref_json(target),
+        "environment": match environment {
+          CaptureFree => "captureFree"
+          Local => "local"
+          Packed => "packed"
+        },
+      }
+    MultipleTargets(targets) =>
+      { "kind": "multiple", "targets": targets.map(function_ref_json) }
+    UnknownTargets(targets) =>
+      { "kind": "unknown", "knownTargets": targets.map(function_ref_json) }
+  }
+}
+
+///|
+fn module_scale_json(module_ : @driver.ExploreModuleScale) -> Json {
+  {
+    "module": module_.module_path_text,
+    "inputTopTerms": module_.input_top_terms,
+    "retainedTopTerms": module_.retained_top_terms,
+    "inputValueBindings": module_.input_value_bindings,
+    "retainedValueBindings": module_.retained_value_bindings,
+  }
 }
 
 ///|
@@ -274,6 +365,10 @@ fn function_ref_json(function : @driver.ExploreFunctionRef) -> Json {
 ///|
 fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
   match role {
+    RuntimeAnfTopLevelRoot => { "kind": "runtimeAnfTopLevelRoot" }
+    RuntimeAnfEscapingClosure => { "kind": "runtimeAnfEscapingClosure" }
+    RuntimeAnfDirectFunction => { "kind": "runtimeAnfDirectFunction" }
+    RuntimeAnfJoinPoint => { "kind": "runtimeAnfJoinPoint" }
     SourceFunction(value~, name~) => {
       let fields : Map[String, Json] = {
         "kind": "source".to_json(),
@@ -284,7 +379,10 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
       }
       fields.to_json()
     }
-    AnonymousFunction => { "kind": "anonymous" }
+    SourceAnonymousFunction => { "kind": "sourceAnonymous" }
+    HandlerElaborationFunction => { "kind": "handlerElaboration" }
+    MonadicTransformationFunction => { "kind": "monadicTransformation" }
+    SelectiveCpsFunction => { "kind": "selectiveCps" }
     Initializer(value~, name~) => {
       let fields : Map[String, Json] = {
         "kind": "initializer".to_json(),
@@ -297,15 +395,26 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
     }
     InitializerOrchestrator => { "kind": "initializerOrchestrator" }
     IntrinsicWrapper(name~) => { "kind": "intrinsicWrapper", "name": name }
-    CallableAdapter => { "kind": "callableAdapter" }
-    RepresentationWorker(value~, name~) =>
-      { "kind": "representationWorker", "value": value, "name": name }
+    RepresentationWorker => { "kind": "representationWorker" }
+    CallableAdapter(contract~, reason~) =>
+      {
+        "kind": "callableAdapter",
+        "contract": contract.value,
+        "reason": {
+          "source": reason.source.value,
+          "target": reason.target.value,
+          "differences": reason.differences
+          .map(callable_contract_difference_json)
+          .to_json(),
+        },
+      }
     LayoutConstructor => { "kind": "layoutConstructor" }
-    RuntimeImport(value~, name~, symbol~) => {
+    RuntimeImport(value~, name~, module_name~, field_name~) => {
       let fields : Map[String, Json] = {
         "kind": "runtimeImport".to_json(),
         "value": value.to_json(),
-        "symbol": symbol.to_json(),
+        "moduleName": module_name.to_json(),
+        "fieldName": field_name.to_json(),
       }
       if name is Some(name) {
         fields["name"] = name.to_json()
@@ -314,11 +423,25 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
     }
     InternalRuntimeImport(name~) =>
       { "kind": "internalRuntimeImport", "name": name }
-    PhysicalRuntimeImport(symbol~) =>
-      { "kind": "physicalRuntimeImport", "symbol": symbol }
-    WasmBytecodeFunction => { "kind": "wasmBytecodeFunction" }
-    RuntimeImportAdapter(symbol~) =>
-      { "kind": "runtimeImportAdapter", "symbol": symbol }
+    WasiPreview1Import(module_name~, field_name~) =>
+      {
+        "kind": "wasiPreview1Import",
+        "moduleName": module_name,
+        "fieldName": field_name,
+      }
+    PhysicalRuntimeImport(module_name~, field_name~) =>
+      {
+        "kind": "physicalRuntimeImport",
+        "moduleName": module_name,
+        "fieldName": field_name,
+      }
+    WasmPhysicalFunction => { "kind": "wasmPhysicalFunction" }
+    RuntimeImportAdapter(module_name~, field_name~) =>
+      {
+        "kind": "runtimeImportAdapter",
+        "moduleName": module_name,
+        "fieldName": field_name,
+      }
     WasmRuntimeFunction(name~) =>
       { "kind": "wasmRuntimeFunction", "name": name }
     WasmHelperFunction(name~, ordinal~) => {
@@ -332,6 +455,18 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
       fields.to_json()
     }
     EntryWrapper => { "kind": "entryWrapper" }
+  }
+}
+
+///|
+fn callable_contract_difference_json(
+  difference : @physical_lowering.CallableContractDifference,
+) -> Json {
+  match difference {
+    Invocation => { "kind": "invocation" }
+    Evidence => { "kind": "evidence" }
+    Parameter(index) => { "kind": "parameter", "index": index }
+    Result => { "kind": "result" }
   }
 }
 

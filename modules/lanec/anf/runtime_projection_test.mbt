@@ -1,4 +1,37 @@
 ///|
+fn lower_all_runtime_anf(program : @buslane.Program) -> @anf.AnfProgram {
+  let retained_values = []
+  for term in program.terms {
+    match term {
+      Let(value, _) | External(value) => retained_values.push(value)
+      LetRec(bindings) =>
+        for binding in bindings {
+          retained_values.push(binding.id)
+        }
+    }
+  }
+  match
+    @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(program, retained_values),
+    ) {
+    Ok(program) => program
+    Err(error) => abort("unexpected Runtime ANF failure: \{Repr(error)}")
+  }
+}
+
+///|
+fn uniform_runtime_anf_input(
+  program : @buslane.Program,
+  retained_values : Array[@buslane.ValueId],
+) -> @anf.RuntimeAnfInput {
+  let (program, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
+  { program, retained_values, function_origins, }
+}
+
+///|
 test "runtime ANF projection preserves effect-aware source metadata" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let io_type = @buslane.Type::Function(
@@ -7,18 +40,599 @@ test "runtime ANF projection preserves effect-aware source metadata" {
     Builtin(Io),
   )
   let println = metadata.define_value("println", External, io_type)
-  let source : @buslane.Program = { metadata, terms: [External(println)] }
-  let runtime = @anf.lower_cps_core_to_runtime_anf(source).anf()
+  let source : @buslane.Program = { metadata, terms: [External(println)], }
+  let runtime = lower_all_runtime_anf(source)
   debug_inspect(
     (
       source.metadata.value_info(println).map(info => info.type_),
-      runtime.metadata.value_info(println).map(info => info.type_),
+      runtime.metadata().value_info(println).map(info => info.type_),
     ),
     content=(
       #|(
       #|  Some(Function([Primitive(String)], Primitive(Unit), Builtin(Io))),
-      #|  Some(Function([Primitive(String)], Primitive(Unit), Empty)),
+      #|  Some(Callable([ByteSequence], Unit)),
       #|)
     ),
   )
+}
+
+///|
+test "runtime ANF exposes an immutable type-expression catalog" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let answer = metadata.define_value(
+    "answer",
+    Function,
+    Function([], Primitive(Unit), Empty),
+  )
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        answer,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Literal(Unit),
+        }),
+      ),
+    ],
+  }
+  let runtime = lower_all_runtime_anf(source)
+  let first = runtime.metadata().type_expressions()
+  let second = runtime.metadata().type_expressions()
+  assert_eq(first, second)
+  guard runtime.metadata().value_info(answer)
+    is Some({ type_: Callable(parameters, _), }) else {
+    fail("expected runtime callable metadata")
+  }
+  parameters.push(Scalar(I64))
+  assert_true(
+    runtime.metadata().value_info(answer)
+    is Some({ type_: Callable([], Unit), }),
+  )
+}
+
+///|
+test "runtime ANF contains only retained top-level terms" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let function_type = @buslane.Type::Function([], Primitive(Unit), Empty)
+  let retained = metadata.define_value("retained", Function, function_type)
+  let discarded = metadata.define_value("discarded", Function, function_type)
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        retained,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Literal(Unit),
+        }),
+      ),
+      Let(
+        discarded,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Literal(Unit),
+        }),
+      ),
+    ],
+  }
+  let runtime = @anf.lower_cps_core_to_runtime_anf(
+    uniform_runtime_anf_input(source, [retained]),
+  ).unwrap()
+  assert_true(runtime.terms() is [Let(actual, _)] && actual == retained)
+}
+
+///|
+test "runtime ANF rejects a retention set with a missing dependency" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let function_type = @buslane.Type::Function([], Primitive(Unit), Empty)
+  let helper = metadata.define_value("helper", Function, function_type)
+  let entry = metadata.define_value("entry", Function, function_type)
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        helper,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Literal(Unit),
+        }),
+      ),
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Call(Ref(helper), []),
+        }),
+      ),
+    ],
+  }
+  assert_true(
+    @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(source, [entry]),
+    )
+    is Err(InvalidRetention(_)),
+  )
+}
+
+///|
+test "runtime ANF rejects malformed retained-value sets" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let function_type = @buslane.Type::Function([], Primitive(Unit), Empty)
+  let entry = metadata.define_value("entry", Function, function_type)
+  let orphan = metadata.define_value("orphan", Local, Primitive(Unit))
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        entry,
+        Function({
+          parameters: [],
+          result_type: Primitive(Unit),
+          body: Literal(Unit),
+        }),
+      ),
+    ],
+  }
+  assert_true(
+    @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(source, [entry, entry]),
+    )
+    is Err(DuplicateRetainedValue(actual)) &&
+    actual == entry,
+  )
+  assert_true(
+    @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(source, [entry, orphan]),
+    )
+    is Err(UnknownRetainedValue(actual)) &&
+    actual == orphan,
+  )
+}
+
+///|
+test "runtime ANF removes effect-only binders and applications atomically" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let effect = metadata.define_type_parameter("E", Effect)
+  let token = metadata.define_type("Token", [effect])
+  let token_constructor = metadata.define_data_constructor("Token", token, [], [])
+  let token_of_effect = @buslane.Type::Apply(Constructor(token), [
+    EffectArgument(Parameter(effect)),
+  ])
+  let make = metadata.define_value(
+    "make",
+    Function,
+    Forall([effect], Function([], token_of_effect, Empty)),
+  )
+  let answer_type = @buslane.Type::Apply(Constructor(token), [
+    EffectArgument(Empty),
+  ])
+  let answer = metadata.define_value(
+    "answer",
+    Function,
+    Function([], answer_type, Empty),
+  )
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        make,
+        TypeLambda(
+          [effect],
+          Function({
+            parameters: [],
+            result_type: token_of_effect,
+            body: Construct({
+              data_constructor: token_constructor,
+              type_arguments: [EffectArgument(Parameter(effect))],
+              hidden_witnesses: [],
+              payloads: [],
+            }),
+          }),
+        ),
+      ),
+      Let(
+        answer,
+        Function({
+          parameters: [],
+          result_type: answer_type,
+          body: Call(TypeApply(Ref(make), [EffectArgument(Empty)]), []),
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(source).is_ok())
+  let runtime = lower_all_runtime_anf(source)
+  debug_inspect(
+    (
+      runtime.metadata().type_info(token),
+      runtime.metadata().value_info(make).map(info => info.type_),
+      runtime.metadata().value_info(answer).map(info => info.type_),
+      runtime.terms(),
+    ),
+    content=(
+      #|(
+      #|  Some({ kind: Data, evidence_parameters: [], constructors: [{ index: 0 }] }),
+      #|  Some(Callable([], Data({ index: 0 }, []))),
+      #|  Some(Callable([], Data({ index: 0 }, []))),
+      #|  <ArrayView:
+      #|    [
+      #|      Let(
+      #|        { index: 0 },
+      #|        Atom(
+      #|          Function(
+      #|            {
+      #|              id: { value: 0 },
+      #|              source: Some({ index: 0 }),
+      #|              origin: SourceWritten,
+      #|              parameters: [],
+      #|              result_type: Data({ index: 0 }, []),
+      #|              body: Let(
+      #|                Temp(
+      #|                  temp={ index: 0 },
+      #|                  type_=Data({ index: 0 }, []),
+      #|                  rhs=Construct(
+      #|                    {
+      #|                      data_constructor: { index: 0 },
+      #|                      type_arguments: [],
+      #|                      hidden_arguments: [],
+      #|                      payloads: [],
+      #|                    },
+      #|                  ),
+      #|                ),
+      #|                Atom(Temp({ index: 0 })),
+      #|              ),
+      #|            },
+      #|          ),
+      #|        ),
+      #|      ),
+      #|      Let(
+      #|        { index: 1 },
+      #|        Atom(
+      #|          Function(
+      #|            {
+      #|              id: { value: 1 },
+      #|              source: Some({ index: 1 }),
+      #|              origin: SourceWritten,
+      #|              parameters: [],
+      #|              result_type: Data({ index: 0 }, []),
+      #|              body: Let(
+      #|                Temp(
+      #|                  temp={ index: 1 },
+      #|                  type_=Data({ index: 0 }, []),
+      #|                  rhs=Call(callee=Ref({ index: 0 }), arguments=[]),
+      #|                ),
+      #|                Atom(Temp({ index: 1 })),
+      #|              ),
+      #|            },
+      #|          ),
+      #|        ),
+      #|      ),
+      #|    ]>,
+      #|)
+    ),
+  )
+}
+
+///|
+test "runtime ANF preserves a used higher-kinded companion" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let companion = metadata.define_type_parameter(
+    "Companion",
+    Function([Type, Effect], Type),
+  )
+  let residual = metadata.define_type_parameter("Residual", Effect)
+  let callable = metadata.define_value(
+    "callable",
+    External,
+    Forall(
+      [companion, residual],
+      Function(
+        [],
+        Apply(Parameter(companion), [
+          TypeArgument(Primitive(I64)),
+          EffectArgument(Parameter(residual)),
+        ]),
+        Empty,
+      ),
+    ),
+  )
+  let source : @buslane.Program = { metadata, terms: [External(callable)], }
+  assert_true(@buslane.verify_program(source).is_ok())
+  let runtime = lower_all_runtime_anf(source)
+  debug_inspect(
+    runtime.metadata().value_info(callable).map(info => info.type_),
+    content=(
+      #|Some(
+      #|  Forall(
+      #|    [{ id: Projected(0), arity: 1 }],
+      #|    Callable(
+      #|      [],
+      #|      Erased({ index: 2 }, Apply(Parameter(Projected(0)), [Static(I64)])),
+      #|    ),
+      #|  ),
+      #|)
+    ),
+  )
+}
+
+///|
+test "runtime ANF beta-reduces projected type-lambda applications" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let value = metadata.define_type_parameter("Value", Type)
+  let effect = metadata.define_type_parameter("Effect", Effect)
+  let projected_result = @buslane.Type::Apply(
+    TypeLambda([value, effect], Primitive(Unit)),
+    [TypeArgument(Primitive(I64)), EffectArgument(Empty)],
+  )
+  let callable = metadata.define_value(
+    "callable",
+    External,
+    Function([], projected_result, Empty),
+  )
+  let source : @buslane.Program = { metadata, terms: [External(callable)], }
+  assert_true(@buslane.verify_program(source).is_ok())
+  let runtime = lower_all_runtime_anf(source)
+  assert_eq(
+    runtime.metadata().value_info(callable).map(info => info.type_),
+    Some(Callable([], Unit)),
+  )
+}
+
+///|
+test "runtime representation equality preserves semantic value categories" {
+  let registry = @buslane.MetadataRegistry::MetadataRegistry()
+  let program : @buslane.Program = { metadata: registry, terms: [], }
+  let metadata = @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(program, []),
+    )
+    .unwrap()
+    .metadata()
+  let left_parameter : @anf.RuntimeEvidenceParameter = {
+    id: Projected(10),
+    arity: 0,
+  }
+  let right_parameter : @anf.RuntimeEvidenceParameter = {
+    id: Projected(20),
+    arity: 0,
+  }
+  let left_nested : @anf.RuntimeEvidenceParameter = {
+    id: Projected(11),
+    arity: 0,
+  }
+  let right_nested : @anf.RuntimeEvidenceParameter = {
+    id: Projected(21),
+    arity: 0,
+  }
+  let left_argument : @anf.RuntimeArgument = {
+    type_expression: { index: 30, },
+    evidence: Static(I64),
+  }
+  let right_argument : @anf.RuntimeArgument = {
+    type_expression: { index: 40, },
+    evidence: Static(Bool),
+  }
+  assert_eq(
+    [
+      metadata.types_representation_equivalent(Scalar(I32), Scalar(Bool)),
+      metadata.types_representation_equivalent(
+        Data({ index: 0, }, [left_argument]),
+        Data({ index: 0, }, [right_argument]),
+      ),
+      metadata.types_representation_equivalent(
+        Forall(
+          [left_parameter],
+          Callable([Erased({ index: 50, }, Parameter(left_parameter.id))], Unit),
+        ),
+        Forall(
+          [right_parameter],
+          Callable(
+            [Erased({ index: 60, }, Parameter(right_parameter.id))],
+            Unit,
+          ),
+        ),
+      ),
+      metadata.types_representation_equivalent(
+        Forall(
+          [left_parameter, left_nested],
+          Callable([Erased({ index: 70, }, Parameter(left_nested.id))], Unit),
+        ),
+        Forall(
+          [right_parameter],
+          Forall(
+            [right_nested],
+            Callable([Erased({ index: 80, }, Parameter(right_nested.id))], Unit),
+          ),
+        ),
+      ),
+    ],
+    [false, true, true, true],
+  )
+}
+
+///|
+test "runtime ANF eta-expands a nominal type constructor argument" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let element = metadata.define_type_parameter("Element", Type)
+  let box_type_id = metadata.define_type("Box", [element])
+  ignore(
+    metadata.define_data_constructor("Box", box_type_id, [], [
+      Parameter(element),
+    ]),
+  )
+  let higher_kinded = metadata.define_type_parameter(
+    "HigherKinded",
+    Function([Type], Type),
+  )
+  let selected_type = @buslane.Type::Apply(Parameter(higher_kinded), [
+    TypeArgument(Primitive(I64)),
+  ])
+  let select = metadata.define_value(
+    "select",
+    External,
+    Forall([higher_kinded], Function([], selected_type, Empty)),
+  )
+  let answer_type = @buslane.Type::Apply(Constructor(box_type_id), [
+    TypeArgument(Primitive(I64)),
+  ])
+  let answer = metadata.define_value(
+    "answer",
+    Function,
+    Function([], answer_type, Empty),
+  )
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      External(select),
+      Let(
+        answer,
+        Function({
+          parameters: [],
+          result_type: answer_type,
+          body: Call(
+            TypeApply(Ref(select), [TypeArgument(Constructor(box_type_id))]),
+            [],
+          ),
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(source).is_ok())
+  let runtime = lower_all_runtime_anf(source)
+  debug_inspect(
+    runtime.terms(),
+    content=(
+      #|<ArrayView:
+      #|  [
+      #|    External({ index: 0 }),
+      #|    Let(
+      #|      { index: 1 },
+      #|      Atom(
+      #|        Function(
+      #|          {
+      #|            id: { value: 0 },
+      #|            source: Some({ index: 1 }),
+      #|            origin: SourceWritten,
+      #|            parameters: [],
+      #|            result_type: Data(
+      #|              { index: 0 },
+      #|              [{ type_expression: { index: 0 }, evidence: Static(I64) }],
+      #|            ),
+      #|            body: Let(
+      #|              Temp(
+      #|                temp={ index: 0 },
+      #|                type_=Callable(
+      #|                  [],
+      #|                  Data(
+      #|                    { index: 0 },
+      #|                    [{ type_expression: { index: 0 }, evidence: Static(I64) }],
+      #|                  ),
+      #|                ),
+      #|                rhs=ApplyEvidence(
+      #|                  callee=Ref({ index: 0 }),
+      #|                  arguments=[
+      #|                    {
+      #|                      type_expression: { index: 3 },
+      #|                      evidence: Lambda([{ id: Projected(0), arity: 0 }], Static(Reference)),
+      #|                    },
+      #|                  ],
+      #|                ),
+      #|              ),
+      #|              Let(
+      #|                Temp(
+      #|                  temp={ index: 1 },
+      #|                  type_=Data(
+      #|                    { index: 0 },
+      #|                    [{ type_expression: { index: 0 }, evidence: Static(I64) }],
+      #|                  ),
+      #|                  rhs=Call(callee=Temp({ index: 0 }), arguments=[]),
+      #|                ),
+      #|                Atom(Temp({ index: 1 })),
+      #|              ),
+      #|            ),
+      #|          },
+      #|        ),
+      #|      ),
+      #|    ),
+      #|  ]>
+    ),
+  )
+}
+
+///|
+test "runtime ANF preserves phantom nominal constructor arity" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let phantom = metadata.define_type_parameter("Phantom", Type)
+  let token = metadata.define_type("Token", [phantom])
+  ignore(metadata.define_data_constructor("Token", token, [], []))
+  let higher_kinded = metadata.define_type_parameter(
+    "HigherKinded",
+    Function([Type], Type),
+  )
+  let selected_type = @buslane.Type::Apply(Parameter(higher_kinded), [
+    TypeArgument(Primitive(I64)),
+  ])
+  let select = metadata.define_value(
+    "select",
+    External,
+    Forall([higher_kinded], Function([], selected_type, Empty)),
+  )
+  let answer_type = @buslane.Type::Apply(Constructor(token), [
+    TypeArgument(Primitive(I64)),
+  ])
+  let answer = metadata.define_value(
+    "answer",
+    Function,
+    Function([], answer_type, Empty),
+  )
+  let source : @buslane.Program = {
+    metadata,
+    terms: [
+      External(select),
+      Let(
+        answer,
+        Function({
+          parameters: [],
+          result_type: answer_type,
+          body: Call(
+            TypeApply(Ref(select), [TypeArgument(Constructor(token))]),
+            [],
+          ),
+        }),
+      ),
+    ],
+  }
+  assert_true(@buslane.verify_program(source).is_ok())
+  let runtime = lower_all_runtime_anf(source)
+  guard runtime.terms()[1]
+    is Let(
+      _,
+      Atom(
+        Function(
+          {
+            body: Let(
+              Temp(
+                rhs=ApplyEvidence(
+                  arguments=[
+                    { evidence: Lambda(parameters, Static(Reference)), .. },
+                  ],
+                  ..
+                ),
+                ..
+              ),
+              _
+            ),
+            ..
+          }
+        )
+      )
+    ) else {
+    fail("expected a projected higher-kinded application")
+  }
+  assert_eq(parameters, [{ id: Projected(phantom.index), arity: 0, }])
 }

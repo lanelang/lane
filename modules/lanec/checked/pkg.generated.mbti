@@ -2,6 +2,7 @@
 package "Milky2018/lanec/checked"
 
 import {
+  "Milky2018/lane_wasm_abi",
   "Milky2018/lanec/abi",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/symbol",
@@ -21,16 +22,25 @@ pub(all) struct CheckedCallArgument {
   loc : @basic.SourceSpan
   provenance : @syntax.CallArgumentProvenance
 } derive(Eq, @debug.Debug)
+pub fn CheckedCallArgument::equal(Self, Self) -> Bool
+pub fn CheckedCallArgument::not_equal(Self, Self) -> Bool
+pub fn CheckedCallArgument::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedCanonicalBasicAbi {
   types : Array[CheckedCanonicalBasicType]
 } derive(Eq, @debug.Debug)
+pub fn CheckedCanonicalBasicAbi::equal(Self, Self) -> Bool
+pub fn CheckedCanonicalBasicAbi::not_equal(Self, Self) -> Bool
+pub fn CheckedCanonicalBasicAbi::to_repr(Self) -> @debug.Repr
 pub fn CheckedCanonicalBasicAbi::type_symbol(Self, @abi.BasicTypeProvider) -> @symbol.TypeSymbolId?
 
 pub(all) struct CheckedCanonicalBasicType {
   provider : @abi.BasicTypeProvider
   symbol : @symbol.TypeSymbolId
 } derive(Eq, @debug.Debug)
+pub fn CheckedCanonicalBasicType::equal(Self, Self) -> Bool
+pub fn CheckedCanonicalBasicType::not_equal(Self, Self) -> Bool
+pub fn CheckedCanonicalBasicType::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedContextualSelection {
   symbol : @symbol.ValueSymbolId
@@ -38,6 +48,9 @@ pub(all) struct CheckedContextualSelection {
   type_ : @types.Type
   value : CheckedExpr
 } derive(Eq, @debug.Debug)
+pub fn CheckedContextualSelection::equal(Self, Self) -> Bool
+pub fn CheckedContextualSelection::not_equal(Self, Self) -> Bool
+pub fn CheckedContextualSelection::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedDeriveAbi {
   deriver : @symbol.TypeSymbolId
@@ -61,11 +74,17 @@ pub(all) struct CheckedDeriveAbi {
   variant_info : @symbol.TypeSymbolId
   void_type : @symbol.TypeSymbolId
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeriveAbi::equal(Self, Self) -> Bool
+pub fn CheckedDeriveAbi::not_equal(Self, Self) -> Bool
+pub fn CheckedDeriveAbi::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CheckedDeriveDeriver {
   Explicit(CheckedExpr)
   Contextual(CheckedContextualSelection)
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeriveDeriver::equal(Self, Self) -> Bool
+pub fn CheckedDeriveDeriver::not_equal(Self, Self) -> Bool
+pub fn CheckedDeriveDeriver::to_repr(Self) -> @debug.Repr
 pub fn CheckedDeriveDeriver::value(Self) -> CheckedExpr
 
 pub(all) struct CheckedDeriveEvidence {
@@ -73,16 +92,25 @@ pub(all) struct CheckedDeriveEvidence {
   required_type : @types.Type
   selection : CheckedContextualSelection
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeriveEvidence::equal(Self, Self) -> Bool
+pub fn CheckedDeriveEvidence::not_equal(Self, Self) -> Bool
+pub fn CheckedDeriveEvidence::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedDeriveField {
   symbol : @symbol.FieldSymbolId
   name : String
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeriveField::equal(Self, Self) -> Bool
+pub fn CheckedDeriveField::not_equal(Self, Self) -> Bool
+pub fn CheckedDeriveField::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedDeriveMetadata {
   name : String
   qualified_name : String
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeriveMetadata::equal(Self, Self) -> Bool
+pub fn CheckedDeriveMetadata::not_equal(Self, Self) -> Bool
+pub fn CheckedDeriveMetadata::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedDerivePlan {
   capability : @types.Type
@@ -92,12 +120,18 @@ pub(all) struct CheckedDerivePlan {
   deriver : CheckedDeriveDeriver
   metadata : CheckedDeriveMetadata
 } derive(Eq, @debug.Debug)
+pub fn CheckedDerivePlan::equal(Self, Self) -> Bool
+pub fn CheckedDerivePlan::not_equal(Self, Self) -> Bool
+pub fn CheckedDerivePlan::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedDeriveProduct[A] {
   representation : @types.Type
   steps : Array[CheckedDeriveProductStep[A]]
 } derive(Eq, @debug.Debug)
+pub fn[A : Eq] CheckedDeriveProduct::equal(Self[A], Self[A]) -> Bool
 pub fn[A] CheckedDeriveProduct::make(@symbol.TypeSymbolId, Array[(A, @types.Type, CheckedDeriveEvidence)]) -> Self[A]
+pub fn[A : Eq] CheckedDeriveProduct::not_equal(Self[A], Self[A]) -> Bool
+pub fn[A : @debug.Debug] CheckedDeriveProduct::to_repr(Self[A]) -> @debug.Repr
 
 pub(all) struct CheckedDeriveProductStep[A] {
   head : A
@@ -105,30 +139,45 @@ pub(all) struct CheckedDeriveProductStep[A] {
   tail_type : @types.Type
   evidence : CheckedDeriveEvidence
 } derive(Eq, @debug.Debug)
+pub fn[A : Eq] CheckedDeriveProductStep::equal(Self[A], Self[A]) -> Bool
+pub fn[A : Eq] CheckedDeriveProductStep::not_equal(Self[A], Self[A]) -> Bool
+pub fn[A : @debug.Debug] CheckedDeriveProductStep::to_repr(Self[A]) -> @debug.Repr
 
 pub(all) enum CheckedDeriveShape {
   Record(product~ : CheckedDeriveProduct[CheckedDeriveField])
   Enumeration(sum~ : CheckedDeriveSum)
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeriveShape::equal(Self, Self) -> Bool
 pub fn CheckedDeriveShape::for_each_evidence(Self, (CheckedDeriveEvidence) -> Unit) -> Unit
+pub fn CheckedDeriveShape::not_equal(Self, Self) -> Bool
 pub fn CheckedDeriveShape::representation(Self) -> @types.Type
+pub fn CheckedDeriveShape::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedDeriveSum {
   representation : @types.Type
   steps : Array[CheckedDeriveSumStep]
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeriveSum::equal(Self, Self) -> Bool
 pub fn CheckedDeriveSum::make(@symbol.TypeSymbolId, @symbol.TypeSymbolId, Array[CheckedDeriveVariant]) -> Self
+pub fn CheckedDeriveSum::not_equal(Self, Self) -> Bool
+pub fn CheckedDeriveSum::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedDeriveSumStep {
   head : CheckedDeriveVariant
   tail_type : @types.Type
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeriveSumStep::equal(Self, Self) -> Bool
+pub fn CheckedDeriveSumStep::not_equal(Self, Self) -> Bool
+pub fn CheckedDeriveSumStep::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedDeriveVariant {
   symbol : @symbol.VariantSymbolId
   name : String
   payload : CheckedDeriveProduct[Unit]
 } derive(Eq, @debug.Debug)
+pub fn CheckedDeriveVariant::equal(Self, Self) -> Bool
+pub fn CheckedDeriveVariant::not_equal(Self, Self) -> Bool
+pub fn CheckedDeriveVariant::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedEffectDeclaration {
   is_public : Bool
@@ -140,6 +189,10 @@ pub(all) struct CheckedEffectDeclaration {
   operations : Array[CheckedEffectOperationDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedEffectDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedEffectDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedEffectDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedEffectDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedEffectDeclaration
 
 pub(all) struct CheckedEffectOperationDeclaration {
@@ -152,6 +205,10 @@ pub(all) struct CheckedEffectOperationDeclaration {
   result : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedEffectOperationDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedEffectOperationDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedEffectOperationDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedEffectOperationDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedEffectOperationDeclaration
 
 pub(all) struct CheckedEnumDeclaration {
@@ -163,13 +220,17 @@ pub(all) struct CheckedEnumDeclaration {
   variants : Array[CheckedVariantDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedEnumDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedEnumDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedEnumDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedEnumDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedEnumDeclaration
 
 pub(all) enum CheckedExpr {
   Literal(literal~ : CheckedLiteral, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Value(name~ : String, symbol~ : @symbol.ValueSymbolId, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   CompilerIntrinsic(intrinsic~ : @abi.Intrinsic, type_~ : @types.Type, loc~ : @basic.SourceSpan)
-  ExternBinding(name~ : String, signature~ : @abi.HostSignature, type_~ : @types.Type, loc~ : @basic.SourceSpan)
+  ExternBinding(contract~ : @lane_wasm_abi.ImportContract, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   ErrorRecovery(type_~ : @types.Type, loc~ : @basic.SourceSpan)
   FunctionLiteral(type_parameters~ : Array[@types.TypeParameter], parameters~ : Array[CheckedValueParameter], return_type~ : @types.Type, body~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
   FunctionEffectWiden(value~ : CheckedExpr, type_~ : @types.Type, loc~ : @basic.SourceSpan)
@@ -185,9 +246,13 @@ pub(all) enum CheckedExpr {
   StructLiteral(symbol~ : @symbol.TypeSymbolId, type_name_loc~ : @basic.SourceSpan, generic_arguments~ : Array[@types.GenericArgument], type_witnesses~ : Array[CheckedStructTypeWitness], fields~ : Array[CheckedStructLiteralField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Variant(symbol~ : @symbol.VariantSymbolId, variant_loc~ : @basic.SourceSpan, generic_arguments~ : Array[@types.GenericArgument], arguments~ : Array[CheckedExpr], type_~ : @types.Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn CheckedExpr::equal(Self, Self) -> Bool
 pub fn CheckedExpr::for_each_child_expr(Self, (Self) -> Unit) -> Unit
 pub fn CheckedExpr::loc(Self) -> @basic.SourceSpan
+pub fn CheckedExpr::not_equal(Self, Self) -> Bool
+pub fn CheckedExpr::pretty(Self) -> @prettyprinter.Document
 pub fn CheckedExpr::substitute(Self, @types.TypeSubstitution) -> Self
+pub fn CheckedExpr::to_repr(Self) -> @debug.Repr
 pub fn CheckedExpr::type_(Self) -> @types.Type
 pub impl @prettyprinter.Pretty for CheckedExpr
 
@@ -198,17 +263,27 @@ pub(all) struct CheckedExternalTypeDeclaration {
   name_loc : @basic.SourceSpan
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedExternalTypeDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedExternalTypeDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedExternalTypeDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedExternalTypeDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedExternalTypeDeclaration
 
 pub(all) struct CheckedF32Literal {
   raw : String
   value : Float
 } derive(Eq, @debug.Debug)
+pub fn CheckedF32Literal::equal(Self, Self) -> Bool
+pub fn CheckedF32Literal::not_equal(Self, Self) -> Bool
+pub fn CheckedF32Literal::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedF64Literal {
   raw : String
   value : Double
 } derive(Eq, @debug.Debug)
+pub fn CheckedF64Literal::equal(Self, Self) -> Bool
+pub fn CheckedF64Literal::not_equal(Self, Self) -> Bool
+pub fn CheckedF64Literal::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedFieldDeclaration {
   symbol : @symbol.FieldSymbolId
@@ -218,6 +293,10 @@ pub(all) struct CheckedFieldDeclaration {
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedFieldDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedFieldDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedFieldDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedFieldDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedFieldDeclaration
 
 pub(all) struct CheckedFunctionDeclaration {
@@ -233,6 +312,10 @@ pub(all) struct CheckedFunctionDeclaration {
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedFunctionDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedFunctionDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedFunctionDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedFunctionDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedFunctionDeclaration
 
 pub(all) struct CheckedHandlerFinalBranch {
@@ -243,6 +326,10 @@ pub(all) struct CheckedHandlerFinalBranch {
   body : CheckedExpr?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedHandlerFinalBranch::equal(Self, Self) -> Bool
+pub fn CheckedHandlerFinalBranch::not_equal(Self, Self) -> Bool
+pub fn CheckedHandlerFinalBranch::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedHandlerFinalBranch::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedHandlerFinalBranch
 
 pub(all) struct CheckedHandlerOperationArm {
@@ -258,6 +345,10 @@ pub(all) struct CheckedHandlerOperationArm {
   body : CheckedExpr?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedHandlerOperationArm::equal(Self, Self) -> Bool
+pub fn CheckedHandlerOperationArm::not_equal(Self, Self) -> Bool
+pub fn CheckedHandlerOperationArm::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedHandlerOperationArm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedHandlerOperationArm
 
 pub(all) struct CheckedHandlerTable {
@@ -265,23 +356,36 @@ pub(all) struct CheckedHandlerTable {
   operations : Array[CheckedHandlerOperationArm]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedHandlerTable::equal(Self, Self) -> Bool
+pub fn CheckedHandlerTable::not_equal(Self, Self) -> Bool
+pub fn CheckedHandlerTable::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedHandlerTable::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedHandlerTable
 
 pub(all) struct CheckedI32Literal {
   raw : String
   value : Int
 } derive(Eq, @debug.Debug)
+pub fn CheckedI32Literal::equal(Self, Self) -> Bool
+pub fn CheckedI32Literal::not_equal(Self, Self) -> Bool
+pub fn CheckedI32Literal::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedI64Literal {
   raw : String
   value : Int64
 } derive(Eq, @debug.Debug)
+pub fn CheckedI64Literal::equal(Self, Self) -> Bool
+pub fn CheckedI64Literal::not_equal(Self, Self) -> Bool
+pub fn CheckedI64Literal::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedInitializationCycleMember {
   symbol : @symbol.ValueSymbolId
   name : String
   name_loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedInitializationCycleMember::equal(Self, Self) -> Bool
+pub fn CheckedInitializationCycleMember::not_equal(Self, Self) -> Bool
+pub fn CheckedInitializationCycleMember::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedLetDeclaration {
   is_public : Bool
@@ -293,6 +397,10 @@ pub(all) struct CheckedLetDeclaration {
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedLetDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedLetDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedLetDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedLetDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedLetDeclaration
 
 pub(all) enum CheckedLiteral {
@@ -305,6 +413,9 @@ pub(all) enum CheckedLiteral {
   Bool(Bool)
   Unit
 } derive(Eq, @debug.Debug)
+pub fn CheckedLiteral::equal(Self, Self) -> Bool
+pub fn CheckedLiteral::not_equal(Self, Self) -> Bool
+pub fn CheckedLiteral::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CheckedLocalItem {
   Let(CheckedLetDeclaration)
@@ -312,7 +423,11 @@ pub(all) enum CheckedLocalItem {
   Function(CheckedFunctionDeclaration)
   Expression(CheckedExpr)
 } derive(Eq, @debug.Debug)
+pub fn CheckedLocalItem::equal(Self, Self) -> Bool
 pub fn CheckedLocalItem::for_each_child_expr(Self, (CheckedExpr) -> Unit) -> Unit
+pub fn CheckedLocalItem::not_equal(Self, Self) -> Bool
+pub fn CheckedLocalItem::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedLocalItem::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedLocalItem
 
 pub(all) struct CheckedMatchArm {
@@ -320,6 +435,10 @@ pub(all) struct CheckedMatchArm {
   body : CheckedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedMatchArm::equal(Self, Self) -> Bool
+pub fn CheckedMatchArm::not_equal(Self, Self) -> Bool
+pub fn CheckedMatchArm::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedMatchArm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedMatchArm
 
 pub(all) enum CheckedPattern {
@@ -329,7 +448,11 @@ pub(all) enum CheckedPattern {
   Variant(symbol~ : @symbol.VariantSymbolId, variant_loc~ : @basic.SourceSpan, generic_arguments~ : Array[@types.GenericArgument], arguments~ : Array[CheckedPattern], type_~ : @types.Type, loc~ : @basic.SourceSpan)
   Struct(symbol~ : @symbol.TypeSymbolId, type_name_loc~ : @basic.SourceSpan, type_binders~ : Array[CheckedStructTypeBinder], fields~ : Array[CheckedStructPatternField], type_~ : @types.Type, loc~ : @basic.SourceSpan)
 } derive(Eq, @debug.Debug)
+pub fn CheckedPattern::equal(Self, Self) -> Bool
 pub fn CheckedPattern::loc(Self) -> @basic.SourceSpan
+pub fn CheckedPattern::not_equal(Self, Self) -> Bool
+pub fn CheckedPattern::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedPattern::to_repr(Self) -> @debug.Repr
 pub fn CheckedPattern::type_(Self) -> @types.Type
 pub impl @prettyprinter.Pretty for CheckedPattern
 
@@ -338,6 +461,10 @@ pub(all) struct CheckedPatternLetDeclaration {
   initializer : CheckedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedPatternLetDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedPatternLetDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedPatternLetDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedPatternLetDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedPatternLetDeclaration
 
 pub(all) struct CheckedSourceFile {
@@ -346,7 +473,11 @@ pub(all) struct CheckedSourceFile {
   declarations : Array[CheckedTopLevelDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedSourceFile::equal(Self, Self) -> Bool
 pub fn CheckedSourceFile::in_initialization_order(Self) -> Result[Self, Array[CheckedInitializationCycleMember]]
+pub fn CheckedSourceFile::not_equal(Self, Self) -> Bool
+pub fn CheckedSourceFile::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedSourceFile::to_repr(Self) -> @debug.Repr
 pub fn CheckedSourceFile::value_use_analysis(Self, @symbol.SymbolRegistry) -> CheckedValueUseAnalysis
 pub impl @prettyprinter.Pretty for CheckedSourceFile
 
@@ -360,6 +491,10 @@ pub(all) struct CheckedStructDeclaration {
   fields : Array[CheckedFieldDeclaration]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedStructDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedStructDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedStructDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedStructDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedStructDeclaration
 
 pub(all) struct CheckedStructLiteralField {
@@ -368,6 +503,10 @@ pub(all) struct CheckedStructLiteralField {
   value : CheckedExpr
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedStructLiteralField::equal(Self, Self) -> Bool
+pub fn CheckedStructLiteralField::not_equal(Self, Self) -> Bool
+pub fn CheckedStructLiteralField::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedStructLiteralField::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedStructLiteralField
 
 pub(all) struct CheckedStructPatternField {
@@ -376,6 +515,10 @@ pub(all) struct CheckedStructPatternField {
   pattern : CheckedPattern
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedStructPatternField::equal(Self, Self) -> Bool
+pub fn CheckedStructPatternField::not_equal(Self, Self) -> Bool
+pub fn CheckedStructPatternField::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedStructPatternField::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedStructPatternField
 
 pub(all) struct CheckedStructTypeBinder {
@@ -384,6 +527,10 @@ pub(all) struct CheckedStructTypeBinder {
   name : String?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedStructTypeBinder::equal(Self, Self) -> Bool
+pub fn CheckedStructTypeBinder::not_equal(Self, Self) -> Bool
+pub fn CheckedStructTypeBinder::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedStructTypeBinder::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedStructTypeBinder
 
 pub(all) struct CheckedStructTypeWitness {
@@ -392,6 +539,10 @@ pub(all) struct CheckedStructTypeWitness {
   argument : @types.GenericArgument
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedStructTypeWitness::equal(Self, Self) -> Bool
+pub fn CheckedStructTypeWitness::not_equal(Self, Self) -> Bool
+pub fn CheckedStructTypeWitness::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedStructTypeWitness::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedStructTypeWitness
 
 pub(all) enum CheckedTopLevelDeclaration {
@@ -402,6 +553,10 @@ pub(all) enum CheckedTopLevelDeclaration {
   Function(CheckedFunctionDeclaration)
   Let(CheckedLetDeclaration)
 } derive(Eq, @debug.Debug)
+pub fn CheckedTopLevelDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedTopLevelDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedTopLevelDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedTopLevelDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedTopLevelDeclaration
 
 pub(all) struct CheckedTypeMemberDeclaration {
@@ -413,6 +568,10 @@ pub(all) struct CheckedTypeMemberDeclaration {
   index : Int
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedTypeMemberDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedTypeMemberDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedTypeMemberDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedTypeMemberDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedTypeMemberDeclaration
 
 pub(all) struct CheckedValueParameter {
@@ -424,12 +583,19 @@ pub(all) struct CheckedValueParameter {
   type_ : @types.Type
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedValueParameter::equal(Self, Self) -> Bool
+pub fn CheckedValueParameter::not_equal(Self, Self) -> Bool
+pub fn CheckedValueParameter::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedValueParameter::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedValueParameter
 
 pub(all) struct CheckedValueUseAnalysis {
   binders : Array[CheckedValueUseBinder]
   references : Array[CheckedValueUseReference]
 } derive(Eq, @debug.Debug)
+pub fn CheckedValueUseAnalysis::equal(Self, Self) -> Bool
+pub fn CheckedValueUseAnalysis::not_equal(Self, Self) -> Bool
+pub fn CheckedValueUseAnalysis::to_repr(Self) -> @debug.Repr
 pub fn CheckedValueUseAnalysis::unused_binders(Self) -> Array[CheckedValueUseBinder]
 
 pub(all) struct CheckedValueUseBinder {
@@ -438,6 +604,9 @@ pub(all) struct CheckedValueUseBinder {
   loc : @basic.SourceSpan
   kind : CheckedValueUseBinderKind
 } derive(Eq, @debug.Debug)
+pub fn CheckedValueUseBinder::equal(Self, Self) -> Bool
+pub fn CheckedValueUseBinder::not_equal(Self, Self) -> Bool
+pub fn CheckedValueUseBinder::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CheckedValueUseBinderKind {
   LocalLet
@@ -448,12 +617,18 @@ pub(all) enum CheckedValueUseBinderKind {
   HandlerResumeBinder
   HandlerFinalBinder
 } derive(Eq, @debug.Debug)
+pub fn CheckedValueUseBinderKind::equal(Self, Self) -> Bool
+pub fn CheckedValueUseBinderKind::not_equal(Self, Self) -> Bool
+pub fn CheckedValueUseBinderKind::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedValueUseReference {
   target : @symbol.ValueSymbolId
   origin_binder : @symbol.ValueSymbolId?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedValueUseReference::equal(Self, Self) -> Bool
+pub fn CheckedValueUseReference::not_equal(Self, Self) -> Bool
+pub fn CheckedValueUseReference::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CheckedVariantDeclaration {
   symbol : @symbol.VariantSymbolId
@@ -464,6 +639,10 @@ pub(all) struct CheckedVariantDeclaration {
   payload : Array[@types.Type]
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
+pub fn CheckedVariantDeclaration::equal(Self, Self) -> Bool
+pub fn CheckedVariantDeclaration::not_equal(Self, Self) -> Bool
+pub fn CheckedVariantDeclaration::pretty(Self) -> @prettyprinter.Document
+pub fn CheckedVariantDeclaration::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for CheckedVariantDeclaration
 
 // Type aliases

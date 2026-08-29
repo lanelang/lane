@@ -48,7 +48,7 @@ pub fn module_object_fingerprint(
   ],
 ) -> @artifact_model.CompilationFingerprint {
   fingerprint_hash_bytes(
-    "lane-object-fingerprint-v4",
+    "lane-object-fingerprint-v5",
     module_object_fingerprint_payload_bytes(
       module_fingerprint, interface_fingerprint, canonical_basic_abi, metadata, terms,
       externals, entries, exports, imports, imported_interface_fingerprints,
@@ -75,7 +75,7 @@ fn module_object_fingerprint_payload_bytes(
   write_compilation_fingerprint(writer, module_fingerprint)
   write_compilation_fingerprint(writer, interface_fingerprint)
   write_canonical_basic_abi_runtime_contract(writer, canonical_basic_abi)
-  write_buslane_program_section(writer, { metadata, terms })
+  write_buslane_program_section(writer, { metadata, terms, })
   write_externals(writer, externals)
   write_entries(writer, entries)
   write_exports(writer, exports)
@@ -99,7 +99,7 @@ fn interface_fingerprint_result(
   interface : @module_interface.ModuleInterface,
 ) -> Result[@artifact_model.CompilationFingerprint, String] {
   match interface.semantic_fingerprint_result() {
-    Ok(fingerprint) => Ok({ value: fingerprint.value })
+    Ok(fingerprint) => Ok({ value: fingerprint.value, })
     Err(message) => Err(message)
   }
 }

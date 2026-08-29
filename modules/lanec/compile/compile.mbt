@@ -2,7 +2,7 @@
 /// Checks one in-memory Lane source module without linking it. Diagnostics use
 /// the synthetic source identity `<root>`; use `check` when identity matters.
 pub fn check_source(source : String) -> CompilationOutcome[Unit] {
-  check({ root: { source_id: "<root>", text: source }, libraries: [] })
+  check({ root: { source_id: "<root>", text: source, }, libraries: [], })
 }
 
 ///|
@@ -17,18 +17,17 @@ pub fn check(request : CompilationRequest) -> CompilationOutcome[Unit] {
 fn check_request(
   request : CompilationRequest,
 ) -> CompilationOutcome[@checked.CheckedSourceFile] {
-  match compile_module_set(request, _ => ()) {
+  match compile_module_set(request, None) {
     Ok(modules) =>
       match
         @module_compile.find_compiled_module(
           modules.modules,
           modules.root_module_path_text,
         ) {
-        Some(root) =>
-          compilation_succeeded(root.object.checked, modules.diagnostics)
+        Some(root) => compilation_succeeded(root.checked, modules.diagnostics)
         None =>
           compilation_failed([
-            @module_compile.no_root_source_module_diagnostic(),
+            @module_compile.compiled_module_set_missing_root_diagnostic(),
           ])
       }
     Err(diagnostics) => compilation_failed(diagnostics)
@@ -51,7 +50,7 @@ fn check_interface_request(
 ) -> CompilationOutcome[@checked.CheckedSourceFile] {
   match
     @module_compile.compile_module_from_interface_artifacts(
-      request.root.to_frontend(),
+      request.root,
       request.interfaces,
     ) {
     Ok(modules) =>
@@ -60,11 +59,10 @@ fn check_interface_request(
           modules.modules,
           modules.root_module_path_text,
         ) {
-        Some(root) =>
-          compilation_succeeded(root.object.checked, modules.diagnostics)
+        Some(root) => compilation_succeeded(root.checked, modules.diagnostics)
         None =>
           compilation_failed([
-            @module_compile.no_root_source_module_diagnostic(),
+            @module_compile.compiled_module_set_missing_root_diagnostic(),
           ])
       }
     Err(diagnostics) => compilation_failed(diagnostics)
@@ -85,7 +83,7 @@ fn discard_checked_source(
 /// Compiles one in-memory Lane source module through linking, using `<root>` as
 /// its diagnostic source identity.
 pub fn compile_source(source : String) -> CompilationOutcome[CompiledProgram] {
-  compile({ root: { source_id: "<root>", text: source }, libraries: [] })
+  compile({ root: { source_id: "<root>", text: source, }, libraries: [], })
 }
 
 ///|
@@ -94,7 +92,7 @@ pub fn compile_source(source : String) -> CompilationOutcome[CompiledProgram] {
 pub fn compile(
   request : CompilationRequest,
 ) -> CompilationOutcome[CompiledProgram] {
-  match compile_module_set(request, _ => ()) {
+  match compile_module_set(request, None) {
     Ok(modules) =>
       linked_outcome(@module_compile.link_compiled_module_set(modules))
     Err(diagnostics) => compilation_failed(diagnostics)
@@ -107,7 +105,10 @@ pub fn compile(
 pub fn compile_modules(
   request : CompilationRequest,
 ) -> CompilationOutcome[CompiledModules] {
-  compile_modules_observed(request, _ => ())
+  match compile_module_set(request, None) {
+    Ok(modules) => compilation_succeeded({ modules, }, modules.diagnostics)
+    Err(diagnostics) => compilation_failed(diagnostics)
+  }
 }
 
 ///|
@@ -118,7 +119,7 @@ pub fn compile_modules_observed(
   request : CompilationRequest,
   observe : (SourceCompilationStage) -> Unit,
 ) -> CompilationOutcome[CompiledModules] {
-  match compile_module_set(request, observe) {
+  match compile_module_set(request, Some(observe)) {
     Ok(modules) => compilation_succeeded({ modules, }, modules.diagnostics)
     Err(diagnostics) => compilation_failed(diagnostics)
   }
@@ -132,7 +133,7 @@ pub fn compile_module_with_interfaces(
 ) -> CompilationOutcome[CompiledModules] {
   match
     @module_compile.compile_module_from_interface_artifacts(
-      request.root.to_frontend(),
+      request.root,
       request.interfaces,
     ) {
     Ok(modules) => compilation_succeeded({ modules, }, modules.diagnostics)
@@ -150,8 +151,19 @@ pub fn link_modules(
 }
 
 ///|
+/// Links a module set while reporting the linker-owned retention observation.
+pub fn link_modules_observed(
+  modules : CompiledModules,
+  observe : (@module_link.LinkRetentionObservation) -> Unit,
+) -> CompilationOutcome[CompiledProgram] {
+  linked_outcome(
+    @module_compile.link_compiled_module_set_observed(modules.modules, observe),
+  )
+}
+
+///|
 /// Validates and links persisted module object artifacts. Schema, fingerprint,
-/// import, and bytecode-independent metadata invariants are checked before any
+/// import, and physical-program-independent metadata invariants are checked before any
 /// artifact contributes to the linked program.
 pub fn link_module_objects(
   objects : Array[@artifact.ModuleObjectArtifact],
@@ -165,7 +177,7 @@ fn linked_outcome(
 ) -> CompilationOutcome[CompiledProgram] {
   match linked.program {
     Some(program) =>
-      compilation_succeeded({ linked: program }, linked.diagnostics)
+      compilation_succeeded({ linked: program, }, linked.diagnostics)
     None => compilation_failed(linked.diagnostics)
   }
 }
@@ -173,54 +185,72 @@ fn linked_outcome(
 ///|
 fn compile_module_set(
   request : CompilationRequest,
-  observe : (SourceCompilationStage) -> Unit,
+  observe : ((SourceCompilationStage) -> Unit)?,
 ) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
-  match
-    @module_frontend.parse_import_reachable_module_input_set_from_inputs_observed(
-      request.root.to_frontend(),
-      request.libraries.map(SourceInput::to_frontend),
-      root => {
-        observe(
-          Syntax({
-            module_path_text: root.header.module_path_text,
-            text: @prettyprinter.render(root.source, width=100),
-          }),
-        )
-      },
-    ) {
+  let parsed = match observe {
+    None =>
+      @module_frontend.parse_import_reachable_module_graph_from_inputs(
+        request.root,
+        request.libraries,
+      )
+    Some(emit) =>
+      @module_frontend.parse_import_reachable_module_graph_from_inputs_observed(
+        request.root,
+        request.libraries,
+        root => {
+          emit(
+            Syntax({
+              module_path_text: root.header.module_path_text,
+              text: @prettyprinter.render(root.source, width=100),
+              scale: Source(
+                syntax_stage_scale(root.source, root.header.imports.length()),
+              ),
+            }),
+          )
+        },
+      )
+  }
+  match parsed {
     Err(diagnostics) => Err(diagnostics)
-    Ok(inputs) =>
-      match @module_frontend.build_module_graph(inputs) {
-        Err(diagnostics) => Err(diagnostics)
-        Ok(graph) =>
-          @module_compile.compile_module_graph_observed(graph, (
-            module_path_text,
-            stage,
-          ) => {
-            let snapshot = match stage {
-              Resolved(source) =>
-                SourceCompilationStage::Resolved({
-                  module_path_text,
-                  text: render_resolved_source(source, 100),
-                })
-              Checked(source) =>
-                Checked({
-                  module_path_text,
-                  text: render_checked_source(source, 100),
-                })
-              BuslaneModule(program) =>
-                BuslaneModule({
-                  module_path_text,
-                  text: render_buslane_program(program, 100),
-                })
-            }
-            observe(snapshot)
-          })
+    Ok(graph) =>
+      match observe {
+        None => @module_compile.compile_module_graph(graph)
+        Some(emit) => compile_module_graph_observed(graph, emit)
       }
   }
 }
 
 ///|
-fn SourceInput::to_frontend(self : SourceInput) -> @module_frontend.SourceInput {
-  { source_id: self.source_id, text: self.text }
+fn compile_module_graph_observed(
+  graph : @module_frontend.ModuleGraph,
+  observe : (SourceCompilationStage) -> Unit,
+) -> Result[@module_compile.CompiledModuleSet, Array[CompilerDiagnostic]] {
+  let import_counts : Map[String, Int] = Map([])
+  for input in graph.modules() {
+    import_counts[input.header.module_path_text] = input.header.imports.length()
+  }
+  @module_compile.compile_module_graph_observed(graph, (module_path_text, stage) => {
+    let import_count = import_counts.get(module_path_text).unwrap()
+    let snapshot = match stage {
+      Resolved(source) =>
+        SourceCompilationStage::Resolved({
+          module_path_text,
+          text: render_resolved_source(source, 100),
+          scale: Source(resolved_stage_scale(source, import_count)),
+        })
+      Checked(source) =>
+        Checked({
+          module_path_text,
+          text: render_checked_source(source, 100),
+          scale: Source(checked_stage_scale(source, import_count)),
+        })
+      BuslaneModule(program) =>
+        BuslaneModule({
+          module_path_text,
+          text: render_buslane_program(program, 100),
+          scale: Buslane(program.structural_scale()),
+        })
+    }
+    observe(snapshot)
+  })
 }

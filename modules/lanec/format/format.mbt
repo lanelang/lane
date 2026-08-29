@@ -24,7 +24,7 @@ pub(all) struct FormatOptions {
 
 ///|
 pub fn default_options() -> FormatOptions {
-  { width: 100 }
+  { width: 100, }
 }
 
 ///|
@@ -190,9 +190,9 @@ fn ConcreteLayout::make(
     )
     let comment_index = anchored.length()
     if anchored_comment.placement is Leading(span) {
-      leading_anchors.push({ offset: span.start_offset, comment_index })
+      leading_anchors.push({ offset: span.start_offset, comment_index, })
     } else if anchored_comment.placement is Trailing(span) {
-      trailing_anchors.push({ offset: span.end_offset, comment_index })
+      trailing_anchors.push({ offset: span.end_offset, comment_index, })
     }
     anchored.push(anchored_comment)
   }
@@ -228,7 +228,7 @@ fn DelimiterPairIndex::make(
       _ => ()
     }
   }
-  { parentheses, brackets, braces }
+  { parentheses, brackets, braces, }
 }
 
 ///|
@@ -308,7 +308,7 @@ fn ConcreteLayout::start_session(
   if self.layout_separator_gaps.length() != self.tokens.length() + 1 {
     abort("formatter concrete layout is out of sync with parser tokens")
   }
-  { layout: self, claimed: Array::make(self.comments.length(), false) }
+  { layout: self, claimed: Array::make(self.comments.length(), false), }
 }
 
 ///|

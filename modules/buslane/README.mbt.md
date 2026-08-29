@@ -255,7 +255,7 @@ Call `verify_program` after constructing, parsing, or decoding a program and bef
 test "inspect verifier diagnostics" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_value("answer", Value, Primitive(Bool))
-  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))] }
+  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))], }
 
   inspect(
     @prettyprinter.render(verify_program(program), width=80),
@@ -301,7 +301,7 @@ Provides a canonical, round-trippable textual representation:
 test "round-trip canonical Buslane text" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_value("answer", Value, Primitive(I64))
-  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))] }
+  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))], }
   let source = @text.CanonicalTextWriter::CanonicalTextWriter().write_program(
     program,
   )
@@ -326,7 +326,7 @@ Provides the structured binary persistence boundary:
 test "round-trip Buslane binary" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_value("answer", Value, Primitive(I64))
-  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))] }
+  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))], }
 
   let decoded = @codec.decode_program(@codec.encode_program(program))
   assert_eq(decoded, program)
@@ -345,7 +345,7 @@ Provides a reference evaluator for verified Buslane semantics:
 test "evaluate a Buslane value" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let answer = metadata.define_value("answer", Value, Primitive(I64))
-  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))] }
+  let program = Program::{ metadata, terms: [Let(answer, Literal(I64(42L)))], }
   let runtime = @interpreter.BuslaneExternalRuntime::BuslaneExternalRuntime()
   let evaluated = @interpreter.evaluate_buslane_program(program, runtime)
 

@@ -21,7 +21,10 @@ priv struct TestCompileResult {
 ///|
 fn check_source_for_test(source : String) -> TestCheckResult {
   test_check_result(
-    check_request({ root: { source_id: "<root>", text: source }, libraries: [] }),
+    check_request({
+      root: { source_id: "<root>", text: source, },
+      libraries: [],
+    }),
   )
 }
 
@@ -42,7 +45,7 @@ fn check_source_with_interfaces_for_test(
 ) -> TestCheckResult {
   test_check_result(
     check_interface_request({
-      root: { source_id: "<root>", text: root_source },
+      root: { source_id: "<root>", text: root_source, },
       interfaces,
     }),
   )
@@ -54,8 +57,8 @@ fn test_check_result(
 ) -> TestCheckResult {
   match outcome {
     Succeeded(module_, warnings) =>
-      { source: Some(module_), diagnostics: warnings.diagnostics() }
-    Failed(failure) => { source: None, diagnostics: failure.diagnostics() }
+      { source: Some(module_), diagnostics: warnings.diagnostics(), }
+    Failed(failure) => { source: None, diagnostics: failure.diagnostics(), }
   }
 }
 
@@ -76,7 +79,7 @@ fn compile_module_with_interfaces_for_test(
 ) -> TestCompileModulesResult {
   test_compile_modules_result(
     compile_module_with_interfaces({
-      root: { source_id: "<root>", text: root_source },
+      root: { source_id: "<root>", text: root_source, },
       interfaces,
     }),
   )
@@ -88,8 +91,8 @@ fn test_compile_modules_result(
 ) -> TestCompileModulesResult {
   match outcome {
     Succeeded(modules, warnings) =>
-      { modules: Some(modules.modules), diagnostics: warnings.diagnostics() }
-    Failed(failure) => { modules: None, diagnostics: failure.diagnostics() }
+      { modules: Some(modules.modules), diagnostics: warnings.diagnostics(), }
+    Failed(failure) => { modules: None, diagnostics: failure.diagnostics(), }
   }
 }
 
@@ -115,7 +118,7 @@ fn test_compile_result(
   match outcome {
     Succeeded(program, warnings) =>
       {
-        program: Some(program.linked.program),
+        program: Some(program.linked.program.program()),
         externals: program.linked.externals,
         entries: program.linked.entries,
         diagnostics: warnings.diagnostics(),
@@ -123,7 +126,7 @@ fn test_compile_result(
     Failed(failure) =>
       {
         program: None,
-        externals: { builtins: [], runtime_imports: [] },
+        externals: { builtins: [], runtime_imports: [], },
         entries: [],
         diagnostics: failure.diagnostics(),
       }
@@ -143,7 +146,7 @@ fn test_compilation_request(
   library_sources : Array[String],
 ) -> CompilationRequest {
   {
-    root: { source_id: "<root>", text: root_source },
+    root: { source_id: "<root>", text: root_source, },
     libraries: library_sources.mapi((index, source) => {
       source_id: "<library:\{index}>",
       text: source,

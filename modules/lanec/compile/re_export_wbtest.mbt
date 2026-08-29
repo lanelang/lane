@@ -52,7 +52,7 @@ test "public export targets stay provider-owned without forwarding terms" {
           export_.target.declaration_name,
         )
       }),
-      facade.object.terms.length(),
+      facade.object.program.terms.length(),
       facade.object.exports.length(),
       main.object.imports.any(fn(import_) {
         import_.module_path_text == "Provider"
@@ -139,7 +139,7 @@ test "interface validation rejects a stale public export fingerprint" {
     ..facade_artifact.interface,
     exports: facade_artifact.interface.exports.mapi(fn(index, export_) {
       if index == 0 {
-        { ..export_, expected_target_fingerprint: { value: "sha256:stale" } }
+        { ..export_, expected_target_fingerprint: { value: "sha256:stale", }, }
       } else {
         export_
       }

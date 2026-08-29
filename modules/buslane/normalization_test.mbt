@@ -140,7 +140,7 @@ test "empty-effect query returns a runaway beta diagnostic" {
     Value,
     Function([], Primitive(Unit), effect),
   )
-  let query = @buslane.ExpressionFactsQuery::new({ metadata, terms: [] })
+  let query = @buslane.ExpressionFactsQuery::new({ metadata, terms: [], })
   debug_inspect(
     query.has_empty_effect(Call(Ref(callable), [])),
     content=(

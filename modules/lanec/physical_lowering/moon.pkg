@@ -1,0 +1,31 @@
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/abi",
+  "Milky2018/lanec/anf",
+  "Milky2018/lanec/executable",
+  "Milky2018/lanec/function_origin",
+  "Milky2018/lanec/elaborate/buslane_lowering",
+  "Milky2018/lanec/physical",
+  "Milky2018/lanec/vmcfg",
+  "Milky2018/lane_wasm_abi" @wasm_abi,
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "Milky2018/lanec/wasm_target",
+  "Milky2018/lane_runtime",
+  "Milky2018/lane_runtime/wasm" @lane_wasm_runtime,
+  "Milky2018/wasm_core/encoder" @wasm_encoder,
+  "Milky2018/wasm_core/types" @wasm_types,
+  "Milky2018/wasmoon/runtime" @wasmoon_runtime,
+} for "wbtest"
+
+supported_targets = "+all"
+
+options(
+  targets: {
+    "f32_wbtest.mbt": [ "native" ],
+    "lower_wbtest.mbt": [ "native" ],
+    "wasm_execution_wbtest.mbt": [ "native" ],
+  },
+)

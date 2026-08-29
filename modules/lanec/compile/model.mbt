@@ -1,26 +1,18 @@
 ///|
-/// Identifies one in-memory source file. `source_id` is preserved in every
-/// diagnostic and should therefore be stable across incremental requests.
-pub(all) struct SourceInput {
-  source_id : String
-  text : String
-} derive(Debug, Eq)
-
-///|
 /// Describes a source compilation rooted at `root`.
 ///
 /// `libraries` is an unordered source pool: compilation discovers the
 /// import-reachable closure and ignores dead library modules.
 pub(all) struct CompilationRequest {
-  root : SourceInput
-  libraries : Array[SourceInput]
+  root : @module_frontend.SourceInput
+  libraries : Array[@module_frontend.SourceInput]
 } derive(Debug, Eq)
 
 ///|
 /// Describes compilation of one source module against persisted interfaces.
 /// The interface artifacts are untrusted and are validated before use.
 pub(all) struct InterfaceCompilationRequest {
-  root : SourceInput
+  root : @module_frontend.SourceInput
   interfaces : Array[@artifact.ModuleInterfaceArtifact]
 } derive(Debug, Eq)
 
@@ -109,7 +101,7 @@ fn[T] compilation_succeeded(
   if diagnostics.any(diagnostic => diagnostic.severity is Error) {
     abort("successful compilation cannot contain error diagnostics")
   }
-  Succeeded(value, { diagnostics: detached_compiler_diagnostics(diagnostics) })
+  Succeeded(value, { diagnostics: detached_compiler_diagnostics(diagnostics), })
 }
 
 ///|
@@ -119,7 +111,7 @@ fn[T] compilation_failed(
   if !diagnostics.any(diagnostic => diagnostic.severity is Error) {
     abort("failed compilation must contain an error diagnostic")
   }
-  Failed({ diagnostics: detached_compiler_diagnostics(diagnostics) })
+  Failed({ diagnostics: detached_compiler_diagnostics(diagnostics), })
 }
 
 ///|
@@ -178,7 +170,15 @@ pub fn CompiledProgram::buslane_text(
   self : CompiledProgram,
   width? : Int = 100,
 ) -> String {
-  render_buslane_program(self.linked.program, width)
+  render_buslane_program(self.linked.program.program(), width)
+}
+
+///|
+/// Returns the reusable structural observation of the linked Buslane program.
+pub fn CompiledProgram::buslane_scale(
+  self : CompiledProgram,
+) -> @buslane.ProgramScale {
+  self.linked.program.program().structural_scale()
 }
 
 ///|
@@ -221,22 +221,52 @@ pub fn CompiledEntry::name(self : CompiledEntry) -> String {
 }
 
 ///|
-pub fn CompiledEntry::type_(self : CompiledEntry) -> @buslane.Type {
-  self.entry.type_
+pub fn CompiledProgram::entry_type(
+  self : CompiledProgram,
+  entry : CompiledEntry,
+) -> @buslane.Type? {
+  guard self.linked.entries.contains(entry.entry) else { return None }
+  Some(
+    @buslane_lowering.source_value_type(
+      self.linked.program.program().metadata,
+      entry.entry.value,
+    ),
+  ) catch {
+    MissingValueMetadata(_) => None
+  }
 }
 
 ///|
-pub fn CompiledEntry::type_text(
-  self : CompiledEntry,
+pub fn CompiledProgram::entry_type_text(
+  self : CompiledProgram,
+  entry : CompiledEntry,
   width? : Int = 100,
-) -> String {
-  @prettyprinter.render(self.entry.type_, width~)
+) -> String? {
+  self.entry_type(entry).map(type_ => @prettyprinter.render(type_, width~))
 }
 
 ///|
 pub(all) struct CompilationStageSnapshot {
   module_path_text : String
   text : String
+  scale : CompilationStageScale
+} derive(Debug, Eq)
+
+///|
+pub(all) struct SourceStageScale {
+  declarations : Int
+  imports : Int
+  functions : Int
+  nodes : Int
+  calls : Int
+  generic_binders : Int
+  type_applications : Int
+} derive(Debug, Eq)
+
+///|
+pub(all) enum CompilationStageScale {
+  Source(SourceStageScale)
+  Buslane(@buslane.ProgramScale)
 } derive(Debug, Eq)
 
 ///|

@@ -1,6 +1,6 @@
 ///|
 fn flow_scalar_metadata(
-  representation : @bytecode.Representation,
+  representation : @physical.Representation,
 ) -> ValueMetadata {
   {
     representation,
@@ -13,7 +13,7 @@ fn flow_scalar_metadata(
 
 ///|
 fn flow_edge(target : Int, arguments : Array[ValueId]) -> Edge {
-  { target: { value: target }, arguments }
+  { target: { value: target, }, arguments, }
 }
 
 ///|
@@ -30,6 +30,7 @@ fn flow_use_text(use_site : ValueUseSite) -> String {
   match use_site {
     InstructionUse(block, index) => "instruction:\{block}:\{index}"
     TerminatorUse(block) => "terminator:\{block}"
+    MetadataUse(block, position) => "metadata:\{block}:\{position}"
   }
 }
 
@@ -47,31 +48,35 @@ test "VM CFG analyses describe a diamond and ignore unreachable dominance" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }, { value: 1 }],
+      user_parameters: [{ value: 0, }, { value: 1, }],
     },
     result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
         instructions: [],
-        terminator: BranchBool({ value: 0 }, flow_edge(1, []), flow_edge(2, [])),
+        terminator: BranchBool(
+          { value: 0, },
+          flow_edge(1, []),
+          flow_edge(2, []),
+        ),
       },
       {
         parameters: [],
-        instructions: [I64Add({ value: 2 }, { value: 1 }, { value: 1 })],
-        terminator: Jump(flow_edge(3, [{ value: 2 }])),
+        instructions: [I64Add({ value: 2, }, { value: 1, }, { value: 1, })],
+        terminator: Jump(flow_edge(3, [{ value: 2, }])),
       },
       {
         parameters: [],
-        instructions: [I64Sub({ value: 3 }, { value: 1 }, { value: 1 })],
-        terminator: Jump(flow_edge(3, [{ value: 3 }])),
+        instructions: [I64Sub({ value: 3, }, { value: 1, }, { value: 1, })],
+        terminator: Jump(flow_edge(3, [{ value: 3, }])),
       },
       {
-        parameters: [{ value: 4 }],
-        instructions: [I64Add({ value: 5 }, { value: 4 }, { value: 1 })],
-        terminator: Return(Some({ value: 5 })),
+        parameters: [{ value: 4, }],
+        instructions: [I64Add({ value: 5, }, { value: 4, }, { value: 1, })],
+        terminator: Return(Some({ value: 5, })),
       },
-      { parameters: [], instructions: [], terminator: Unreachable },
+      { parameters: [], instructions: [], terminator: Unreachable, },
     ],
   }
   let control_flow = analyze_control_flow(body.blocks)
@@ -85,22 +90,22 @@ test "VM CFG analyses describe a diamond and ignore unreachable dominance" {
       control_flow.immediate_dominators,
       use_def.definitions.map(definition => definition.map(flow_definition_text)),
       use_def.uses.map(sites => sites.map(flow_use_text)),
-      body.values.mapi(fn(index, _) { use_def.use_count({ value: index }) }),
+      body.values.mapi(fn(index, _) { use_def.use_count({ value: index, }) }),
       body.blocks.mapi(fn(block_index, _) {
         use_def.copy_block_use_counts(block_index)
       }),
       [
-        use_def.is_used_only_in_block({ value: 0 }, 0),
-        use_def.is_used_only_in_block({ value: 1 }, 1),
-        use_def.is_used_only_in_block({ value: 4 }, 3),
+        use_def.is_used_only_in_block({ value: 0, }, 0),
+        use_def.is_used_only_in_block({ value: 1, }, 1),
+        use_def.is_used_only_in_block({ value: 4, }, 3),
       ],
       liveness.live_in,
       liveness.live_out,
       [
-        liveness.is_live_after_instruction(body, 1, 0, { value: 1 }),
-        liveness.is_live_after_instruction(body, 1, 0, { value: 2 }),
-        liveness.is_live_after_instruction(body, 3, 0, { value: 4 }),
-        liveness.is_live_after_instruction(body, 3, 0, { value: 5 }),
+        liveness.is_live_after_instruction(body, 1, 0, { value: 1, }),
+        liveness.is_live_after_instruction(body, 1, 0, { value: 2, }),
+        liveness.is_live_after_instruction(body, 3, 0, { value: 4, }),
+        liveness.is_live_after_instruction(body, 3, 0, { value: 5, }),
       ],
     ),
     content=(
@@ -180,28 +185,28 @@ test "VM CFG analyses converge through a loop with block parameters" {
     inputs: {
       environment: None,
       witnesses: [],
-      user_parameters: [{ value: 0 }, { value: 1 }, { value: 2 }],
+      user_parameters: [{ value: 0, }, { value: 1, }, { value: 2, }],
     },
     result: Value(I64, Trivial, ScalarValue),
     blocks: [
       {
         parameters: [],
         instructions: [],
-        terminator: Jump(flow_edge(1, [{ value: 1 }])),
+        terminator: Jump(flow_edge(1, [{ value: 1, }])),
       },
       {
-        parameters: [{ value: 3 }],
-        instructions: [I64Add({ value: 4 }, { value: 3 }, { value: 2 })],
+        parameters: [{ value: 3, }],
+        instructions: [I64Add({ value: 4, }, { value: 3, }, { value: 2, })],
         terminator: BranchBool(
-          { value: 0 },
-          flow_edge(1, [{ value: 4 }]),
-          flow_edge(2, [{ value: 4 }]),
+          { value: 0, },
+          flow_edge(1, [{ value: 4, }]),
+          flow_edge(2, [{ value: 4, }]),
         ),
       },
       {
-        parameters: [{ value: 5 }],
+        parameters: [{ value: 5, }],
         instructions: [],
-        terminator: Return(Some({ value: 5 })),
+        terminator: Return(Some({ value: 5, })),
       },
     ],
   }
@@ -216,10 +221,10 @@ test "VM CFG analyses converge through a loop with block parameters" {
       liveness.live_in,
       liveness.live_out,
       [
-        liveness.is_live_after_instruction(body, 1, 0, { value: 0 }),
-        liveness.is_live_after_instruction(body, 1, 0, { value: 2 }),
-        liveness.is_live_after_instruction(body, 1, 0, { value: 3 }),
-        liveness.is_live_after_instruction(body, 1, 0, { value: 4 }),
+        liveness.is_live_after_instruction(body, 1, 0, { value: 0, }),
+        liveness.is_live_after_instruction(body, 1, 0, { value: 2, }),
+        liveness.is_live_after_instruction(body, 1, 0, { value: 3, }),
+        liveness.is_live_after_instruction(body, 1, 0, { value: 4, }),
       ],
     ),
     content=(

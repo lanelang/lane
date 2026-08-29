@@ -76,6 +76,7 @@ fn observe_effect_specialized_top_terms(
       ),
       stage => {
         if stage is EffectSpecialized(specialized) {
+          let specialized = specialized.program()
           for term in specialized.terms {
             match term {
               Let(id, _) =>
@@ -182,8 +183,8 @@ test "effect specialization retains only reachable externals" {
       (
         #|module Main
         #|
-        #|pub let reachable_host : () -> Unit = extern("reachable")
-        #|let unreachable_host : () -> Unit = extern("unreachable")
+        #|pub let reachable_host : () -> Unit = extern("lane.test", "reachable")
+        #|let unreachable_host : () -> Unit = extern("lane.test", "unreachable")
         #|
         #|pub fn answer() -> Unit {
         #|  reachable_host()

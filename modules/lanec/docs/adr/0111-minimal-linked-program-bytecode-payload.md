@@ -1,5 +1,9 @@
 # Minimal linked-program bytecode payload
 
+Status: Superseded by the raw WebAssembly execution image contract in
+`../wasip1-webassembly-target-rfc.md`. This document records the removed `.lbp`
+format.
+
 Lane `.lbp` artifacts use the existing Lane binary artifact container with
 artifact kind Program. The linked-program payload is one fixed-order record:
 

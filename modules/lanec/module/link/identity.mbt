@@ -113,8 +113,14 @@ priv enum LinkModuleSelection {
 }
 
 ///|
+priv enum LinkedTopTermIdentity {
+  Value(Int)
+  External(Int)
+} derive(Eq, Hash)
+
+///|
 fn BuslaneLinker::BuslaneLinker() -> BuslaneLinker {
-  { metadata: MetadataRegistry(), identities: LinkIdentityMaps() }
+  { metadata: MetadataRegistry(), identities: LinkIdentityMaps(), }
 }
 
 ///|
@@ -146,7 +152,7 @@ fn LinkIdentityMaps::find_type(
   module_path_text : String,
   source : @buslane.TypeId,
 ) -> @buslane.TypeId? {
-  self.types.get({ module_path_text, source_index: source.index })
+  self.types.get({ module_path_text, source_index: source.index, })
 }
 
 ///|
@@ -158,7 +164,7 @@ fn LinkIdentityMaps::bind_type(
 ) -> @buslane.TypeId {
   bind_first(
     self.types,
-    { module_path_text, source_index: source.index },
+    { module_path_text, source_index: source.index, },
     target,
   )
 }
@@ -169,7 +175,7 @@ fn LinkIdentityMaps::find_type_parameter(
   module_path_text : String,
   source : @buslane.TypeParameterId,
 ) -> @buslane.TypeParameterId? {
-  self.type_parameters.get({ module_path_text, source_index: source.index })
+  self.type_parameters.get({ module_path_text, source_index: source.index, })
 }
 
 ///|
@@ -181,7 +187,7 @@ fn LinkIdentityMaps::bind_type_parameter(
 ) -> @buslane.TypeParameterId {
   bind_first(
     self.type_parameters,
-    { module_path_text, source_index: source.index },
+    { module_path_text, source_index: source.index, },
     target,
   )
 }
@@ -192,7 +198,7 @@ fn LinkIdentityMaps::find_value(
   module_path_text : String,
   source : @buslane.ValueId,
 ) -> @buslane.ValueId? {
-  self.values.get({ module_path_text, source_index: source.index })
+  self.values.get({ module_path_text, source_index: source.index, })
 }
 
 ///|
@@ -204,7 +210,7 @@ fn LinkIdentityMaps::bind_value(
 ) -> @buslane.ValueId {
   bind_first(
     self.values,
-    { module_path_text, source_index: source.index },
+    { module_path_text, source_index: source.index, },
     target,
   )
 }
@@ -215,7 +221,7 @@ fn LinkIdentityMaps::find_data_constructor(
   module_path_text : String,
   source : @buslane.DataConId,
 ) -> @buslane.DataConId? {
-  self.data_constructors.get({ module_path_text, source_index: source.index })
+  self.data_constructors.get({ module_path_text, source_index: source.index, })
 }
 
 ///|
@@ -227,7 +233,7 @@ fn LinkIdentityMaps::bind_data_constructor(
 ) -> @buslane.DataConId {
   bind_first(
     self.data_constructors,
-    { module_path_text, source_index: source.index },
+    { module_path_text, source_index: source.index, },
     target,
   )
 }
@@ -238,7 +244,7 @@ fn LinkIdentityMaps::find_effect(
   module_path_text : String,
   source : @buslane.EffectId,
 ) -> @buslane.EffectId? {
-  self.effects.get({ module_path_text, source_index: source.index })
+  self.effects.get({ module_path_text, source_index: source.index, })
 }
 
 ///|
@@ -250,7 +256,7 @@ fn LinkIdentityMaps::bind_effect(
 ) -> @buslane.EffectId {
   bind_first(
     self.effects,
-    { module_path_text, source_index: source.index },
+    { module_path_text, source_index: source.index, },
     target,
   )
 }
@@ -261,7 +267,7 @@ fn LinkIdentityMaps::find_operation(
   module_path_text : String,
   source : @buslane.OperationId,
 ) -> @buslane.OperationId? {
-  self.operations.get({ module_path_text, source_index: source.index })
+  self.operations.get({ module_path_text, source_index: source.index, })
 }
 
 ///|
@@ -273,7 +279,7 @@ fn LinkIdentityMaps::bind_operation(
 ) -> @buslane.OperationId {
   bind_first(
     self.operations,
-    { module_path_text, source_index: source.index },
+    { module_path_text, source_index: source.index, },
     target,
   )
 }
@@ -288,7 +294,7 @@ fn LinkExportIndex::from_exports(
     ignore(
       bind_first(
         references,
-        { kind: link_module_reference_kind(item.reference), name: item.name },
+        { kind: link_module_reference_kind(item.reference), name: item.name, },
         item.reference,
       ),
     )
@@ -302,7 +308,7 @@ fn LinkExportIndex::find(
   reference : @buslane_lowering.BuslaneModuleReference,
   name : String,
 ) -> @buslane_lowering.BuslaneModuleReference? {
-  self.references.get({ kind: link_module_reference_kind(reference), name })
+  self.references.get({ kind: link_module_reference_kind(reference), name, })
 }
 
 ///|
@@ -311,7 +317,7 @@ fn LinkExportIndex::contains(
   kind : LinkModuleReferenceKind,
   name : String,
 ) -> Bool {
-  self.references.contains({ kind, name })
+  self.references.contains({ kind, name, })
 }
 
 ///|

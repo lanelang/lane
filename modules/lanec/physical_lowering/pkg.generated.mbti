@@ -1,0 +1,161 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lanec/physical_lowering"
+
+import {
+  "Milky2018/buslane",
+  "Milky2018/lanec/anf",
+  "Milky2018/lanec/executable",
+  "Milky2018/lanec/function_origin",
+  "Milky2018/lanec/physical",
+  "Milky2018/lanec/vmcfg",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn lower_executable_program_to_physical(@executable.ExecutableProgram) -> Result[@physical.VerifiedPhysicalProgram, PhysicalLoweringError]
+
+pub fn lower_executable_program_to_physical_observed(@executable.ExecutableProgram, (PhysicalLoweringStage) -> Unit) -> Result[@physical.VerifiedPhysicalProgram, PhysicalLoweringError]
+
+// Errors
+pub(all) suberror FunctionProvenanceError {
+  OriginCountMismatch(functions~ : Int, origins~ : Int)
+  InvalidSourceFunction(function~ : @physical.FunctionId)
+  FinalizedFunctionCountMismatch(functions~ : Int, origins~ : Int)
+} derive(Eq, @debug.Debug)
+pub fn FunctionProvenanceError::equal(Self, Self) -> Bool
+pub fn FunctionProvenanceError::not_equal(Self, Self) -> Bool
+pub fn FunctionProvenanceError::to_repr(Self) -> @debug.Repr
+
+pub(all) suberror PhysicalLoweringError {
+  RuntimeAnfCompilerDefect(@anf.RuntimeAnfLoweringError)
+  MissingExternal(value~ : @buslane.ValueId)
+  MissingEntry(value~ : @buslane.ValueId)
+  UnsupportedType(type_~ : @anf.RuntimeType)
+  RepresentationElaborationInvariant(detail~ : String)
+  UnsupportedGenericData(data_constructor~ : @buslane.DataConId)
+  InvalidTypeApplication(detail~ : String)
+  UnsupportedIntrinsic(name~ : String)
+  UnterminatedBlock(block~ : Int)
+  VmcfgFinalizeError(@vmcfg.FinalizeError)
+  FunctionProvenanceCompilerDefect(FunctionProvenanceError)
+} derive(Eq, @debug.Debug)
+pub fn PhysicalLoweringError::equal(Self, Self) -> Bool
+pub fn PhysicalLoweringError::not_equal(Self, Self) -> Bool
+pub fn PhysicalLoweringError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub(all) struct CallableAdapterReason {
+  source : PhysicalCallableContractId
+  target : PhysicalCallableContractId
+  differences : Array[CallableContractDifference]
+} derive(Eq, @debug.Debug)
+pub fn CallableAdapterReason::equal(Self, Self) -> Bool
+pub fn CallableAdapterReason::not_equal(Self, Self) -> Bool
+pub fn CallableAdapterReason::to_repr(Self) -> @debug.Repr
+
+pub(all) struct CallableAdapterWorkerContractId {
+  value : Int
+} derive(Eq, @debug.Debug)
+pub fn CallableAdapterWorkerContractId::equal(Self, Self) -> Bool
+pub fn CallableAdapterWorkerContractId::not_equal(Self, Self) -> Bool
+pub fn CallableAdapterWorkerContractId::to_repr(Self) -> @debug.Repr
+
+pub(all) enum CallableContractDifference {
+  Invocation
+  Evidence
+  Parameter(Int)
+  Result
+} derive(Eq, @debug.Debug)
+pub fn CallableContractDifference::equal(Self, Self) -> Bool
+pub fn CallableContractDifference::not_equal(Self, Self) -> Bool
+pub fn CallableContractDifference::to_repr(Self) -> @debug.Repr
+
+pub(all) enum IndirectCallOrigin {
+  SourceBound
+  SourceAnonymous
+  HandlerElaboration
+  MonadicTransformation
+  SelectiveCps
+  CallableAdapter
+  RepresentationWorker
+  Initialization
+  RuntimeSupport
+} derive(Eq, @debug.Debug)
+pub fn IndirectCallOrigin::equal(Self, Self) -> Bool
+pub fn IndirectCallOrigin::not_equal(Self, Self) -> Bool
+pub fn IndirectCallOrigin::to_repr(Self) -> @debug.Repr
+
+pub(all) struct PhysicalCallableContractId {
+  value : Int
+} derive(Eq, @debug.Debug)
+pub fn PhysicalCallableContractId::equal(Self, Self) -> Bool
+pub fn PhysicalCallableContractId::not_equal(Self, Self) -> Bool
+pub fn PhysicalCallableContractId::to_repr(Self) -> @debug.Repr
+
+pub(all) enum PhysicalFunctionOrigin {
+  TopLevelFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
+  LiftedFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
+  LiftedRecursiveFunction(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin)
+  Initializer(source~ : @buslane.ValueId)
+  InitializerOrchestrator
+  IntrinsicWrapper(name~ : String)
+  RepresentationWorker(function~ : @anf.AnfFunctionId, source~ : @buslane.ValueId?, origin~ : @function_origin.FunctionOrigin, contract~ : RepresentationWorkerContractId)
+  CallableAdapter(contract~ : CallableAdapterWorkerContractId, reason~ : CallableAdapterReason)
+  LayoutConstructor
+  RuntimeImport(source~ : @buslane.ValueId, module_name~ : String, field_name~ : String)
+} derive(Eq, @debug.Debug)
+pub fn PhysicalFunctionOrigin::equal(Self, Self) -> Bool
+pub fn PhysicalFunctionOrigin::not_equal(Self, Self) -> Bool
+pub fn PhysicalFunctionOrigin::to_repr(Self) -> @debug.Repr
+
+pub(all) struct PhysicalFunctionProvenance {
+  function : @physical.FunctionId
+  origins : Array[PhysicalFunctionOrigin]
+} derive(Eq, @debug.Debug)
+pub fn PhysicalFunctionProvenance::equal(Self, Self) -> Bool
+pub fn PhysicalFunctionProvenance::not_equal(Self, Self) -> Bool
+pub fn PhysicalFunctionProvenance::to_repr(Self) -> @debug.Repr
+
+pub(all) struct PhysicalIndirectCallObservation {
+  function : @physical.FunctionId
+  ordinal : Int
+  origins : Array[IndirectCallOrigin]
+  resolution : @vmcfg.IndirectCallResolution
+  boundaries : Array[@vmcfg.CallableFlowBoundary]
+} derive(Eq, @debug.Debug)
+pub fn PhysicalIndirectCallObservation::equal(Self, Self) -> Bool
+pub fn PhysicalIndirectCallObservation::not_equal(Self, Self) -> Bool
+pub fn PhysicalIndirectCallObservation::to_repr(Self) -> @debug.Repr
+
+pub(all) struct PhysicalLoweringProvenance {
+  functions : Array[PhysicalFunctionProvenance]
+  indirect_calls : Array[PhysicalIndirectCallObservation]
+} derive(Eq, @debug.Debug)
+pub fn PhysicalLoweringProvenance::equal(Self, Self) -> Bool
+pub fn PhysicalLoweringProvenance::not_equal(Self, Self) -> Bool
+pub fn PhysicalLoweringProvenance::to_repr(Self) -> @debug.Repr
+
+pub(all) enum PhysicalLoweringStage {
+  Anf(@anf.AnfProgram)
+  InitialVmcfg(@vmcfg.Image, PhysicalLoweringProvenance, RuntimeAbiWorkerEmissionSummary)
+  FinalPhysicalProgram(@physical.PhysicalProgram, PhysicalLoweringProvenance, RuntimeAbiWorkerEmissionSummary)
+}
+
+pub(all) struct RepresentationWorkerContractId {
+  value : Int
+} derive(Eq, @debug.Debug)
+pub fn RepresentationWorkerContractId::equal(Self, Self) -> Bool
+pub fn RepresentationWorkerContractId::not_equal(Self, Self) -> Bool
+pub fn RepresentationWorkerContractId::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RuntimeAbiWorkerEmissionSummary {
+  emission_count : Int
+  duplicate_count : Int
+} derive(Eq, @debug.Debug)
+pub fn RuntimeAbiWorkerEmissionSummary::equal(Self, Self) -> Bool
+pub fn RuntimeAbiWorkerEmissionSummary::not_equal(Self, Self) -> Bool
+pub fn RuntimeAbiWorkerEmissionSummary::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

@@ -63,8 +63,15 @@ priv enum LinkDiagnosticKind {
     importer~ : String
   )
   InvalidModuleObject(module_path_text~ : String, reason~ : String)
+  InvalidModuleObjectTypeNormalization(
+    module_path_text~ : String,
+    role~ : String,
+    value~ : @buslane.ValueId,
+    error~ : @buslane.TypeNormalizationError
+  )
   StaleModuleObject(module_path_text~ : String, reason~ : String)
   LinkMetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
+  LinkedProgramCompilerDefect(@buslane.VerifyResult)
 }
 
 ///|
@@ -78,7 +85,7 @@ fn link_diagnostic(
   kind : LinkDiagnosticKind,
   span : @basic.SourceSpan?,
 ) -> CompilerDiagnostic {
-  let diagnostic : LinkDiagnostic = { kind, span }
+  let diagnostic : LinkDiagnostic = { kind, span, }
   @compiler_diag.ToCompilerDiagnostic::to_compiler_diagnostic(
     diagnostic,
     DiagnosticContext(),
@@ -172,6 +179,20 @@ impl @compiler_diag.ToCompilerDiagnostic for LinkDiagnostic with fn to_compiler_
         note="\{reason}; module objects must be internally valid before identity remapping begins",
         help="recompile the module object from valid Lane source",
       )
+    InvalidModuleObjectTypeNormalization(
+      module_path_text~,
+      role~,
+      value~,
+      error~
+    ) =>
+      compile_report(
+        "invalid module object `\{module_path_text}`",
+        diagnostic_.span,
+        code="E4208",
+        label="\{role} source type could not be normalized",
+        note="normalizing the metadata type for \{Repr(value)} failed with \{Repr(error)}",
+        help="recompile the module object from valid Lane source",
+      )
     StaleModuleObject(module_path_text~, reason~) =>
       compile_report(
         "stale module object",
@@ -188,6 +209,15 @@ impl @compiler_diag.ToCompilerDiagnostic for LinkDiagnostic with fn to_compiler_
         code="E4999",
         label="Buslane metadata identity allocation failed",
         note="the linker exhausted its metadata identity space: \{Repr(error)}",
+        help="report this compiler defect with the input module artifacts",
+      )
+    LinkedProgramCompilerDefect(result) =>
+      compile_report(
+        "internal compiler error while linking",
+        diagnostic_.span,
+        code="E4999",
+        label="the linked Buslane program violates its verifier contract",
+        note="the linker produced invalid Buslane: \{Repr(result)}",
         help="report this compiler defect with the input module artifacts",
       )
   }

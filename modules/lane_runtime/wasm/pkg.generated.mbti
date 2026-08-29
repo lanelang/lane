@@ -1,0 +1,60 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/lane_runtime/wasm"
+
+import {
+  "Milky2018/lane_runtime",
+  "Milky2018/wasm_core/types",
+  "Milky2018/wasmoon/runtime",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn load_wasm(Bytes, mode? : ExecutionMode, wasi_stdout? : ((Bytes) -> Unit)?, configure_host? : (@runtime.Linker) -> Unit raise @runtime.RuntimeError) -> Result[LoadedImage, WasmLoadError]
+
+// Errors
+pub(all) suberror WasmLoadError {
+  InvalidWasm(detail~ : String)
+  BackendCompileFailure(detail~ : String)
+} derive(Eq, @debug.Debug)
+pub fn WasmLoadError::equal(Self, Self) -> Bool
+pub fn WasmLoadError::not_equal(Self, Self) -> Bool
+pub fn WasmLoadError::to_repr(Self) -> @debug.Repr
+
+// Types and methods
+pub struct ExecutionInstance {
+  store : @runtime.Store
+  instance : @runtime.ModuleInstance
+  mut ready : Bool
+  // private fields
+}
+pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[Unit, @lane_runtime.ExecutionError]
+
+pub(all) enum ExecutionMode {
+  Jit
+  Interpreter
+} derive(Eq, @debug.Debug)
+pub fn ExecutionMode::equal(Self, Self) -> Bool
+pub fn ExecutionMode::not_equal(Self, Self) -> Bool
+pub fn ExecutionMode::to_repr(Self) -> @debug.Repr
+
+type InstanceExecutionBackend
+
+type LoadedExecutionBackend
+
+pub struct LoadedImage {
+  wasm_module : @types.Module
+  control_globals : RuntimeControlGlobals
+  // private fields
+}
+pub fn LoadedImage::execute(Self, config? : @lane_runtime.ExecutionConfig) -> Result[Unit, @lane_runtime.ExecutionError]
+pub fn LoadedImage::new_instance(Self, config? : @lane_runtime.ExecutionConfig) -> Result[ExecutionInstance, @lane_runtime.ExecutionError]
+pub fn LoadedImage::wasm_module(Self) -> @types.Module
+
+type RuntimeControlGlobals
+
+type RuntimeFailureState
+
+// Type aliases
+pub type HostLinkerConfiguration = (@runtime.Linker) -> Unit raise @runtime.RuntimeError
+
+// Traits

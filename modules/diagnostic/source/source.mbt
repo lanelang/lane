@@ -28,7 +28,7 @@ pub(all) struct SourceRange {
 
 ///|
 pub fn SourceDatabase::SourceDatabase() -> SourceDatabase {
-  { files: [] }
+  { files: [], }
 }
 
 ///|
@@ -37,7 +37,7 @@ pub fn SourceDatabase::add(
   text : String,
   path? : String,
 ) -> @core.SourceId {
-  let id = @core.SourceId::{ value: self.files.length() }
+  let id = @core.SourceId::{ value: self.files.length(), }
   let metrics = source_metrics(text)
   self.files.push({
     id,
@@ -67,7 +67,7 @@ pub fn SourceDatabase::span(
   end_offset : Int,
 ) -> @core.SourceSpan {
   ignore(self)
-  { source_id: id, start_offset, end_offset }
+  { source_id: id, start_offset, end_offset, }
 }
 
 ///|
@@ -78,7 +78,7 @@ pub fn SourceDatabase::span_from_text_offsets(
   end_offset : Int,
 ) -> @core.SourceSpan {
   guard self.file(id) is Some(file) else {
-    return { source_id: id, start_offset, end_offset }
+    return { source_id: id, start_offset, end_offset, }
   }
   {
     source_id: id,
@@ -139,7 +139,7 @@ pub fn SourceFile::position(self : SourceFile, offset : Int) -> SourcePosition {
   }
   let text_offset = self.text_offset_for_byte_offset(offset)
   let column = text_offset - self.char_line_starts[line_index] + 1
-  { line: line_index + 1, column }
+  { line: line_index + 1, column, }
 }
 
 ///|

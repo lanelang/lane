@@ -6,7 +6,6 @@ pub fn CompiledModuleSet::to_artifact(
     schema_version: @artifact.compiled_module_set_artifact_schema_version,
     root_module_path_text: self.root_module_path_text,
     modules: self.modules.map(CompiledModule::to_artifact),
-    reachable_module_path_texts: self.reachable_module_path_texts,
   }
 }
 
@@ -41,7 +40,7 @@ pub fn CompiledModule::to_interface_artifact(
 fn CompiledModule::artifact_interface(
   self : CompiledModule,
 ) -> @module_interface.ModuleInterface {
-  { ..self.interface, source_id: None }
+  { ..self.interface, source_id: None, }
 }
 
 ///|
@@ -54,8 +53,8 @@ pub fn CompiledModule::to_object_artifact(
     module_path_text: object.module_path_text,
     interface_fingerprint: object.interface_fingerprint,
     canonical_basic_abi: object.canonical_basic_abi,
-    metadata: object.metadata,
-    terms: object.terms,
+    metadata: object.program.metadata,
+    terms: object.program.terms,
     externals: object.externals,
     entries: object.entries,
     exports: object.exports,

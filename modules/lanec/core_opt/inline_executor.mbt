@@ -8,6 +8,7 @@ priv struct InlineExecution {
 priv struct InlineExecutor {
   program : @buslane.Program
   plan : InlinePlan
+  function_origins : @function_origin.FunctionOriginCatalog?
   observe : (CoreOptimizationObservation) -> Unit
   mut changed : Bool
 }
@@ -17,15 +18,24 @@ fn execute_inline_pipeline(
   program : @buslane.Program,
   entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
+  function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
   for current = program {
     let plan = build_inline_plan(current, entry, roots)
-    let execution = execute_inline_plan(current, plan, observe)
+    let execution = execute_inline_plan(
+      current, plan, function_origins, observe,
+    )
     if !execution.changed {
       return execution.program
     }
-    continue cleanup_core(execution.program, entry, roots, observe)
+    continue cleanup_core(
+        execution.program,
+        entry,
+        roots,
+        function_origins,
+        observe,
+      )
   }
 }
 
@@ -33,13 +43,20 @@ fn execute_inline_pipeline(
 fn execute_inline_plan(
   program : @buslane.Program,
   plan : InlinePlan,
+  function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> InlineExecution raise CoreOptimizeError {
-  let executor : InlineExecutor = { program, plan, observe, changed: false }
+  let executor : InlineExecutor = {
+    program,
+    plan,
+    function_origins,
+    observe,
+    changed: false,
+  }
   let terms = program.terms.map(term => {
     match term {
       Let(value, expression) => {
-        let cursor : CallSiteCursor = { next: 0 }
+        let cursor : CallSiteCursor = { next: 0, }
         @buslane.TopTerm::Let(
           value,
           executor.rewrite_expr(value, cursor, expression),
@@ -48,7 +65,7 @@ fn execute_inline_plan(
       LetRec(bindings) =>
         LetRec(
           bindings.map(binding => {
-            let cursor : CallSiteCursor = { next: 0 }
+            let cursor : CallSiteCursor = { next: 0, }
             {
               ..binding,
               rhs: executor.rewrite_expr(binding.id, cursor, binding.rhs),
@@ -58,7 +75,7 @@ fn execute_inline_plan(
       External(_) => term
     }
   })
-  { program: { ..program, terms, }, changed: executor.changed }
+  { program: { ..program, terms, }, changed: executor.changed, }
 }
 
 ///|
@@ -70,11 +87,14 @@ fn InlineExecutor::rewrite_expr(
 ) -> @buslane.Expr raise CoreOptimizeError {
   match expression {
     Ref(_) | Literal(_) | Resume(_) => expression
-    Function(function) =>
-      Function({
+    Function(function) => {
+      let rewritten : @buslane.FunctionExpr = {
         ..function,
         body: self.rewrite_expr(caller, cursor, function.body),
-      })
+      }
+      transfer_function_origin(self.function_origins, function, rewritten)
+      Function(rewritten)
+    }
     Call(callee, arguments) => {
       let callee = self.rewrite_expr(caller, cursor, callee)
       let arguments = arguments.map(argument => {
@@ -169,6 +189,10 @@ fn InlineExecutor::rewrite_call(
         (self.observe)(ApplicationRejected(observation_site, Profitability))
         return Call(callee, arguments)
       }
+      let clone_context = {
+        ..clone_context,
+        function_origins: self.function_origins,
+      }
       let cloned = clone_context.clone_function(site.callable.function)
       let facts = @buslane.ExpressionFactsQuery::new(self.program)
       let reduced = reduce_application(
@@ -179,6 +203,7 @@ fn InlineExecutor::rewrite_call(
         cloned.parameters,
         arguments,
         cloned.body,
+        self.function_origins,
         self.observe,
       )
       (self.observe)(

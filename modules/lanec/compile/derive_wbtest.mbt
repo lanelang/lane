@@ -415,11 +415,11 @@ test "derive type arguments retain semantic navigation" {
     #|
     #|pub let pair_box : Box[Pair] = derive[Box, Pair]()
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: root },
-      { source_id: "file:///Void.lane", text: derive_void_source() },
-      { source_id: "file:///Iso.lane", text: derive_iso_source() },
-      { source_id: "file:///Derive.lane", text: derive_interface_source() },
-      { source_id: "file:///Support.lane", text: derive_support_source() },
+      { source_id: "file:///Main.lane", text: root, },
+      { source_id: "file:///Void.lane", text: derive_void_source(), },
+      { source_id: "file:///Iso.lane", text: derive_iso_source(), },
+      { source_id: "file:///Derive.lane", text: derive_interface_source(), },
+      { source_id: "file:///Support.lane", text: derive_support_source(), },
     ])
     is Some(snapshot) else {
     abort("expected semantic snapshot")
@@ -505,11 +505,11 @@ test "explicit derive has hover without implicit navigation" {
     #|  derive[Box, Pair](deriver=deriver)
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: root },
-      { source_id: "file:///Void.lane", text: derive_void_source() },
-      { source_id: "file:///Iso.lane", text: derive_iso_source() },
-      { source_id: "file:///Derive.lane", text: derive_interface_source() },
-      { source_id: "file:///Support.lane", text: derive_support_source() },
+      { source_id: "file:///Main.lane", text: root, },
+      { source_id: "file:///Void.lane", text: derive_void_source(), },
+      { source_id: "file:///Iso.lane", text: derive_iso_source(), },
+      { source_id: "file:///Derive.lane", text: derive_interface_source(), },
+      { source_id: "file:///Support.lane", text: derive_support_source(), },
     ])
     is Some(snapshot) else {
     abort("expected semantic snapshot")
@@ -547,11 +547,11 @@ test "invalid generic derive target retains explanatory hover" {
     #|  derive[Box, T]()
     #|}
   guard workspace.replace_sources([
-      { source_id: "file:///Main.lane", text: root },
-      { source_id: "file:///Void.lane", text: derive_void_source() },
-      { source_id: "file:///Iso.lane", text: derive_iso_source() },
-      { source_id: "file:///Derive.lane", text: derive_interface_source() },
-      { source_id: "file:///Support.lane", text: derive_support_source() },
+      { source_id: "file:///Main.lane", text: root, },
+      { source_id: "file:///Void.lane", text: derive_void_source(), },
+      { source_id: "file:///Iso.lane", text: derive_iso_source(), },
+      { source_id: "file:///Derive.lane", text: derive_interface_source(), },
+      { source_id: "file:///Support.lane", text: derive_support_source(), },
     ])
     is Some(snapshot) else {
     abort("expected semantic snapshot")

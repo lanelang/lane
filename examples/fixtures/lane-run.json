@@ -1355,9 +1355,20 @@
       }
     },
     {
-      "name": "58 external host types",
-      "file": "examples/valid/58_external_host_types.lane",
-      "mode": "check"
+      "name": "invalid 106 external host object values",
+      "file": "examples/invalid/106_external_host_object_values.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/106_external_host_object_values.lane:8:47",
+          "error[E3029]",
+          "extern `lane.test.vector.new` has an unsupported type",
+          "extern results must use a direct host ABI type",
+          "extern functions accept only Unit, I32, I64, F32, and F64 at the core WebAssembly boundary",
+          "change the declaration to a supported direct host function signature"
+        ]
+      }
     },
     {
       "name": "59 recursive generic alias",
@@ -1376,7 +1387,7 @@
         "contains": [
           "error[E3107]",
           "external type `Box` cannot have type parameters",
-          "external host values use a single opaque nominal identity",
+          "external type declarations have one nominal identity",
           "remove the type parameter list from this external type"
         ]
       }
@@ -1388,7 +1399,7 @@
       "expect": {
         "contains": [
           "error[E3029]",
-          "extern `fd.close_box` has an unsupported type",
+          "extern `lane.test.fd.close_box` has an unsupported type",
           "extern parameter 1 must use a direct host ABI type",
           "change the declaration to a supported direct host function signature"
         ]
@@ -1943,6 +1954,15 @@
       }
     },
     {
+      "name": "98 recursive effectful fold",
+      "file": "examples/valid/98_recursive_effectful_fold.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "ok\nTests passed: 1, failed: 0"
+      }
+    },
+    {
       "name": "invalid 84 initialization cycle",
       "file": "examples/invalid/84_initialization_cycle.lane",
       "mode": "check-error",
@@ -2195,7 +2215,7 @@
         "contains": [
           "--> examples/invalid/101_extern_missing_type.lane:5:14",
           "error[E3028]",
-          "extern `host` needs a complete expected function type",
+          "extern `lane.test.host` needs a complete expected function type",
           "the host signature cannot be inferred here",
           "extern declarations are unsafe signature assertions and never infer parameters, results, or effects from use",
           "add a complete function type annotation next to this extern"
@@ -2414,6 +2434,33 @@
           "candidates: Left::same, Right::same",
           "qualify the variant with its enum type, for example `Enum::same`"
         ]
+      }
+    },
+    {
+      "name": "115 canonical WASI fd_write contract",
+      "file": "examples/valid/115_wasi_fd_write_contract.lane",
+      "mode": "check"
+    },
+    {
+      "name": "invalid 116 WASI fd_write signature mismatch",
+      "file": "examples/invalid/116_wasi_fd_write_signature_mismatch.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "error[E3029]",
+          "extern `wasi_snapshot_preview1.fd_write` has an unsupported type",
+          "the declaration must use the canonical WASI core signature"
+        ]
+      }
+    },
+    {
+      "name": "117 scalar-replaced local aggregate",
+      "file": "examples/valid/117_scalar_replaced_local_aggregate.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "left\nright\nsum=3"
       }
     }
   ]

@@ -8,14 +8,14 @@ priv struct LaneSourceInput {
 ///|
 fn LaneSourceInput::to_compile_input(
   self : LaneSourceInput,
-) -> @compile.SourceInput {
-  { source_id: self.source_id, text: self.text }
+) -> @module_frontend.SourceInput {
+  { source_id: self.source_id, text: self.text, }
 }
 
 ///|
 fn LaneSourceInput::array_to_compile_inputs(
   inputs : Array[LaneSourceInput],
-) -> Array[@compile.SourceInput] {
+) -> Array[@module_frontend.SourceInput] {
   inputs.map(LaneSourceInput::to_compile_input)
 }
 
@@ -103,11 +103,11 @@ async fn read_module_object_artifact(
 }
 
 ///|
-async fn write_linked_program_artifact(
+async fn write_wasm_executable(
   path : String,
   program : @executable.ExecutableProgram,
 ) -> Result[Unit, CliError] {
-  let bytes = match @artifact.executable_to_loisvm_binary(program) {
+  let bytes = match @artifact.executable_to_wasm_binary(program) {
     Ok(bytes) => bytes
     Err(error) => return Err(ExecutionImageLowering(message="\{Repr(error)}"))
   }
@@ -118,19 +118,11 @@ async fn write_linked_program_artifact(
 }
 
 ///|
-async fn read_linked_program_artifact(
-  path : String,
-) -> Result[@loisvm_bytecode.BytecodeImage, CliError] {
+async fn read_wasm_executable(path : String) -> Result[Bytes, CliError] {
   let bytes = read_binary_file(path) catch {
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
-  match @artifact.parse_loisvm_linked_program_binary(bytes) {
-    Ok(image) => Ok(image)
-    Err(message) =>
-      Err(
-        ArtifactLoad(path~, kind="linked program bytecode artifact", message~),
-      )
-  }
+  Ok(bytes)
 }
 
 ///|
@@ -284,7 +276,7 @@ async fn append_library_source(
     error => return Err(CliError::file_io(Read, path, "\{error}"))
   }
   identities.push(identity)
-  sources.push({ source_id: path, path: Some(path), text: source })
+  sources.push({ source_id: path, path: Some(path), text: source, })
   Ok(())
 }
 

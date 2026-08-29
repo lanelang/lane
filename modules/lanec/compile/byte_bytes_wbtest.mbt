@@ -1,8 +1,8 @@
 ///|
-fn compile_test_loisvm_image(
+fn compile_test_physical_program(
   source : String,
   library_sources? : Array[String] = [],
-) -> @bytecode.BytecodeImage raise {
+) -> @physical.PhysicalProgram raise {
   let compiled = compile_modules_for_test(source, library_sources)
   assert_eq(compiled.diagnostics, [])
   guard compiled.modules is Some(modules) else {
@@ -26,16 +26,15 @@ fn compile_test_loisvm_image(
     Ok(executable) => executable
     Err(error) => fail("executable elaboration failed: \{Repr(error)}")
   }
-  let artifact = match @artifact.executable_to_loisvm_artifact(executable) {
-    Ok(artifact) => artifact
-    Err(error) => fail("LoisVM lowering failed: \{Repr(error)}")
+  match @physical_lowering.lower_executable_program_to_physical(executable) {
+    Ok(image) => image.image()
+    Err(error) => fail("physical lowering failed: \{Repr(error)}")
   }
-  artifact.bytecode
 }
 
 ///|
 test "compiler removes discarded empty-effect Byte and Bytes operations" {
-  let bytecode = compile_test_loisvm_image(
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -50,7 +49,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -58,7 +57,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
       #|  callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
       #|  data_family_count: 0,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [],
       #|        inputs: { environment: None, witnesses: [], user_parameters: [] },
@@ -78,7 +77,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
 
 ///|
 test "compiler preserves Byte and Bytes through executable lowering" {
-  let bytecode = compile_test_loisvm_image(
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -88,7 +87,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
       #|let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
       #|let bytes_set : (Bytes, I64, Byte) -> Bytes = builtin("%bytes_set")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe")
       #|
       #|fn[T] identity(value : T) -> T {
       #|  value
@@ -104,7 +103,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -119,7 +118,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|  ],
       #|  data_family_count: 0,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -185,10 +184,10 @@ test "compiler preserves Byte and Bytes through executable lowering" {
       #|    ),
       #|    RuntimeImport(
       #|      {
-      #|        abi_major: 1,
-      #|        parameters: [I64],
+      #|        module_name: "lane.test",
+      #|        field_name: "lane.test.observe",
+      #|        parameters: [Direct(I64)],
       #|        result: Unit,
-      #|        symbol: "lane.test.observe",
       #|      },
       #|    ),
       #|  ],
@@ -202,8 +201,8 @@ test "compiler preserves Byte and Bytes through executable lowering" {
 }
 
 ///|
-test "compiler preserves Byte and Bytes in fields enum payloads closures and globals" {
-  let bytecode = compile_test_loisvm_image(
+test "compiler scalar-replaces Byte and Bytes fields while preserving closures and globals" {
+  let physical_program = compile_test_physical_program(
     (
       #|module Test
       #|
@@ -211,7 +210,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|let i64_to_byte : (I64) -> Byte = builtin("%i64_to_byte")
       #|let bytes_make : (I64, Byte) -> Bytes = builtin("%bytes_make")
       #|let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
-      #|let observe : (I64) -> Unit ! Io = extern("lane.test.observe")
+      #|let observe : (I64) -> Unit ! Io = extern("lane.test", "lane.test.observe")
       #|
       #|struct Stored {
       #|  byte : Byte
@@ -243,7 +242,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
     ),
   )
   debug_inspect(
-    bytecode,
+    physical_program,
     content=(
       #|{
       #|  entry: { value: 1 },
@@ -262,13 +261,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|    },
       #|    {
       #|      witnesses: [],
-      #|      parameters: [
-      #|        {
-      #|          representation: I32,
-      #|          cleanup: OwnedRef,
-      #|          kind: DataValue({ value: 1 }),
-      #|        },
-      #|      ],
+      #|      parameters: [{ representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue }],
       #|      result: Value(I32, Trivial, ScalarValue),
       #|    },
       #|    {
@@ -277,17 +270,11 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|      result: Unit,
       #|    },
       #|  ],
-      #|  data_family_count: 2,
+      #|  data_family_count: 0,
       #|  functions: [
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
       #|          {
       #|            representation: I32,
       #|            cleanup: Trivial,
@@ -296,20 +283,8 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          },
       #|          {
       #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 0 }),
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 1 }),
       #|            erased_companion: None,
       #|          },
       #|          {
@@ -331,58 +306,18 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            parameters: [],
       #|            instructions: [
-      #|              BorrowGlobal({ value: 0 }, { value: 0 }),
-      #|              BorrowGlobal({ value: 1 }, { value: 1 }),
-      #|              RetainCopy({ value: 6 }, { value: 1 }),
-      #|              MakeData(
-      #|                { value: 2 },
-      #|                { value: 0 },
-      #|                Immediate({ value: 1 }),
-      #|                [],
-      #|                [{ value: 0 }, { value: 6 }],
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 0 },
-      #|                { value: 2 },
-      #|                0,
-      #|                { value_destination: { value: 0 }, witness_destination: None },
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 0 },
-      #|                { value: 2 },
-      #|                1,
-      #|                { value_destination: { value: 1 }, witness_destination: None },
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 0 },
-      #|                { value: 2 },
-      #|                0,
-      #|                { value_destination: { value: 3 }, witness_destination: None },
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 0 },
-      #|                { value: 2 },
-      #|                1,
-      #|                { value_destination: { value: 1 }, witness_destination: None },
-      #|              ),
-      #|              RetainCopy({ value: 6 }, { value: 1 }),
-      #|              MakeData(
-      #|                { value: 4 },
-      #|                { value: 1 },
-      #|                Immediate({ value: 2 }),
-      #|                [],
-      #|                [{ value: 0 }, { value: 6 }],
-      #|              ),
-      #|              CallDirect({ value: 5 }, None, [], [{ value: 4 }], Some({ value: 0 })),
-      #|              ByteToI64({ value: 5 }, { value: 0 }),
-      #|              Release({ value: 2 }),
+      #|              BorrowGlobal({ value: 0 }, { value: 1 }),
+      #|              BorrowGlobal({ value: 0 }, { value: 1 }),
+      #|              RetainCopy({ value: 3 }, { value: 0 }),
+      #|              CallDirect({ value: 5 }, None, [], [{ value: 3 }], Some({ value: 1 })),
+      #|              ByteToI64({ value: 2 }, { value: 1 }),
       #|            ],
-      #|            terminator: TailCallDirect({ value: 6 }, None, [], [{ value: 5 }]),
+      #|            terminator: TailCallDirect({ value: 6 }, None, [], [{ value: 2 }]),
       #|          },
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -409,7 +344,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -446,7 +381,7 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
@@ -478,29 +413,23 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|        ],
       #|      },
       #|    ),
-      #|    BytecodeBody(
+      #|    PhysicalBody(
       #|      {
       #|        slots: [
       #|          {
       #|            representation: I32,
       #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 1 }),
+      #|            kind: ByteSequenceValue,
       #|            erased_companion: None,
       #|          },
       #|          {
-      #|            representation: I32,
+      #|            representation: I64,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
       #|            erased_companion: None,
       #|          },
       #|          {
       #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ByteSequenceValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
-      #|            representation: I64,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
       #|            erased_companion: None,
@@ -512,35 +441,23 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|          {
       #|            parameters: [],
       #|            instructions: [
-      #|              BorrowField(
-      #|                { value: 1 },
-      #|                { value: 0 },
-      #|                0,
-      #|                { value_destination: { value: 1 }, witness_destination: None },
-      #|              ),
-      #|              BorrowField(
-      #|                { value: 1 },
-      #|                { value: 0 },
-      #|                1,
-      #|                { value_destination: { value: 2 }, witness_destination: None },
-      #|              ),
-      #|              ConstI64({ value: 3 }, 0),
-      #|              I64ToByte({ value: 1 }, { value: 3 }),
-      #|              ByteToI64({ value: 3 }, { value: 1 }),
-      #|              ByteSequenceGet({ value: 1 }, { value: 2 }, { value: 3 }),
+      #|              ConstI64({ value: 1 }, 0),
+      #|              I64ToByte({ value: 2 }, { value: 1 }),
+      #|              ByteToI64({ value: 1 }, { value: 2 }),
+      #|              ByteSequenceGet({ value: 2 }, { value: 0 }, { value: 1 }),
       #|              Release({ value: 0 }),
       #|            ],
-      #|            terminator: Return(Some({ value: 1 })),
+      #|            terminator: Return(Some({ value: 2 })),
       #|          },
       #|        ],
       #|      },
       #|    ),
       #|    RuntimeImport(
       #|      {
-      #|        abi_major: 1,
-      #|        parameters: [I64],
+      #|        module_name: "lane.test",
+      #|        field_name: "lane.test.observe",
+      #|        parameters: [Direct(I64)],
       #|        result: Unit,
-      #|        symbol: "lane.test.observe",
       #|      },
       #|    ),
       #|  ],
@@ -558,69 +475,8 @@ test "compiler preserves Byte and Bytes in fields enum payloads closures and glo
       #|      erased_companion: None,
       #|    },
       #|  ],
-      #|  layouts: [
-      #|    Data({ value: 0 }),
-      #|    Data({ value: 1 }),
-      #|    Environment({ value: 2 }),
-      #|    ByteSequence,
-      #|  ],
-      #|  object_shapes: [
-      #|    Data(
-      #|      {
-      #|        family: { value: 0 },
-      #|        constructor_tag: 0,
-      #|        stored_witness_count: 0,
-      #|        members: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
-      #|    Data(
-      #|      {
-      #|        family: { value: 1 },
-      #|        constructor_tag: 0,
-      #|        stored_witness_count: 0,
-      #|        members: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: ByteSequenceValue,
-      #|            witness_ordinal: None,
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
-      #|    Environment(
-      #|      {
-      #|        stored_witness_count: 0,
-      #|        members: [
-      #|          {
-      #|            representation: I32,
-      #|            cleanup: OwnedRef,
-      #|            kind: DataValue({ value: 1 }),
-      #|            witness_ordinal: None,
-      #|          },
-      #|        ],
-      #|      },
-      #|    ),
-      #|  ],
+      #|  layouts: [ByteSequence],
+      #|  object_shapes: [],
       #|  constants: [],
       #|}
     ),

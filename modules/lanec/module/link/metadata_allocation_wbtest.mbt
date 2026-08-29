@@ -8,15 +8,14 @@ fn allocation_test_link_object(
     object: {
       module_path_text,
       interface: None,
-      interface_fingerprint: { value: "interface:\{module_path_text}" },
+      interface_fingerprint: { value: "interface:\{module_path_text}", },
       canonical_basic_abi: @canonical_basic_abi.CanonicalBasicAbiRuntimeContract::empty(),
-      metadata,
-      terms: [Let(value, Literal(Unit))],
-      externals: { builtins: [], runtime_imports: [] },
+      program: { metadata, terms: [Let(value, Literal(Unit))], },
+      externals: { builtins: [], runtime_imports: [], },
       entries: [],
       exports: [],
       imports: [],
-      fingerprint: { value: "module:\{module_path_text}" },
+      fingerprint: { value: "module:\{module_path_text}", },
       object_fingerprint_valid: true,
       imported_interface_fingerprints: [],
     },
@@ -31,6 +30,7 @@ test "linker reports allocation failure without a partial linked program" {
     remapper,
     [allocation_test_link_object("Main")],
     QualifiedEntries,
+    None,
   )
   assert_eq(result, {
     program: None,

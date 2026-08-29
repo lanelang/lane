@@ -191,7 +191,7 @@ pub(all) struct OptimizationHint {
 
 ///|
 pub fn ModuleInterfaceCatalog::ModuleInterfaceCatalog() -> ModuleInterfaceCatalog {
-  { modules: [] }
+  { modules: [], }
 }
 
 ///|

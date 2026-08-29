@@ -3,13 +3,16 @@ package "Milky2018/lanec/core_opt"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/function_origin",
   "moonbitlang/core/debug",
 }
 
 // Values
-pub fn optimize(CoreOptimizeRequest) -> Result[@buslane.Program, CoreOptimizeError]
+pub fn optimize(CoreOptimizeRequest) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
 
-pub fn optimize_observed(CoreOptimizeRequest, (CoreOptimizationObservation) -> Unit) -> Result[@buslane.Program, CoreOptimizeError]
+pub fn optimize_observed(CoreOptimizeRequest, (CoreOptimizationObservation) -> Unit) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
+
+pub fn optimize_preserving_function_origins(CoreOptimizeRequest, @function_origin.FunctionOriginCatalog) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
 
 // Errors
 pub(all) suberror CoreOptimizeError {
@@ -19,18 +22,30 @@ pub(all) suberror CoreOptimizeError {
   ExpressionFactsCompilerDefect(@buslane.VerifyResult)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
+  MissingFunctionOriginCompilerDefect
+  ConflictingFunctionOriginCompilerDefect
+  OutputVerificationCompilerDefect(@buslane.VerifyResult)
 } derive(Eq, @debug.Debug)
+pub fn CoreOptimizeError::equal(Self, Self) -> Bool
+pub fn CoreOptimizeError::not_equal(Self, Self) -> Bool
+pub fn CoreOptimizeError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum ApplicationReductionRejection {
   Recursive
   Profitability
 } derive(Eq, @debug.Debug)
+pub fn ApplicationReductionRejection::equal(Self, Self) -> Bool
+pub fn ApplicationReductionRejection::not_equal(Self, Self) -> Bool
+pub fn ApplicationReductionRejection::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ApplicationReductionSite {
   DirectFunction
   KnownCallable(@buslane.ValueId)
 } derive(Eq, @debug.Debug)
+pub fn ApplicationReductionSite::equal(Self, Self) -> Bool
+pub fn ApplicationReductionSite::not_equal(Self, Self) -> Bool
+pub fn ApplicationReductionSite::to_repr(Self) -> @debug.Repr
 
 pub(all) enum CoreOptimizationObservation {
   ApplicationConsidered(ApplicationReductionSite)
@@ -38,12 +53,18 @@ pub(all) enum CoreOptimizationObservation {
   ApplicationRejected(ApplicationReductionSite, ApplicationReductionRejection)
   ProgramChanged(net_calls_removed~ : Int, net_top_terms_removed~ : Int)
 } derive(Eq, @debug.Debug)
+pub fn CoreOptimizationObservation::equal(Self, Self) -> Bool
+pub fn CoreOptimizationObservation::not_equal(Self, Self) -> Bool
+pub fn CoreOptimizationObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CoreOptimizeRequest {
-  program : @buslane.Program
+  program : @buslane.VerifiedProgram
   entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
 } derive(Eq, @debug.Debug)
+pub fn CoreOptimizeRequest::equal(Self, Self) -> Bool
+pub fn CoreOptimizeRequest::not_equal(Self, Self) -> Bool
+pub fn CoreOptimizeRequest::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

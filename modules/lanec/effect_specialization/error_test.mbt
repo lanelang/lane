@@ -27,7 +27,7 @@ test "unsupported source programs have a distinct specialization error" {
       ),
     ],
   }
-  try specialize(program, entry) catch {
+  try specialize(program.certify().unwrap(), entry) catch {
     UnsupportedProgram(context) =>
       assert_eq(context, {
         detail: "an executable entry cannot retain effect parameters",
@@ -42,7 +42,7 @@ test "unsupported source programs have a distinct specialization error" {
 }
 
 ///|
-test "invalid specialization input retains structured source context" {
+test "invalid Buslane cannot enter effect specialization" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let effect_parameter = metadata.define_type_parameter("E", Effect)
   let unit_type = @buslane.Type::Primitive(Unit)
@@ -85,16 +85,47 @@ test "invalid specialization input retains structured source context" {
       ]),
     ],
   }
-  try specialize(program, entry) catch {
-    InvalidInputMetadata(context) =>
-      assert_eq(context, {
-        detail: "an effect parameter requires an effect argument",
-        site: Some(TopLevel(entry)),
-        source: Some(TypeParameter(effect_parameter)),
-        specialization_key: [],
-      })
-    error => fail("unexpected specialization error: \{Repr(error)}")
-  } noraise {
-    _ => fail("expected an invalid-input-metadata error")
+  guard program.certify() is Err(result) else {
+    fail("expected Buslane certification to reject invalid generic arguments")
   }
+  debug_inspect(
+    result,
+    content=(
+      #|{
+      #|  diagnostics: [
+      #|    {
+      #|      kind: ExpectedEffectArgument(Primitive(Unit)),
+      #|      provenance: [
+      #|        TopTerm(
+      #|          {
+      #|            id: { index: 1 },
+      #|            name: Some({ name_space: ValueName, occurrence: "entry", unique: { value: 2 } }),
+      #|          },
+      #|        ),
+      #|        Expression(Function),
+      #|        Child(FunctionBody),
+      #|        Expression(Call),
+      #|        Child(CallCallee),
+      #|        Expression(TypeApply),
+      #|      ],
+      #|    },
+      #|    {
+      #|      kind: TypeMismatch(
+      #|        expected=Function([], Primitive(Unit), Empty),
+      #|        actual=Function([], Primitive(Unit), Parameter({ index: 0 })),
+      #|      ),
+      #|      provenance: [
+      #|        TopTerm(
+      #|          {
+      #|            id: { index: 1 },
+      #|            name: Some({ name_space: ValueName, occurrence: "entry", unique: { value: 2 } }),
+      #|          },
+      #|        ),
+      #|        Expression(Function),
+      #|      ],
+      #|    },
+      #|  ],
+      #|}
+    ),
+  )
 }
