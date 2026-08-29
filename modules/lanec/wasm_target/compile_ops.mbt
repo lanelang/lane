@@ -529,62 +529,6 @@ fn compile_instruction(
       result.append(locals.mark_slot_live(destination))
       result
     }
-    ArrayEmpty(destination, layout) => {
-      let result : Array[@wasm_types.Instruction] = [I32Const(0)]
-      result.append(compile_layout_operand(locals, layout))
-      result.append([
-        function_catalog.runtime(ArrayNew).call(),
-        LocalSet(locals.slot_local(destination)),
-      ])
-      result.append(locals.mark_slot_live(destination))
-      result
-    }
-    ArrayMake(destination, length, fill) => {
-      let witness = slots[fill.value].erased_companion.unwrap()
-      let result : Array[@wasm_types.Instruction] = [
-        LocalGet(locals.slot_local(length)),
-        LocalGet(locals.slot_local(fill)),
-        LocalGet(locals.slot_local(witness)),
-        function_catalog.runtime(ArrayMake).call(),
-        LocalSet(locals.slot_local(destination)),
-      ]
-      result.append(locals.mark_slot_dead_after_definition(fill, destination))
-      result.append(locals.mark_slot_live(destination))
-      result
-    }
-    ArrayLength(destination, source) =>
-      [
-        LocalGet(locals.slot_local(source)),
-        function_catalog.runtime(ArrayLength).call(),
-        LocalSet(locals.slot_local(destination)),
-      ]
-    ArrayGet(destination, source, index) => {
-      let witness = slots[destination.value].erased_companion.unwrap()
-      let result : Array[@wasm_types.Instruction] = [
-        LocalGet(locals.slot_local(source)),
-        LocalGet(locals.slot_local(index)),
-        LocalGet(locals.slot_local(witness)),
-        function_catalog.runtime(ArrayGet).call(),
-        LocalSet(locals.slot_local(destination)),
-      ]
-      result.append(locals.mark_slot_live(destination))
-      result
-    }
-    ArraySet(destination, source, index, value) => {
-      let witness = slots[value.value].erased_companion.unwrap()
-      let result : Array[@wasm_types.Instruction] = [
-        LocalGet(locals.slot_local(source)),
-        LocalGet(locals.slot_local(index)),
-        LocalGet(locals.slot_local(value)),
-        LocalGet(locals.slot_local(witness)),
-        function_catalog.runtime(ArraySet).call(),
-        LocalSet(locals.slot_local(destination)),
-      ]
-      result.append(locals.mark_slot_dead_after_definition(source, destination))
-      result.append(locals.mark_slot_dead_after_definition(value, destination))
-      result.append(locals.mark_slot_live(destination))
-      result
-    }
     F64ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
         I32Const(@internal_abi.float_text_capacity()),

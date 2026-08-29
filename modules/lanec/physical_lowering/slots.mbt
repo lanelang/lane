@@ -129,14 +129,6 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Owned,
         erased_companion: None,
       }
-    Array(_) =>
-      {
-        representation: I32,
-        cleanup: OwnedRef,
-        kind: ArrayValue,
-        ownership: Owned,
-        erased_companion: None,
-      }
     Callable(_, _) | Forall(_, _) =>
       {
         representation: I64,

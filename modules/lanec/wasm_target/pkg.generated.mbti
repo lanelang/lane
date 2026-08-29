@@ -122,8 +122,6 @@ pub(all) enum WasmHelperFunctionRole {
   DestroyNoop
   DestroyShape(shape~ : Int)
   ByteSequenceSizer
-  ArraySizer
-  DestroyArray
 } derive(Eq, @debug.Debug)
 pub fn WasmHelperFunctionRole::equal(Self, Self) -> Bool
 pub fn WasmHelperFunctionRole::not_equal(Self, Self) -> Bool
@@ -150,7 +148,6 @@ pub(all) enum WasmPhysicalOpcodeFamily {
   Callable
   Object
   ByteSequence
-  Array
   Scalar
   Erasure
   Global
@@ -175,13 +172,6 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteSequenceGet
   ByteSequenceSet
   ByteSequenceIsValidUtf8
-  ArrayNew
-  RequireArrayLayout
-  ArrayMake
-  ArrayIndex
-  ArrayLength
-  ArrayGet
-  ArraySet
   InstanceGlobalCleanup
 } derive(Eq, @debug.Debug)
 pub fn WasmRuntimeFunctionRole::equal(Self, Self) -> Bool

@@ -433,6 +433,7 @@ graph TD
   ISS_417["ISS-417: Lower verified Array operations into the Physical Program"]
   ISS_418["ISS-418: Implement pure generic Arrays in the Wasm target"]
   ISS_419["ISS-419: Publish and certify the Basic Array interface"]
+  ISS_420["ISS-420: Remove the abandoned generic Array feature"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

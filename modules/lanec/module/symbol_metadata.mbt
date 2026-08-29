@@ -89,7 +89,7 @@ fn collect_type_symbols(
   symbols : Array[@symbol.SymbolId],
 ) -> Unit {
   match type_ {
-    Error | Primitive(_) | BuiltinConstructor(_) => ()
+    Error | Primitive(_) => ()
     Constructor(symbol) => symbols.push(Type(symbol))
     Apply(callee, arguments) => {
       collect_type_symbols(callee, symbols)

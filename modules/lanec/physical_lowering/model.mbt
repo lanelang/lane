@@ -33,7 +33,6 @@ priv enum GlobalValue {
 ///|
 priv struct RuntimeIntrinsicFunctionContract {
   intrinsic : @abi.Intrinsic
-  evidence_parameters : Array[@anf.RuntimeEvidenceParameter]
   parameters : Array[@anf.RuntimeType]
   result : @anf.RuntimeType
   implementation : @abi.IntrinsicFunctionImplementation
@@ -43,12 +42,7 @@ priv struct RuntimeIntrinsicFunctionContract {
 fn RuntimeIntrinsicFunctionContract::type_(
   self : RuntimeIntrinsicFunctionContract,
 ) -> @anf.RuntimeType {
-  let callable = @anf.RuntimeType::Callable(self.parameters, self.result)
-  if self.evidence_parameters.is_empty() {
-    callable
-  } else {
-    @anf.RuntimeType::Forall(self.evidence_parameters, callable)
-  }
+  Callable(self.parameters, self.result)
 }
 
 ///|

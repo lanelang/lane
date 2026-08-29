@@ -23,7 +23,6 @@ supported_targets = "+all"
 
 options(
   targets: {
-    "array_test.mbt": [ "native" ],
     "bytes_test.mbt": [ "native" ],
     "compile_test.mbt": [ "native" ],
     "execution_test.mbt": [ "native" ],

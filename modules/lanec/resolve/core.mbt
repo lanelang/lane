@@ -333,7 +333,6 @@ pub(all) struct ResolvedValueParameter {
 ///|
 pub(all) enum ResolvedType {
   Primitive(@types.PrimitiveType, loc~ : SourceSpan)
-  BuiltinConstructor(@types.BuiltinTypeConstructor, loc~ : SourceSpan)
   Constructor(
     symbol~ : TypeSymbolId,
     name~ : ResolvedNominalName,

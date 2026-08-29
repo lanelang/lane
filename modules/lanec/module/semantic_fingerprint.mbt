@@ -431,7 +431,6 @@ fn CanonicalInterfaceEncoder::write_type(
         },
       )
     }
-    BuiltinConstructor(Array) => self.writer.write_u8(8)
     Constructor(symbol) => {
       self.writer.write_u8(2)
       let (module_path, name) = self.type_reference(symbol)

@@ -275,26 +275,6 @@ fn @bytecodec.ByteReader::read_intrinsic(
       self.update_view(rest)
       WasiFdWrite
     }
-    [u8be(62), .. rest] => {
-      self.update_view(rest)
-      ArrayEmpty
-    }
-    [u8be(63), .. rest] => {
-      self.update_view(rest)
-      ArrayMake
-    }
-    [u8be(64), .. rest] => {
-      self.update_view(rest)
-      ArrayLength
-    }
-    [u8be(65), .. rest] => {
-      self.update_view(rest)
-      ArrayGet
-    }
-    [u8be(66), .. rest] => {
-      self.update_view(rest)
-      ArraySet
-    }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
       invalid_binary_tag(

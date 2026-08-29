@@ -370,10 +370,8 @@ original provider definitions.
 
 The implementation uses `ModuleInterfaceCatalog` as the cross-interface lookup
 owner, `ModuleInterfaceExport` as the single public-access representation, and
-the current interface artifact schema 15. Schema 14 introduced the public
-export table; schema 15 preserves that representation while adding the built-in
-Array type constructor. `ResolvedPublicExport` retains authored source spans
-only in the live semantic pipeline; those spans are not encoded in `.lmi`
+interface artifact schema 14. `ResolvedPublicExport` retains authored source
+spans only in the live semantic pipeline; those spans are not encoded in `.lmi`
 artifacts.
 
 ### Syntax and formatting

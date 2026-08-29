@@ -124,8 +124,6 @@ fn collect_free_runtime_type_parameters(
 ) -> Unit {
   match type_ {
     Unit | Scalar(_) | ByteSequence => ()
-    Array(element) =>
-      collect_free_runtime_evidence(image, element.evidence, bound, parameters)
     Erased(_, evidence) =>
       collect_free_runtime_evidence(image, evidence, bound, parameters)
     Data(_, _) => ()

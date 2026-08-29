@@ -14,13 +14,6 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteSequenceGet
   ByteSequenceSet
   ByteSequenceIsValidUtf8
-  ArrayNew
-  RequireArrayLayout
-  ArrayMake
-  ArrayIndex
-  ArrayLength
-  ArrayGet
-  ArraySet
   InstanceGlobalCleanup
 } derive(Debug, Eq)
 
@@ -38,8 +31,6 @@ pub(all) enum WasmHelperFunctionRole {
   DestroyNoop
   DestroyShape(shape~ : Int)
   ByteSequenceSizer
-  ArraySizer
-  DestroyArray
 } derive(Debug, Eq)
 
 ///|

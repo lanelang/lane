@@ -334,7 +334,6 @@ fn @bytecodec.ByteWriter::write_lane_type(
       self.write_u8(1)
       self.write_lane_primitive_type(primitive)
     }
-    BuiltinConstructor(Array) => self.write_u8(8)
     Constructor(id) => {
       self.write_u8(2)
       self.write_type_symbol_id(id)
@@ -408,10 +407,6 @@ fn @bytecodec.ByteReader::read_lane_type(
     [u8be(7), .. rest] => {
       self.update_view(rest)
       Forall(self.read_type_parameters(), self.read_lane_type())
-    }
-    [u8be(8), .. rest] => {
-      self.update_view(rest)
-      BuiltinConstructor(Array)
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

@@ -1,6 +1,19 @@
-# RFC: Pure generic Array values
+# Deprecated RFC: Pure generic Array values
 
-Status: Accepted for implementation on 2026-08-28
+Status: Deprecated and withdrawn on 2026-08-29
+
+This proposal is not part of the Lane language. Its experimental implementation
+was removed because it made a specific pure copy-on-write collection policy a
+compiler-wide semantic and runtime primitive without an indispensable current
+consumer. In particular, it introduced Array-specific identities, intrinsic
+contracts, evidence projection, ownership operations, physical instructions,
+layout recipes, and Wasm runtime helpers across otherwise independent IR
+boundaries.
+
+This document is retained only as a historical design record. A future
+collection proposal must start from demonstrated program requirements and
+reconsider the smallest storage primitive and library boundary; it must not
+treat this RFC as an accepted compatibility contract.
 
 ## Summary
 
@@ -359,10 +372,6 @@ The type representation must distinguish a runtime primitive type constructor fr
 ### Interfaces and artifacts
 
 Module interfaces and module objects encode `Array[T]` in exported types and encode Array intrinsic bindings as ordinary `Forall` values. Semantic fingerprints, binary artifact codecs, inspection output, linker remapping, and interface-closure traversal must preserve the constructor and its type argument.
-
-This representation advances the Buslane codec to version 9, the module
-interface schema to version 15, and the module object schema to version 26.
-Current-only decoders reject versions 8, 14, and 25 respectively.
 
 Array adds no provider module identity. Importing or omitting Basic does not change the meaning or identity of `Array[T]`.
 

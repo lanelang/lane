@@ -5,15 +5,6 @@ pub extend BuiltinEffect with Debug::{to_repr}
 pub extend BuiltinEffect with Eq::{not_equal, equal}
 
 ///|
-pub extend BuiltinTypeConstructor with @prettyprinter.Pretty::{pretty}
-
-///|
-pub extend BuiltinTypeConstructor with Debug::{to_repr}
-
-///|
-pub extend BuiltinTypeConstructor with Eq::{not_equal, equal}
-
-///|
 pub extend Effect with @prettyprinter.Pretty::{pretty}
 
 ///|

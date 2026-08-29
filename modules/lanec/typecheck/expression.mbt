@@ -121,39 +121,6 @@ fn SemanticChecker::type_compatibility(
   }
   match (expected, actual) {
     (
-      Forall(expected_parameters, expected_body),
-      Forall(actual_parameters, actual_body),
-    ) => {
-      if expected_parameters.length() != actual_parameters.length() {
-        return Some(IncompatibleType)
-      }
-      let substitution = @types.TypeSubstitution::TypeSubstitution()
-      for index in 0..<expected_parameters.length() {
-        let expected_parameter = expected_parameters[index]
-        let actual_parameter = actual_parameters[index]
-        if expected_parameter.kind != actual_parameter.kind {
-          return Some(IncompatibleType)
-        }
-        match actual_parameter.kind {
-          Effect =>
-            substitution.insert_effect(
-              actual_parameter.id,
-              @types.Effect::Parameter(expected_parameter.id),
-            )
-          Type | Function(_, _) =>
-            substitution.insert(
-              actual_parameter.id,
-              @types.Type::Parameter(expected_parameter.id),
-            )
-        }
-      }
-      self.type_compatibility(
-        expected_body,
-        actual_body.substitute(substitution),
-        loc,
-      )
-    }
-    (
       Function(expected_parameters, expected_result, expected_effect),
       Function(actual_parameters, actual_result, actual_effect),
     ) =>
@@ -172,8 +139,7 @@ fn SemanticChecker::type_compatibility(
 fn @types.Type::contains_error(self : @types.Type) -> Bool {
   match self {
     Error => true
-    Primitive(_) | BuiltinConstructor(_) | Constructor(_) | Parameter(_) =>
-      false
+    Primitive(_) | Constructor(_) | Parameter(_) => false
     Apply(callee, arguments) =>
       callee.contains_error() ||
       arguments.any(fn(argument) { argument.contains_error() })

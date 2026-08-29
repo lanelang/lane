@@ -328,7 +328,7 @@ fn ArtifactInspectContext::add_type_parameters_from_type(
   type_ : @types.Type,
 ) -> Unit {
   match type_ {
-    Error | Primitive(_) | BuiltinConstructor(_) | Constructor(_) => ()
+    Error | Primitive(_) | Constructor(_) => ()
     Apply(callee, arguments) => {
       self.add_type_parameters_from_type(callee)
       for argument in arguments {
@@ -630,7 +630,6 @@ fn BuslaneInspectContext::type_text(
 ) -> String {
   match type_ {
     Primitive(primitive) => buslane_primitive_text(primitive)
-    BuiltinConstructor(Array) => "Array"
     Parameter(id) => self.type_parameter_text(id)
     Constructor(id) => self.type_id_text(id)
     Apply(callee, arguments) =>

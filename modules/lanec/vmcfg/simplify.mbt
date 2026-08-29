@@ -695,24 +695,6 @@ fn map_instruction_values(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(transform(destination), transform(source))
-    ArrayEmpty(destination, layout) =>
-      ArrayEmpty(
-        transform(destination),
-        map_layout_operand_values(layout, transform),
-      )
-    ArrayMake(destination, length, fill) =>
-      ArrayMake(transform(destination), transform(length), transform(fill))
-    ArrayLength(destination, source) =>
-      ArrayLength(transform(destination), transform(source))
-    ArrayGet(destination, source, index) =>
-      ArrayGet(transform(destination), transform(source), transform(index))
-    ArraySet(destination, source, index, value) =>
-      ArraySet(
-        transform(destination),
-        transform(source),
-        transform(index),
-        transform(value),
-      )
     WasiFdWrite(destination, fd, bytes) =>
       WasiFdWrite(transform(destination), transform(fd), transform(bytes))
     I32Add(destination, left, right) =>

@@ -35,7 +35,6 @@ pub fn TypeDisplayContext::type_text(
   match type_ {
     Error => "<error>"
     Primitive(primitive) => @prettyprinter.render(primitive.pretty(), width=80)
-    BuiltinConstructor(builtin) => builtin.name()
     Constructor(symbol) => self.type_symbol_text(symbol)
     Apply(callee, arguments) =>
       "\{self.type_text(callee)}[\{arguments.map(fn(argument) { self.generic_argument_text(argument) }).join(", ")}]"

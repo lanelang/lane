@@ -753,7 +753,7 @@ fn SpecializationPlanner::visit_type(
     raw_substitute_specialized_type(type_, ambient_bindings),
   )
   match type_ {
-    Primitive(_) | BuiltinConstructor(_) | Parameter(_) | Constructor(_) => ()
+    Primitive(_) | Parameter(_) | Constructor(_) => ()
     Apply(Constructor(source), arguments) => {
       guard self.program.metadata.type_info(source) is Some(info) else {
         for argument in arguments {

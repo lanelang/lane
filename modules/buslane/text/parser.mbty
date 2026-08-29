@@ -42,7 +42,6 @@
 %token STRING_TYPE "String"
 %token BYTE_TYPE "Byte"
 %token BYTES_TYPE "Bytes"
-%token ARRAY_TYPE "Array"
 %token IO "Io"
 %token PANIC "Panic"
 %token FORALL "forall"
@@ -346,7 +345,6 @@ applied_type -> Type
 
 atom_type -> Type
   : primitive_type { Primitive($1) }
-  | "Array" { BuiltinConstructor(Array) }
   | type_parameter_id { Parameter($1) }
   | type_id { Constructor($1) }
   | paren_type { $1 }

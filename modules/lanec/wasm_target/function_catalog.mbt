@@ -64,13 +64,6 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
     ByteSequenceIndex | ByteSequenceGet => wasm_function_type([I32, I64], [I32])
     ByteSequenceSet => wasm_function_type([I32, I64, I32], [I32])
     ByteSequenceIsValidUtf8 => wasm_function_type([I32], [I32])
-    ArrayNew => wasm_function_type([I32, I32], [I32])
-    RequireArrayLayout => wasm_function_type([I32], [I32])
-    ArrayMake => wasm_function_type([I64, I64, I32], [I32])
-    ArrayIndex => wasm_function_type([I32, I64, I32], [I32])
-    ArrayLength => wasm_function_type([I32], [I64])
-    ArrayGet => wasm_function_type([I32, I64, I32], [I64])
-    ArraySet => wasm_function_type([I32, I64, I64, I32], [I32])
     InstanceGlobalCleanup => wasm_function_type([], [])
   }
 }
@@ -87,9 +80,8 @@ fn helper_function_type(role : WasmHelperFunctionRole) -> WasmFunctionType {
     CleanupLiveReference => wasm_function_type([I32], [])
     CleanupLiveCallable => wasm_function_type([I64], [])
     CleanupLiveErased => wasm_function_type([I64, I32, I32], [])
-    DestroyNoop | DestroyShape(_) | DestroyArray =>
-      wasm_function_type([I32], [])
-    ByteSequenceSizer | ArraySizer => wasm_function_type([I32], [I32])
+    DestroyNoop | DestroyShape(_) => wasm_function_type([I32], [])
+    ByteSequenceSizer => wasm_function_type([I32], [I32])
   }
 }
 
@@ -110,13 +102,6 @@ fn runtime_function_order() -> Array[WasmRuntimeFunctionRole] {
     ByteSequenceGet,
     ByteSequenceSet,
     ByteSequenceIsValidUtf8,
-    ArrayNew,
-    RequireArrayLayout,
-    ArrayMake,
-    ArrayIndex,
-    ArrayLength,
-    ArrayGet,
-    ArraySet,
     InstanceGlobalCleanup,
   ]
 }
@@ -141,8 +126,6 @@ fn helper_function_order(
     roles.push(DestroyShape(shape~))
   }
   roles.push(ByteSequenceSizer)
-  roles.push(ArraySizer)
-  roles.push(DestroyArray)
   roles
 }
 
@@ -475,7 +458,6 @@ fn WasmFunctionCatalog::validate(
 ) -> Unit raise WasmCompileError {
   let actual_layouts = wasm_runtime_layout_ids(image)
   if self.runtime_layouts.byte_sequence != actual_layouts.byte_sequence ||
-    self.runtime_layouts.array != actual_layouts.array ||
     self.runtime_layouts.reference != actual_layouts.reference {
     raise InvalidFunctionCatalog(
       detail="runtime layout identities differ from the physical layout table",

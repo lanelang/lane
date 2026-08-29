@@ -120,7 +120,7 @@ fn validate_mon_trans_type(
   type_ : @buslane.Type,
 ) -> Unit raise SynthesisError {
   match type_ {
-    Primitive(_) | BuiltinConstructor(_) | Constructor(_) => ()
+    Primitive(_) | Constructor(_) => ()
     Parameter(parameter) =>
       validate_mon_trans_type_parameter(metadata, parameter)
     Apply(callee, arguments) => {

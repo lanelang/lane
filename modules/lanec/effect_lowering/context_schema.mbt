@@ -312,7 +312,7 @@ fn DictionaryCpsSchema::rewrite_type(
   type_ : @buslane.Type,
 ) -> @buslane.Type raise SynthesisError {
   match type_ {
-    Primitive(_) | BuiltinConstructor(_) | Constructor(_) => type_
+    Primitive(_) | Constructor(_) => type_
     Parameter(parameter) => Parameter(self.companion_parameter(parameter))
     Apply(callee, arguments) =>
       Apply(
@@ -391,7 +391,6 @@ fn DictionaryCpsSchema::source_type_kind(
 ) -> @buslane.Kind raise SynthesisError {
   match type_ {
     Primitive(_) | Function(_, _, _) | Forall(_, _) => Type
-    BuiltinConstructor(Array) => Function([Type], Type)
     Parameter(parameter) => self.source_parameter_kind(parameter)
     Constructor(type_id) => {
       guard self.source_metadata.type_info(type_id) is Some(info) else {

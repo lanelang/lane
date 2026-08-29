@@ -166,11 +166,6 @@ fn write_intrinsic(
       F32ToString => 59
       F64ToString => 60
       WasiFdWrite => 61
-      ArrayEmpty => 62
-      ArrayMake => 63
-      ArrayLength => 64
-      ArrayGet => 65
-      ArraySet => 66
     },
   )
 }

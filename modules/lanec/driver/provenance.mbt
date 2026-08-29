@@ -238,13 +238,6 @@ fn wasm_runtime_name(role : @wasm_compiler.WasmRuntimeFunctionRole) -> String {
     ByteSequenceGet => "byte sequence get"
     ByteSequenceSet => "byte sequence set"
     ByteSequenceIsValidUtf8 => "byte sequence is valid UTF-8"
-    ArrayNew => "array new"
-    RequireArrayLayout => "require array layout"
-    ArrayMake => "array make"
-    ArrayIndex => "array index"
-    ArrayLength => "array length"
-    ArrayGet => "array get"
-    ArraySet => "array set"
     InstanceGlobalCleanup => "instance global cleanup"
   }
 }
@@ -274,7 +267,5 @@ fn wasm_helper_role(
       WasmHelperFunction(name="destroy shape", ordinal=Some(shape))
     ByteSequenceSizer =>
       WasmHelperFunction(name="byte sequence sizer", ordinal=None)
-    ArraySizer => WasmHelperFunction(name="array sizer", ordinal=None)
-    DestroyArray => WasmHelperFunction(name="destroy array", ordinal=None)
   }
 }

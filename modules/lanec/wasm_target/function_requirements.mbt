@@ -111,16 +111,6 @@ fn require_physical_instruction_dependencies(
         dependencies,
         RuntimeFunction(ByteSequenceIsValidUtf8),
       )
-    ArrayEmpty(_, _) =>
-      require_wasm_function(dependencies, RuntimeFunction(ArrayNew))
-    ArrayMake(_, _, _) =>
-      require_wasm_function(dependencies, RuntimeFunction(ArrayMake))
-    ArrayLength(_, _) =>
-      require_wasm_function(dependencies, RuntimeFunction(ArrayLength))
-    ArrayGet(_, _, _) =>
-      require_wasm_function(dependencies, RuntimeFunction(ArrayGet))
-    ArraySet(_, _, _, _) =>
-      require_wasm_function(dependencies, RuntimeFunction(ArraySet))
     WasiFdWrite(_, _, _) => {
       require_wasm_function(dependencies, WasiPreview1Import(FdWrite))
       require_wasm_function(
@@ -208,11 +198,7 @@ fn runtime_function_dependencies(
 ) -> Array[WasmFunctionOrigin] {
   let dependencies : Array[WasmFunctionOrigin] = []
   match role {
-    Allocate
-    | Free
-    | RetainReference
-    | RequireByteSequenceLayout
-    | RequireArrayLayout => ()
+    Allocate | Free | RetainReference | RequireByteSequenceLayout => ()
     ReleaseReference => dependencies.push(RuntimeFunction(Free))
     ByteSequenceNew => dependencies.push(RuntimeFunction(Allocate))
     ByteSequenceEqual | ByteSequenceIndex | ByteSequenceIsValidUtf8 =>
@@ -231,17 +217,6 @@ fn runtime_function_dependencies(
         RuntimeFunction(ByteSequenceIndex),
         RuntimeFunction(ReleaseReference),
       ])
-    ArrayNew => dependencies.push(RuntimeFunction(Allocate))
-    ArrayMake => dependencies.push(RuntimeFunction(ArrayNew))
-    ArrayIndex => dependencies.push(RuntimeFunction(RequireArrayLayout))
-    ArrayLength => dependencies.push(RuntimeFunction(RequireArrayLayout))
-    ArrayGet => dependencies.push(RuntimeFunction(ArrayIndex))
-    ArraySet =>
-      dependencies.append([
-        RuntimeFunction(ArrayIndex),
-        RuntimeFunction(ArrayNew),
-        RuntimeFunction(ReleaseReference),
-      ])
     InstanceGlobalCleanup =>
       for root in global_lifecycle.owned_roots {
         require_reference_operation(dependencies, root.cleanup, false)
@@ -257,11 +232,7 @@ fn helper_function_dependencies(
 ) -> Array[WasmFunctionOrigin] {
   let dependencies : Array[WasmFunctionOrigin] = []
   match role {
-    CallableAbiGuard
-    | NoopErased
-    | DestroyNoop
-    | ByteSequenceSizer
-    | ArraySizer => ()
+    CallableAbiGuard | NoopErased | DestroyNoop | ByteSequenceSizer => ()
     RetainReferenceErased | RetainCallable =>
       dependencies.push(RuntimeFunction(RetainReference))
     ReleaseReferenceErased
@@ -279,7 +250,6 @@ fn helper_function_dependencies(
         require_reference_operation(dependencies, schema.cleanup, false)
       }
     }
-    DestroyArray => ()
   }
   dependencies
 }
@@ -373,12 +343,6 @@ fn require_layout_support(
         roots,
         HelperFunction(DestroyShape(shape=shape.value)),
       )
-    }
-    Array => {
-      require_wasm_function(roots, HelperFunction(ArraySizer))
-      require_wasm_function(roots, HelperFunction(RetainReferenceErased))
-      require_wasm_function(roots, HelperFunction(ReleaseReferenceErased))
-      require_wasm_function(roots, HelperFunction(DestroyArray))
     }
     Reference => {
       require_wasm_function(roots, HelperFunction(RetainReferenceErased))

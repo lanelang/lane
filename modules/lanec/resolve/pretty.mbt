@@ -418,7 +418,6 @@ pub impl @prettyprinter.Pretty for ResolvedType with fn pretty(
 ) {
   match type_ {
     Primitive(primitive, ..) => primitive.pretty()
-    BuiltinConstructor(builtin, ..) => builtin.pretty()
     Constructor(symbol~, name~, ..) =>
       symbol.pretty() + space + text(name.display_text())
     Alias(name~, ..) => text("alias") + space + text(name.display_text())

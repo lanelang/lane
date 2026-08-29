@@ -17,7 +17,7 @@ fn EffectSpecializer::specialize_substituted_type(
 ) -> @buslane.Type raise SpecializationError {
   let type_ = normalize_specialization_input_type(type_)
   match type_ {
-    Primitive(_) | BuiltinConstructor(_) | Parameter(_) => type_
+    Primitive(_) | Parameter(_) => type_
     Constructor(id) => {
       guard self.program.metadata.type_info(id) is Some(info) else {
         return type_

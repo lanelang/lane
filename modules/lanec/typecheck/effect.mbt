@@ -446,11 +446,7 @@ fn @types.Type::substitute_effect_parameters_with_bound(
   bound : Array[TypeParameterId],
 ) -> @types.Type {
   match self {
-    Error
-    | Primitive(_)
-    | BuiltinConstructor(_)
-    | Constructor(_)
-    | Parameter(_) => self
+    Error | Primitive(_) | Constructor(_) | Parameter(_) => self
     Apply(callee, arguments) =>
       Apply(
         callee.substitute_effect_parameters_with_bound(substitution, bound),

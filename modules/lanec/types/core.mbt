@@ -13,16 +13,6 @@ pub(all) enum PrimitiveType {
 } derive(Debug, Eq)
 
 ///|
-pub(all) enum BuiltinTypeConstructor {
-  Array
-} derive(Debug, Eq)
-
-///|
-pub fn BuiltinTypeConstructor::all() -> Array[BuiltinTypeConstructor] {
-  [Array]
-}
-
-///|
 pub fn PrimitiveType::all() -> Array[PrimitiveType] {
   [I64, I32, F64, F32, Bool, String, Char, Unit, Byte, Bytes]
 }
@@ -54,25 +44,6 @@ pub fn PrimitiveType::from_name(name : String) -> PrimitiveType? {
 }
 
 ///|
-pub fn BuiltinTypeConstructor::from_name(
-  name : String,
-) -> BuiltinTypeConstructor? {
-  for builtin in BuiltinTypeConstructor::all() {
-    if builtin.name() == name {
-      return Some(builtin)
-    }
-  }
-  None
-}
-
-///|
-pub fn BuiltinTypeConstructor::name(self : BuiltinTypeConstructor) -> String {
-  match self {
-    Array => "Array"
-  }
-}
-
-///|
 pub(all) enum Kind {
   Type
   Effect
@@ -96,7 +67,6 @@ pub(all) struct TypeParameter {
 pub(all) enum Type {
   Error
   Primitive(PrimitiveType)
-  BuiltinConstructor(BuiltinTypeConstructor)
   Constructor(TypeSymbolId)
   Apply(Type, Array[GenericArgument])
   TypeLambda(Array[TypeParameter], Type)
@@ -246,7 +216,7 @@ fn Type::substitute_with_bound(
 ) -> Type {
   match self {
     Error => self
-    Primitive(_) | BuiltinConstructor(_) => self
+    Primitive(_) => self
     Constructor(_) => self
     Apply(callee, arguments) =>
       Apply(
@@ -463,7 +433,6 @@ fn alpha_equal_with(
   match (left, right) {
     (Error, Error) => true
     (Primitive(left), Primitive(right)) => left == right
-    (BuiltinConstructor(left), BuiltinConstructor(right)) => left == right
     (Constructor(left_symbol), Constructor(right_symbol)) =>
       left_symbol == right_symbol
     (Apply(left_callee, left_args), Apply(right_callee, right_args)) =>
@@ -692,11 +661,7 @@ fn Type::normalize_with_fuel(
     raise TypeNormalizationFuelExhausted
   }
   match self {
-    Error
-    | Primitive(_)
-    | BuiltinConstructor(_)
-    | Constructor(_)
-    | Parameter(_) => self
+    Error | Primitive(_) | Constructor(_) | Parameter(_) => self
     Apply(callee, arguments) => {
       let normalized_callee = callee.normalize_with_fuel(fuel - 1)
       let normalized_arguments = arguments.map(argument => {

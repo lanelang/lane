@@ -221,7 +221,6 @@ fn BuslaneLinker::remap_type(
 ) -> @buslane.Type raise @buslane.MetadataAllocationError {
   match type_ {
     Primitive(primitive) => Primitive(primitive)
-    BuiltinConstructor(builtin) => BuiltinConstructor(builtin)
     Parameter(id) => Parameter(self.remap_type_parameter_id(object, id))
     Constructor(id) => Constructor(self.remap_type_id(object, id))
     Apply(callee, arguments) =>

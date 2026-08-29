@@ -66,7 +66,6 @@ pub(all) enum SemanticValueKind {
   LayoutConstructorValue(Int)
   CallableValue
   ByteSequenceValue
-  ArrayValue
   DataValue(DataFamilyId)
   EnvironmentValue(ObjectShapeId)
   ErasedValue
@@ -126,7 +125,6 @@ pub(all) enum LayoutRecipe {
   F32
   Callable
   ByteSequence
-  Array
   Byte
   Data(ObjectShapeId)
   Environment(ObjectShapeId)
@@ -215,11 +213,6 @@ pub(all) enum Instruction {
   ByteSequenceConcat(SlotId, SlotId, SlotId)
   ByteSequenceSlice(SlotId, SlotId, SlotId, SlotId)
   ByteSequenceIsValidUtf8(SlotId, SlotId)
-  ArrayEmpty(SlotId, LayoutOperand)
-  ArrayMake(SlotId, SlotId, SlotId)
-  ArrayLength(SlotId, SlotId)
-  ArrayGet(SlotId, SlotId, SlotId)
-  ArraySet(SlotId, SlotId, SlotId, SlotId)
   WasiFdWrite(SlotId, SlotId, SlotId)
   I32Add(SlotId, SlotId, SlotId)
   I32Sub(SlotId, SlotId, SlotId)

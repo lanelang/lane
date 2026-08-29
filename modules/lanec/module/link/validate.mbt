@@ -108,7 +108,6 @@ fn validate_object_side_tables(
         canonical_basic_abi,
         builtin.intrinsic(),
         source_type,
-        object.program.metadata,
       ) {
       diagnostics.push(
         invalid_module_object(
@@ -195,65 +194,21 @@ fn builtin_contract_matches(
   canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract,
   intrinsic : @abi.Intrinsic,
   source_type : @buslane.Type,
-  metadata : @buslane.MetadataRegistry,
 ) -> Bool {
-  let signature = intrinsic.signature()
-  let expected_type_parameters = match signature {
-    Value(type_parameters~, ..) | Function(type_parameters~, ..) =>
-      type_parameters
-  }
-  guard intrinsic_contract_body(expected_type_parameters, source_type, metadata)
-    is Some((type_parameters, source_body)) else {
-    return false
-  }
-  match (signature, source_body) {
-    (Value(type_~, ..), actual) =>
-      intrinsic_value_type_matches(
-        canonical_basic_abi, type_, actual, type_parameters,
-      )
+  match (intrinsic.signature(), source_type) {
+    (Value(kind), type_) =>
+      intrinsic_value_type_matches(canonical_basic_abi, kind, type_)
     (
       Function(parameters~, result~, effect~, ..),
       Function(actual_parameters, actual_result, actual_effect),
     ) =>
       intrinsic_parameters_match(
-        canonical_basic_abi, parameters, actual_parameters, type_parameters,
+        canonical_basic_abi, parameters, actual_parameters,
       ) &&
-      intrinsic_value_type_matches(
-        canonical_basic_abi, result, actual_result, type_parameters,
-      ) &&
+      intrinsic_value_type_matches(canonical_basic_abi, result, actual_result) &&
       intrinsic_effect_matches(effect, actual_effect)
     _ => false
   }
-}
-
-///|
-fn intrinsic_contract_body(
-  expected : Array[@abi.IntrinsicTypeParameterKind],
-  source_type : @buslane.Type,
-  metadata : @buslane.MetadataRegistry,
-) -> (Array[@buslane.TypeParameterId], @buslane.Type)? {
-  if expected.is_empty() {
-    return match source_type {
-      Forall(_, _) => None
-      _ => Some(([], source_type))
-    }
-  }
-  guard source_type is Forall(actual, body) &&
-    actual.length() == expected.length() else {
-    return None
-  }
-  for index, expected_kind in expected {
-    guard metadata.type_parameter_info(actual[index]) is Some(info) else {
-      return None
-    }
-    let kind_matches = match expected_kind {
-      Type => info.kind == @buslane.Type
-    }
-    if !kind_matches {
-      return None
-    }
-  }
-  Some((actual, body))
 }
 
 ///|
@@ -261,18 +216,12 @@ fn intrinsic_parameters_match(
   canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract,
   expected : Array[@abi.IntrinsicType],
   actual : Array[@buslane.Type],
-  type_parameters : Array[@buslane.TypeParameterId],
 ) -> Bool {
   if expected.length() != actual.length() {
     return false
   }
   for index, kind in expected {
-    if !intrinsic_value_type_matches(
-        canonical_basic_abi,
-        kind,
-        actual[index],
-        type_parameters,
-      ) {
+    if !intrinsic_value_type_matches(canonical_basic_abi, kind, actual[index]) {
       return false
     }
   }
@@ -284,7 +233,6 @@ fn intrinsic_value_type_matches(
   canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract,
   kind : @abi.IntrinsicType,
   type_ : @buslane.Type,
-  type_parameters : Array[@buslane.TypeParameterId],
 ) -> Bool {
   match kind {
     Unit => type_ == Primitive(Unit)
@@ -302,26 +250,6 @@ fn intrinsic_value_type_matches(
         Some(type_id) => type_ == Constructor(type_id)
         None => false
       }
-    Parameter(index) => type_ == Parameter(type_parameters[index])
-    Apply(Array, expected_arguments) => {
-      guard type_ is Apply(BuiltinConstructor(Array), actual_arguments) else {
-        return false
-      }
-      if expected_arguments.length() != actual_arguments.length() {
-        return false
-      }
-      for index, expected in expected_arguments {
-        guard actual_arguments[index] is TypeArgument(actual) else {
-          return false
-        }
-        if !intrinsic_value_type_matches(
-            canonical_basic_abi, expected, actual, type_parameters,
-          ) {
-          return false
-        }
-      }
-      true
-    }
   }
 }
 

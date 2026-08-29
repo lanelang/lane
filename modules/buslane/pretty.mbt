@@ -105,7 +105,7 @@ priv enum TypeLevel {
 ///|
 fn Type::level(self : Type) -> TypeLevel {
   match self {
-    Primitive(_) | BuiltinConstructor(_) | Parameter(_) | Constructor(_) => Atom
+    Primitive(_) | Parameter(_) | Constructor(_) => Atom
     Apply(_, _) => Applied
     Function(_, _, _) => Arrow
     TypeLambda(_, _) | Forall(_, _) => Whole
@@ -116,7 +116,6 @@ fn Type::level(self : Type) -> TypeLevel {
 fn type_doc(type_ : Type, at~ : TypeLevel) -> Document {
   let doc = match type_ {
     Primitive(primitive) => primitive.pretty()
-    BuiltinConstructor(Array) => text("Array")
     Parameter(parameter) => parameter.pretty()
     Constructor(type_id) => type_id.pretty()
     Apply(callee, arguments) =>

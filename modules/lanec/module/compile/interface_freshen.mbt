@@ -464,7 +464,6 @@ fn InterfaceSymbolFreshener::freshen_lane_type(
   match type_ {
     Error => Error
     Primitive(primitive) => Primitive(primitive)
-    BuiltinConstructor(builtin) => BuiltinConstructor(builtin)
     Constructor(symbol) => Constructor(self.remap_type_symbol(symbol))
     Apply(callee, arguments) =>
       Apply(

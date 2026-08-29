@@ -53,18 +53,6 @@ pub extend IntrinsicType with Debug::{to_repr}
 pub extend IntrinsicType with Eq::{not_equal, equal}
 
 ///|
-pub extend IntrinsicTypeConstructor with Debug::{to_repr}
-
-///|
-pub extend IntrinsicTypeConstructor with Eq::{not_equal, equal}
-
-///|
-pub extend IntrinsicTypeParameterKind with Debug::{to_repr}
-
-///|
-pub extend IntrinsicTypeParameterKind with Eq::{not_equal, equal}
-
-///|
 pub extend ValueKind with Debug::{to_repr}
 
 ///|

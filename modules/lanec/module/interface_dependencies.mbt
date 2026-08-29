@@ -148,7 +148,7 @@ fn collect_type_dependencies(
   symbols : InterfaceDependencySymbols,
 ) -> Unit {
   match type_ {
-    Error | Primitive(_) | BuiltinConstructor(_) | Parameter(_) => ()
+    Error | Primitive(_) | Parameter(_) => ()
     Constructor(symbol) => push_unique_type_symbol(symbols.types, symbol)
     Apply(callee, arguments) => {
       collect_type_dependencies(callee, symbols)

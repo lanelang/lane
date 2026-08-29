@@ -581,7 +581,7 @@ fn SemanticChecker::collect_resolved_public_interface_type(
           argument, escapes,
         )
       }
-    Primitive(_) | BuiltinConstructor(_) | Alias(_) | Parameter(_) => ()
+    Primitive(_) | Alias(_) | Parameter(_) => ()
   }
 }
 
@@ -714,7 +714,7 @@ fn SemanticChecker::collect_public_interface_type(
     }
     Forall(_, body) =>
       self.collect_public_interface_type(body, loc, escapes, seen)
-    Error | Primitive(_) | BuiltinConstructor(_) | Parameter(_) => ()
+    Error | Primitive(_) | Parameter(_) => ()
   }
 }
 
