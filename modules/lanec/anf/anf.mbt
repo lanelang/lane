@@ -85,6 +85,8 @@ pub(all) enum RuntimeAnfVerificationError {
   UnboundEvidence(RuntimeEvidenceId)
   InitializationOrderViolation(@buslane.ValueId)
   RuntimeTypeMismatch(expected~ : RuntimeType, actual~ : RuntimeType)
+  RuntimeTypeInstantiationFailure(RuntimeTypeInstantiationError)
+  InvalidRuntimeArgument(RuntimeArgument)
   NotCallable(RuntimeType)
   NotPolymorphic(RuntimeType)
   ArityMismatch(expected~ : Int, actual~ : Int)

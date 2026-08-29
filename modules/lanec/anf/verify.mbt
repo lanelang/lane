@@ -1,6 +1,7 @@
 ///|
 priv struct RuntimeAnfVerifier {
   metadata : RuntimeMetadata
+  runtime_types : RuntimeTypeCatalog
   top_values : Array[@buslane.ValueId]
   seen_temps : Array[AnfTempId]
   seen_functions : Array[AnfFunctionId]
@@ -26,6 +27,7 @@ fn verify_runtime_anf(
 ) -> Unit raise RuntimeAnfLoweringError {
   let verifier : RuntimeAnfVerifier = {
     metadata: program.metadata,
+    runtime_types: program.metadata.runtime_type_catalog(),
     top_values: [],
     seen_temps: [],
     seen_functions: [],
@@ -232,24 +234,17 @@ fn RuntimeAnfVerifier::verify_rhs(
     }
     ApplyEvidence(callee~, arguments~) => {
       let callee_type = self.atom_type(callee, scope, path)
-      guard callee_type is Forall(parameters, _) else {
+      guard callee_type is Forall(parameters, body) else {
         self.fail(NotPolymorphic(callee_type), path)
         return
       }
-      if parameters.length() != arguments.length() {
-        self.fail(
-          ArityMismatch(expected=parameters.length(), actual=arguments.length()),
-          path,
-        )
-      }
-      for index, argument in arguments {
-        self.verify_argument(
-          argument,
-          parameters[index].arity,
-          scope.evidence,
-          path,
-        )
-      }
+      self.verify_arguments(arguments, parameters, scope.evidence, path)
+      let actual = self.instantiate_runtime_type(
+        body,
+        runtime_substitution_entries(parameters, arguments),
+        path,
+      )
+      self.require_same_type(expected, actual, path)
     }
     Construct(construct) =>
       self.verify_construct(construct, expected, scope, path)
@@ -270,6 +265,7 @@ fn RuntimeAnfVerifier::verify_construct(
     path,
   )
   let owner = self.require_type_info(info.owner, path)
+  let constructed = RuntimeType::Data(info.owner, construct.type_arguments)
   guard expected is Data(actual_owner, _) && actual_owner == info.owner else {
     self.fail(InvalidDataConstructor(construct.data_constructor), path)
     return
@@ -279,6 +275,19 @@ fn RuntimeAnfVerifier::verify_construct(
     owner.evidence_parameters,
     scope.evidence,
     path,
+  )
+  if !self.runtime_types.types_alpha_equivalent(expected, constructed) {
+    self.fail(RuntimeTypeMismatch(expected~, actual=constructed), path)
+  }
+  let substitutions = runtime_substitution_entries(
+    info.hidden_evidence_parameters,
+    construct.hidden_arguments,
+  )
+  substitutions.append(
+    runtime_substitution_entries(
+      owner.evidence_parameters,
+      construct.type_arguments,
+    ),
   )
   self.verify_arguments(
     construct.hidden_arguments,
@@ -295,8 +304,14 @@ fn RuntimeAnfVerifier::verify_construct(
       path,
     )
   }
-  for payload in construct.payloads {
-    ignore(self.atom_type(payload, scope, path))
+  for index in 0..<construct.payloads.length().min(info.payload_types.length()) {
+    let expected_payload = self.instantiate_runtime_type(
+      info.payload_types[index],
+      substitutions,
+      path,
+    )
+    let actual_payload = self.atom_type(construct.payloads[index], scope, path)
+    self.require_same_type(expected_payload, actual_payload, path)
   }
 }
 
@@ -624,17 +639,6 @@ fn RuntimeAnfVerifier::verify_arguments_mode(
 }
 
 ///|
-fn RuntimeAnfVerifier::verify_argument(
-  self : RuntimeAnfVerifier,
-  argument : RuntimeArgument,
-  expected_arity : Int,
-  evidence : Array[RuntimeEvidenceParameter],
-  path : Array[RuntimeAnfVerificationFrame],
-) -> Unit raise RuntimeAnfLoweringError {
-  self.verify_argument_mode(argument, expected_arity, evidence, false, path)
-}
-
-///|
 fn RuntimeAnfVerifier::verify_argument_mode(
   self : RuntimeAnfVerifier,
   argument : RuntimeArgument,
@@ -667,6 +671,16 @@ fn RuntimeAnfVerifier::verify_argument_mode(
       EvidenceArityMismatch(expected=expected_arity, actual=evidence_arity),
       path,
     )
+  }
+  let consistent = self.runtime_types.argument_is_consistent(argument) catch {
+    error =>
+      raise InvalidRuntimeAnf({
+        kind: RuntimeTypeInstantiationFailure(error),
+        path,
+      })
+  }
+  if !consistent {
+    self.fail(InvalidRuntimeArgument(argument), path)
   }
 }
 
@@ -973,6 +987,34 @@ fn RuntimeAnfVerifier::require_same_type(
   if !self.metadata.types_representation_equivalent(expected, actual) {
     self.fail(RuntimeTypeMismatch(expected~, actual~), path)
   }
+}
+
+///|
+fn RuntimeAnfVerifier::instantiate_runtime_type(
+  self : RuntimeAnfVerifier,
+  type_ : RuntimeType,
+  substitutions : Array[(RuntimeEvidenceId, RuntimeArgument)],
+  path : Array[RuntimeAnfVerificationFrame],
+) -> RuntimeType raise RuntimeAnfLoweringError {
+  self.runtime_types.instantiate_type(type_, substitutions) catch {
+    error =>
+      raise InvalidRuntimeAnf({
+        kind: RuntimeTypeInstantiationFailure(error),
+        path,
+      })
+  }
+}
+
+///|
+fn runtime_substitution_entries(
+  parameters : Array[RuntimeEvidenceParameter],
+  arguments : Array[RuntimeArgument],
+) -> Array[(RuntimeEvidenceId, RuntimeArgument)] {
+  let entries = []
+  for index in 0..<parameters.length().min(arguments.length()) {
+    entries.push((parameters[index].id, arguments[index]))
+  }
+  entries
 }
 
 ///|

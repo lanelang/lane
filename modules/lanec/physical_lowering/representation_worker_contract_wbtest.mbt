@@ -1,6 +1,6 @@
 ///|
 test "alpha-equivalent runtime arguments share one representation worker contract" {
-  let runtime_types : RuntimeTypeArena = { expressions: [], }
+  let runtime_types : RuntimeTypeArena = { catalog: { expressions: [], }, }
   let left = @anf.RuntimeEvidenceId::Synthetic(0)
   let right = @anf.RuntimeEvidenceId::Synthetic(1)
   let left_body = runtime_types.intern(Parameter(left))

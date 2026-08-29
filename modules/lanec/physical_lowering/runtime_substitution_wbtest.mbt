@@ -12,10 +12,12 @@ test "runtime substitution does not expand a recursive replacement" {
     evidence: Parameter(parameter.id),
   }
   let runtime_types : RuntimeTypeArena = {
-    expressions: [
-      Parameter(parameter.id),
-      Static(Data(box, [recursive_argument])),
-    ],
+    catalog: {
+      expressions: [
+        Parameter(parameter.id),
+        Static(Data(box, [recursive_argument])),
+      ],
+    },
   }
   let substitution = RuntimeSubstitution::new()
   substitution.insert(parameter.id, {
@@ -58,5 +60,8 @@ test "Physical-Lowering-derived type expressions do not mutate Runtime ANF metad
   let original_count = image.metadata.type_expressions().length()
   ignore(image.runtime_types.intern(Static(Scalar(I64))))
   assert_eq(image.metadata.type_expressions().length(), original_count)
-  assert_eq(image.runtime_types.expressions.length(), original_count + 1)
+  assert_eq(
+    image.runtime_types.catalog.expressions.length(),
+    original_count + 1,
+  )
 }

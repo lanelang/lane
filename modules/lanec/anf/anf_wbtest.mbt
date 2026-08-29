@@ -737,3 +737,195 @@ test "Runtime ANF boundary includes callable disposition verification" {
     is Err(InvalidRuntimeAnf({ kind: CallableDispositionMismatch(_), .. })),
   )
 }
+
+///|
+fn runtime_argument_for_test(
+  expression : Int,
+  layout : RuntimeLayout,
+) -> RuntimeArgument {
+  { type_expression: { index: expression, }, evidence: Static(layout), }
+}
+
+///|
+test "Runtime ANF instantiates an evidence application result" {
+  let parameter : RuntimeEvidenceParameter = { id: Projected(0), arity: 0, }
+  let callee : @buslane.ValueId = { index: 0, }
+  let result : @buslane.ValueId = { index: 1, }
+  let temp : AnfTempId = { index: 0, }
+  let metadata : RuntimeMetadata = {
+    values: [
+      {
+        type_: Forall(
+          [parameter],
+          Erased({ index: 0, }, Parameter(parameter.id)),
+        ),
+      },
+      { type_: Unit, },
+    ],
+    types: [],
+    data_constructors: [],
+    evidence_parameters: [Some(parameter)],
+    type_expressions: [Parameter(parameter.id), Static(Scalar(I64))],
+  }
+  let invalid : AnfProgram = {
+    metadata,
+    terms: [
+      External(callee),
+      Let(
+        result,
+        Let(
+          Temp(
+            temp~,
+            type_=Unit,
+            rhs=ApplyEvidence(callee=Ref(callee), arguments=[
+              runtime_argument_for_test(1, I64),
+            ]),
+          ),
+          Atom(Temp(temp)),
+        ),
+      ),
+    ],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(
+      InvalidRuntimeAnf(
+        { kind: RuntimeTypeMismatch(expected=Unit, actual=Scalar(I64)), .. }
+      )
+    ),
+  )
+}
+
+///|
+test "Runtime ANF rejects disagreement between a runtime type expression and its evidence" {
+  let parameter : RuntimeEvidenceParameter = { id: Projected(0), arity: 0, }
+  let callee : @buslane.ValueId = { index: 0, }
+  let result : @buslane.ValueId = { index: 1, }
+  let temp : AnfTempId = { index: 0, }
+  let inconsistent = runtime_argument_for_test(1, Bool)
+  let metadata : RuntimeMetadata = {
+    values: [
+      {
+        type_: Forall(
+          [parameter],
+          Erased({ index: 0, }, Parameter(parameter.id)),
+        ),
+      },
+      { type_: Scalar(I64), },
+    ],
+    types: [],
+    data_constructors: [],
+    evidence_parameters: [Some(parameter)],
+    type_expressions: [Parameter(parameter.id), Static(Scalar(I64))],
+  }
+  let invalid : AnfProgram = {
+    metadata,
+    terms: [
+      External(callee),
+      Let(
+        result,
+        Let(
+          Temp(
+            temp~,
+            type_=Scalar(I64),
+            rhs=ApplyEvidence(callee=Ref(callee), arguments=[inconsistent]),
+          ),
+          Atom(Temp(temp)),
+        ),
+      ),
+    ],
+  }
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(InvalidRuntimeAnf({ kind: InvalidRuntimeArgument(actual), .. })) &&
+    actual == inconsistent,
+  )
+}
+
+///|
+fn generic_box_runtime_anf(
+  type_argument : RuntimeArgument,
+  payload : AnfAtom,
+) -> AnfProgram {
+  let parameter : RuntimeEvidenceParameter = { id: Projected(0), arity: 0, }
+  let owner : @buslane.TypeId = { index: 0, }
+  let data_constructor : @buslane.DataConId = { index: 0, }
+  let result : @buslane.ValueId = { index: 0, }
+  let expected_argument = runtime_argument_for_test(1, I64)
+  let expected = RuntimeType::Data(owner, [expected_argument])
+  let temp : AnfTempId = { index: 0, }
+  {
+    metadata: {
+      values: [{ type_: expected, }],
+      types: [
+        {
+          kind: Data,
+          evidence_parameters: [parameter],
+          constructors: [data_constructor],
+        },
+      ],
+      data_constructors: [
+        {
+          owner,
+          hidden_evidence_parameters: [],
+          payload_types: [Erased({ index: 0, }, Parameter(parameter.id))],
+        },
+      ],
+      evidence_parameters: [Some(parameter)],
+      type_expressions: [
+        Parameter(parameter.id),
+        Static(Scalar(I64)),
+        Static(Scalar(Bool)),
+      ],
+    },
+    terms: [
+      Let(
+        result,
+        Let(
+          Temp(
+            temp~,
+            type_=expected,
+            rhs=Construct({
+              data_constructor,
+              type_arguments: [type_argument],
+              hidden_arguments: [],
+              payloads: [payload],
+            }),
+          ),
+          Atom(Temp(temp)),
+        ),
+      ),
+    ],
+  }
+}
+
+///|
+test "Runtime ANF constructor result preserves complete nominal arguments" {
+  let invalid = generic_box_runtime_anf(
+    runtime_argument_for_test(2, Bool),
+    Literal(Bool(true)),
+  )
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(InvalidRuntimeAnf({ kind: RuntimeTypeMismatch(_), .. })),
+  )
+}
+
+///|
+test "Runtime ANF constructor payload uses the instantiated field type" {
+  let invalid = generic_box_runtime_anf(
+    runtime_argument_for_test(1, I64),
+    Literal(Bool(true)),
+  )
+  assert_true(
+    verify_forged_runtime_anf(invalid)
+    is Err(
+      InvalidRuntimeAnf(
+        {
+          kind: RuntimeTypeMismatch(expected=Scalar(I64), actual=Scalar(Bool)),
+          ..
+        }
+      )
+    ),
+  )
+}

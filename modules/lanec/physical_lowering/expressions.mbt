@@ -155,11 +155,6 @@ fn FunctionLowerer::lower_construct(
     construct.hidden_arguments,
   )
   let substitutions = owner_substitutions.overlay(hidden_substitutions)
-  if construct.payloads.length() != info.payload_types.length() {
-    raise RepresentationElaborationInvariant(
-      detail="verified Runtime ANF constructor payload arity is invalid",
-    )
-  }
   let fields = []
   for parameter in info.hidden_evidence_parameters {
     guard substitutions.argument(parameter.id) is Some(argument) else {

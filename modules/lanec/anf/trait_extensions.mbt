@@ -143,6 +143,12 @@ pub extend RuntimeAnfVerificationFrame with Debug::{to_repr}
 pub extend RuntimeAnfVerificationFrame with Eq::{not_equal, equal}
 
 ///|
+pub extend RuntimeTypeInstantiationError with Debug::{to_repr}
+
+///|
+pub extend RuntimeTypeInstantiationError with Eq::{not_equal, equal}
+
+///|
 pub extend RuntimeArgument with @prettyprinter.Pretty::{pretty}
 
 ///|

@@ -9,6 +9,8 @@ import {
 }
 
 // Values
+pub fn instantiate_runtime_evidence(RuntimeEvidence, Array[(RuntimeEvidenceId, RuntimeArgument)]) -> RuntimeEvidence
+
 pub fn lower_cps_core_to_runtime_anf(RuntimeAnfInput) -> Result[AnfProgram, RuntimeAnfLoweringError]
 
 pub fn runtime_arguments_alpha_equivalent(Array[RuntimeArgument], Array[RuntimeArgument], (RuntimeTypeExpressionId) -> RuntimeTypeExpression?) -> Bool
@@ -31,6 +33,14 @@ pub(all) suberror RuntimeAnfLoweringError {
 pub fn RuntimeAnfLoweringError::equal(Self, Self) -> Bool
 pub fn RuntimeAnfLoweringError::not_equal(Self, Self) -> Bool
 pub fn RuntimeAnfLoweringError::to_repr(Self) -> @debug.Repr
+
+pub(all) suberror RuntimeTypeInstantiationError {
+  MissingTypeExpression(RuntimeTypeExpressionId)
+  TypeExpressionArityMismatch(expected~ : Int, actual~ : Int)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeTypeInstantiationError::equal(Self, Self) -> Bool
+pub fn RuntimeTypeInstantiationError::not_equal(Self, Self) -> Bool
+pub fn RuntimeTypeInstantiationError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) struct AnfAlternative {
@@ -211,6 +221,8 @@ pub(all) enum RuntimeAnfVerificationError {
   UnboundEvidence(RuntimeEvidenceId)
   InitializationOrderViolation(@buslane.ValueId)
   RuntimeTypeMismatch(expected~ : RuntimeType, actual~ : RuntimeType)
+  RuntimeTypeInstantiationFailure(RuntimeTypeInstantiationError)
+  InvalidRuntimeArgument(RuntimeArgument)
   NotCallable(RuntimeType)
   NotPolymorphic(RuntimeType)
   ArityMismatch(expected~ : Int, actual~ : Int)
@@ -343,6 +355,7 @@ pub fn RuntimeMetadata::equal(Self, Self) -> Bool
 pub fn RuntimeMetadata::evidence_parameter(Self, RuntimeEvidenceId) -> RuntimeEvidenceParameter?
 pub fn RuntimeMetadata::not_equal(Self, Self) -> Bool
 pub fn RuntimeMetadata::parameter_type_expression(Self, RuntimeEvidenceId) -> RuntimeTypeExpressionId?
+pub fn RuntimeMetadata::runtime_type_catalog(Self) -> RuntimeTypeCatalog
 pub fn RuntimeMetadata::to_repr(Self) -> @debug.Repr
 pub fn RuntimeMetadata::type_expression(Self, RuntimeTypeExpressionId) -> RuntimeTypeExpression?
 pub fn RuntimeMetadata::type_expressions(Self) -> ArrayView[RuntimeTypeExpression]
@@ -389,6 +402,16 @@ pub fn RuntimeType::not_equal(Self, Self) -> Bool
 pub fn RuntimeType::pretty(Self) -> @prettyprinter.Document
 pub fn RuntimeType::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for RuntimeType
+
+pub(all) struct RuntimeTypeCatalog {
+  expressions : Array[RuntimeTypeExpression]
+}
+pub fn RuntimeTypeCatalog::argument_is_consistent(Self, RuntimeArgument) -> Bool raise RuntimeTypeInstantiationError
+pub fn RuntimeTypeCatalog::instantiate_argument(Self, RuntimeArgument, Array[(RuntimeEvidenceId, RuntimeArgument)]) -> RuntimeArgument raise RuntimeTypeInstantiationError
+pub fn RuntimeTypeCatalog::instantiate_type(Self, RuntimeType, Array[(RuntimeEvidenceId, RuntimeArgument)]) -> RuntimeType raise RuntimeTypeInstantiationError
+pub fn RuntimeTypeCatalog::intern(Self, RuntimeTypeExpression) -> RuntimeTypeExpressionId
+pub fn RuntimeTypeCatalog::type_expression(Self, RuntimeTypeExpressionId) -> RuntimeTypeExpression?
+pub fn RuntimeTypeCatalog::types_alpha_equivalent(Self, RuntimeType, RuntimeType) -> Bool
 
 pub(all) enum RuntimeTypeExpression {
   Static(RuntimeType)

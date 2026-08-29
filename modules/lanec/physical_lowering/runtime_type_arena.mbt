@@ -1,20 +1,16 @@
 ///|
-/// Physical-Lowering-owned arena for runtime type expressions derived while substituting
-/// and beta-reducing Runtime ANF. The immutable Runtime ANF catalog seeds this
-/// arena but is never extended by a backend consumer.
+/// Physical-Lowering-owned handle for the Runtime-ANF-owned type catalog.
+/// Derived expressions remain local to one lowering run, while instantiation
+/// semantics stay in the Runtime ANF package.
 priv struct RuntimeTypeArena {
-  expressions : Array[@anf.RuntimeTypeExpression]
+  catalog : @anf.RuntimeTypeCatalog
 }
 
 ///|
 fn RuntimeTypeArena::from_metadata(
   metadata : @anf.RuntimeMetadata,
 ) -> RuntimeTypeArena {
-  let expressions = []
-  for expression in metadata.type_expressions() {
-    expressions.push(expression)
-  }
-  { expressions, }
+  { catalog: metadata.runtime_type_catalog(), }
 }
 
 ///|
@@ -22,7 +18,7 @@ fn RuntimeTypeArena::type_expression(
   self : RuntimeTypeArena,
   expression : @anf.RuntimeTypeExpressionId,
 ) -> @anf.RuntimeTypeExpression? {
-  self.expressions.get(expression.index)
+  self.catalog.type_expression(expression)
 }
 
 ///|
@@ -30,12 +26,5 @@ fn RuntimeTypeArena::intern(
   self : RuntimeTypeArena,
   expression : @anf.RuntimeTypeExpression,
 ) -> @anf.RuntimeTypeExpressionId {
-  for index, existing in self.expressions {
-    if existing == expression {
-      return { index, }
-    }
-  }
-  let id : @anf.RuntimeTypeExpressionId = { index: self.expressions.length(), }
-  self.expressions.push(expression)
-  id
+  self.catalog.intern(expression)
 }
