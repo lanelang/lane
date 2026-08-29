@@ -89,7 +89,7 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.wasm_module().globals.length(), 10)
+  assert_eq(loaded.wasm_module().globals.length(), 8)
   let instance = match loaded.new_instance() {
     Ok(instance) => instance
     Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -286,7 +286,7 @@ test "Wasm global cleanup releases reference callable and erased roots" {
     I32(0),
   )
   assert_eq(
-    instance.store.get_global(instance.instance.global_addrs[9]).get(),
+    instance.store.get_global(instance.instance.global_addrs[7]).get(),
     I32(0),
   )
 }
@@ -294,7 +294,6 @@ test "Wasm global cleanup releases reference callable and erased roots" {
 ///|
 test "Wasm initializer failure terminates the single-shot instance" {
   let instance = wasm_global_instance(wasm_lifecycle_image(), config={
-    max_call_depth: None,
     max_live_heap_bytes: Some(16),
   })
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))

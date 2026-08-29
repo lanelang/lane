@@ -832,12 +832,7 @@ fn compile_terminator(
 ) -> Array[@wasm_types.Instruction] raise WasmCompileError {
   match terminator {
     Return(source) => {
-      let instructions : Array[@wasm_types.Instruction] = [
-        GlobalGet(call_depth_global_index),
-        I32Const(1),
-        I32Sub,
-        GlobalSet(call_depth_global_index),
-      ]
+      let instructions : Array[@wasm_types.Instruction] = []
       if source is Some(slot) {
         instructions.push(LocalGet(locals.slot_local(slot)))
       }
@@ -845,12 +840,7 @@ fn compile_terminator(
       instructions
     }
     TailCallDirect(target, environment, witnesses, arguments) => {
-      let instructions : Array[@wasm_types.Instruction] = [
-        GlobalGet(call_depth_global_index),
-        I32Const(1),
-        I32Sub,
-        GlobalSet(call_depth_global_index),
-      ]
+      let instructions : Array[@wasm_types.Instruction] = []
       match environment {
         Some(slot) => instructions.push(LocalGet(locals.slot_local(slot)))
         None => instructions.push(I32Const(0))
@@ -865,12 +855,7 @@ fn compile_terminator(
       instructions
     }
     TailCallPackedDirect(target, callable, witnesses, arguments) => {
-      let instructions : Array[@wasm_types.Instruction] = [
-        GlobalGet(call_depth_global_index),
-        I32Const(1),
-        I32Sub,
-        GlobalSet(call_depth_global_index),
-      ]
+      let instructions : Array[@wasm_types.Instruction] = []
       instructions.append(
         load_packed_direct_environment(
           locals, function_catalog, callable, target,
@@ -890,10 +875,6 @@ fn compile_terminator(
         locals, function_catalog, callable, abi_id,
       )
       instructions.append([
-        GlobalGet(call_depth_global_index),
-        I32Const(1),
-        I32Sub,
-        GlobalSet(call_depth_global_index),
         LocalGet(locals.slot_local(callable)),
         I64Const(32L),
         I64ShrU,

@@ -437,6 +437,7 @@ graph TD
   ISS_421["ISS-421: Publish the Array withdrawal atomically"]
   ISS_422["ISS-422: Rebaseline and explain current Wasm structural expansion"]
   ISS_423["ISS-423: Direct-call exact packed callable targets"]
+  ISS_424["ISS-424: Remove mandatory logical call-depth instrumentation"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

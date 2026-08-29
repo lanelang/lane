@@ -16,8 +16,6 @@ pub fn compile_observed(@physical.VerifiedPhysicalProgram) -> Result[WasmCompile
 
 pub fn failure_code_global() -> Int
 
-pub fn max_call_depth_global() -> Int
-
 pub fn max_live_heap_bytes_global() -> Int
 
 pub fn maximum_function_control_depth(@types.Module) -> Int

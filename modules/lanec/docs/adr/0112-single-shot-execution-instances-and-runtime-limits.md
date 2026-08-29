@@ -4,12 +4,11 @@
 > raw WebAssembly modules and host imports are supplied through WASI or the
 > Wasmoon linker rather than a semantic Runtime Registry.
 
-LoisVM separates a reusable Loaded Executable Image from a single-shot
-Execution Instance. A loaded image contains the decoded bytecode image,
-resolved runtime bindings, and any reusable backend product such as a compiled
-Wasm module. Each entry invocation creates a fresh execution instance containing
-the dynamic heap, call frames, mutable allocator state, runtime context, and
-per-execution resource configuration.
+Lane execution separates a reusable Loaded Executable Image from a single-shot
+Execution Instance. A loaded image contains a validated WebAssembly module and
+resolved host bindings. Each entry invocation creates a fresh execution
+instance containing the dynamic heap, mutable allocator state, runtime context,
+and per-execution resource configuration.
 
 An execution instance accepts exactly one selected-entry invocation. Completion,
 runtime failure, resource exhaustion, interruption, or engine trap makes that
@@ -18,30 +17,17 @@ from the loaded image. Separate instances may execute on different host threads,
 but one instance remains thread-confined and cannot be entered concurrently or
 re-entered from a runtime import.
 
-The interpreter implements calls with an explicit LoisVM frame stack rather
-than recursive MoonBit calls. A returning bytecode-body call pushes one frame;
-a tail call replaces the current frame. Runtime-import invocation does not
-create a Lane frame.
+Lane does not define a portable logical call-depth limit. A native WebAssembly
+stack overflow is a non-unwinding `EngineTrap`; it provides no ARC cleanup
+guarantee. Hosts that require recursion control must enforce an engine-level
+stack policy rather than changing every Lane function's runtime ABI.
 
-Execution configuration may supply `max_call_depth`. The selected entry begins
-at logical depth one. A returning call to another bytecode body checks and then
-increments logical depth; normal return decrements it. Tail calls preserve the
-current depth, and runtime imports do not affect it. The Wasm tier enforces the
-same logical rule in generated code rather than relying on the engine's native
-stack limit. Exceeding the configured limit reports
-`ExecutionResourceLimit(CallDepth)` through the private fatal failure path.
-
-An engine-native stack overflow that occurs before the logical check is a
-non-unwinding EngineTrap. It provides no ARC cleanup guarantee and indicates an
-engine limitation or unsafe execution configuration rather than the ordinary
-Lane call-depth limit.
-
-Execution configuration may also supply `max_live_heap_bytes`. Dynamic
+Execution configuration may supply `max_live_heap_bytes`. Dynamic
 allocation charges the canonical Lane allocation size, including the common
 header, payload, and canonical padding but excluding static image objects,
 allocator-private metadata, and free blocks. Final deallocation removes the
-same charge. Both the interpreter heap and the Wasm allocator enforce this
-logical live-byte counter. Exceeding it reports
+same charge. The Wasm allocator enforces this logical live-byte counter.
+Exceeding it reports
 `ExecutionResourceLimit(LiveHeapBytes)` through private fatal failure.
 Fragmentation, `memory.grow` failure, address-space exhaustion, or host OOM may
 still fail before or independently of the logical live-byte limit.
@@ -53,12 +39,11 @@ does not guarantee ARC unwinding, and makes the execution instance terminal.
 Future optional fuel support is an execution-engine facility unless Lane later
 standardizes observable fuel semantics.
 
-Private fatal failures, including runtime-import failure, logical call-depth
-exhaustion, logical live-heap exhaustion, allocation failure, and ARC overflow,
-terminate the execution without generated ownership unwinding. Arithmetic,
-conversion, unreachable, native-stack, and external-interruption traps have the
-same terminal-instance ownership rule even when they use a different physical
-failure mechanism.
+Private fatal failures, including runtime-import failure, logical live-heap
+exhaustion, allocation failure, and ARC overflow, terminate the execution
+without generated ownership unwinding. Arithmetic, conversion, unreachable,
+native-stack, and external-interruption traps have the same terminal-instance
+ownership rule even when they use a different physical failure mechanism.
 
 Successful selected-entry return performs the explicit reverse-order Instance
 Global cleanup defined by ADR-0113, but no defensive frame scan, heap scan, or
@@ -70,15 +55,13 @@ destruction semantics and does not repair leaked owners or reference cycles.
 The shared execution API distinguishes at least:
 
 - `RuntimeImportFailure`, including the offending symbol when available;
-- `ExecutionResourceLimit`, with a limit kind such as CallDepth or
-  LiveHeapBytes;
+- `ExecutionResourceLimit(LiveHeapBytes)`;
 - `Interrupted`;
 - `EngineTrap`, with backend-specific detail when available;
 - `InternalRuntimeFailure` for trusted-image or runtime implementation defects.
 
-Interpreter and Wasm execution expose the same top-level categories, but raw
-engine trap text is diagnostic detail rather than a portable semantic subtype.
-A catchable unexpected host-binding exception is converted to
+Raw engine trap text is diagnostic detail rather than a portable semantic
+subtype. A catchable unexpected host-binding exception is converted to
 RuntimeImportFailure after transferred arguments are consumed or released.
 Process-level aborts and unrecoverable host OOM are outside the guaranteed VM
 failure contract.
@@ -93,10 +76,8 @@ exact budget, and a zero or negative configured value means zero budget.
 
 - Loaded executable images are reusable; execution instances are single-shot.
 - Every entry attempt ends the current instance, whether it succeeds or fails.
-- The interpreter uses an explicit frame stack.
-- Returning Lane calls increase logical call depth; tail calls and imports do
-  not.
-- Interpreter and Wasm paths enforce the same configured logical depth rule.
+- Lane defines no portable logical call-depth limit; engine stack exhaustion is
+  an `EngineTrap`.
 - Dynamic allocation may be limited by canonical live Lane heap bytes.
 - Logical execution limits use structured fatal failure and terminate the
   instance without recovery cleanup.

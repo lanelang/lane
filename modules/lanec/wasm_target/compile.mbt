@@ -293,14 +293,6 @@ fn compile_body(
   )
   add_expansion(expansions, PhysicalStorage, 0, locals.slot_local_count)
   add_expansion(expansions, ControlFlow, 0, locals.control_local_count)
-  let prologue = call_depth_prologue()
-  add_expansion(
-    expansions,
-    RuntimeGuard,
-    wasm_instruction_array_size(prologue),
-    0,
-  )
-  let guarded_body : Array[@wasm_types.Instruction] = prologue
   let source_instruction_count_before = expansion_instruction_count(expansions)
   let compiled_control : Array[@wasm_types.Instruction] = []
   if structured is Some(sequence) {
@@ -327,23 +319,8 @@ fn compile_body(
     wasm_instruction_array_size(compiled_control) - source_instruction_count,
     0,
   )
-  guarded_body.append(compiled_control)
-  instructions.append(guarded_body)
+  instructions.append(compiled_control)
   { code: { locals: locals.locals, body: instructions, }, expansions, }
-}
-
-///|
-fn call_depth_prologue() -> Array[@wasm_types.Instruction] {
-  [
-    GlobalGet(call_depth_global_index),
-    I32Const(1),
-    I32Add,
-    GlobalSet(call_depth_global_index),
-    GlobalGet(call_depth_global_index),
-    GlobalGet(max_call_depth_global_index),
-    I32GtU,
-    If(Empty, [I32Const(1), GlobalSet(failure_code_global_index), Throw(0)], []),
-  ]
 }
 
 ///|

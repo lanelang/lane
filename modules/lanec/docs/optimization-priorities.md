@@ -106,12 +106,11 @@ Two concrete costs require different treatment:
   exactly one target, but their environment remains inside a packed callable.
   This is demonstrated removable dispatch work and is tracked separately by
   ISS-423; the packed callable may still be required by source semantics.
-- Eleven logical call-depth instructions are emitted in every Physical body.
-  They account for 4,191 of Basic's 4,215 runtime-guard instructions and 660 of
-  the scheduler's 684. This is not accidental guard duplication: it implements
-  the configurable execution limit in ADR-0112. Removing it requires an
-  explicit execution-policy change or an engine-owned equivalent, not a local
-  Wasm cleanup.
+- Eleven logical call-depth instructions were emitted in every Physical body.
+  They accounted for 4,191 of Basic's 4,215 runtime-guard instructions and 660
+  of the scheduler's 684. ISS-424 resolved the execution-policy question by
+  removing Lane-level call-depth semantics; engine stack exhaustion is now an
+  `EngineTrap` rather than a portable resource limit.
 
 ISS-423 was delivered on 2026-08-29. Exact packed-target calls now use an
 explicit direct call while the packed callable remains the environment owner.
@@ -159,15 +158,19 @@ Current owner-produced Explore measurements are:
 | Physical functions / instructions / slots | 58 / 344 / 408 | 378 / 4,672 / 4,067 |
 | Physical direct / indirect calls | 30 / 33 | 472 / 120 |
 | Closures / environments | 46 / 48 | 361 / 381 |
-| Wasm functions / instructions / locals | 100 / 4,983 / 435 | 487 / 44,218 / 4,213 |
+| Wasm functions / instructions / locals | 100 / 4,097 / 435 | 487 / 38,480 / 4,213 |
 | Wasm table entries | 79 | 363 |
 
 The scheduler no longer emits the three deleted frame-cleanup helpers and its
-Wasm instruction count falls by 2,145 from the pre-cleanup ISS-423 result.
-Basic falls by 17,617 instructions. Neither result is attributed to a peephole:
-the removed code implemented a recovery policy that contradicted the existing
-single-shot instance lifecycle. The remaining closures and table entries are
-not presumed dead. In particular, the coroutine scheduler stores continuations
+Wasm instruction count falls by 3,031 from the pre-cleanup ISS-423 result.
+Basic falls by 23,355 instructions. ISS-424 alone removed 886 scheduler and
+5,738 Basic instructions while leaving both Physical Programs unchanged.
+Runtime-guard expansion is now 29 instructions in each program, all owned by
+callable authentication rather than execution policy. Neither structural
+reduction is attributed to a peephole: the removed code implemented policies
+that contradicted or were absent from the single-shot execution contract. The
+remaining closures and table entries are not presumed dead. In particular, the
+coroutine scheduler stores continuations
 in `Step` and `Queue`; those callables escape by source semantics.
 
 The nested-handler regression in example 47 demonstrates the other boundary:
@@ -413,17 +416,11 @@ eagerly compile avoidable functions and representation plumbing.
 ## Recommended implementation order
 
 ISS-410 through ISS-414 completed static-head ownership, local scalar
-replacement, erased-contract analysis, and shared ARC cleanup. The next order
-is evidence-driven:
-
-1. Complete ISS-423 by consuming the existing exact-target/packed-environment
-   fact at the VM CFG owner. This removes known indirect dispatch without
-   changing closure escape semantics or adding a heuristic.
-2. Add finer owner-produced object-operation and ARC-frame attribution before
-   choosing a representation or unwind rewrite. Their aggregate size is large,
-   but it mixes required semantics with potential implementation expansion.
-3. Decide whether configurable logical call depth remains part of Lane's
-   execution contract before changing its per-function Wasm instrumentation.
+replacement, erased-contract analysis, and fatal-control cleanup. ISS-423
+consumed exact packed-call targets, and ISS-424 removed the non-semantic
+per-function call-depth protocol. Further work is evidence-driven: conventional
+residual optimization may proceed, while any representation or ARC rewrite
+first needs owner-produced evidence identifying the removable boundary.
 
 The current evidence does not authorize another representation bridge,
 destructor-sharing, or ARC peephole pass. There are no duplicate runtime-ABI

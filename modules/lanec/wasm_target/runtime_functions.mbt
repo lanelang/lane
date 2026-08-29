@@ -1,4 +1,11 @@
 ///|
+fn runtime_failure(
+  failure : @internal_abi.RuntimeFailureCode,
+) -> Array[@wasm_types.Instruction] {
+  [I32Const(failure.code()), GlobalSet(failure_code_global_index), Throw(0)]
+}
+
+///|
 fn compile_runtime_function(
   role : WasmRuntimeFunctionRole,
   catalog : WasmFunctionCatalog,
@@ -119,7 +126,7 @@ fn allocator_body() -> Array[@wasm_types.Instruction] {
     GlobalGet(max_live_heap_bytes_global_index),
     I32GtU,
     I32Or,
-    If(Empty, [I32Const(2), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(LiveHeapBytes), []),
     I32Const(0),
     LocalSet(2),
     GlobalGet(free_list_head_global_index),
@@ -189,7 +196,7 @@ fn allocator_body() -> Array[@wasm_types.Instruction] {
     LocalGet(7),
     LocalGet(6),
     I32LtU,
-    If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(AllocationOrArc), []),
     LocalGet(7),
     MemorySize(0),
     I32Const(16),
@@ -210,11 +217,7 @@ fn allocator_body() -> Array[@wasm_types.Instruction] {
         MemoryGrow(0),
         I32Const(-1),
         I32Eq,
-        If(
-          Empty,
-          [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)],
-          [],
-        ),
+        If(Empty, runtime_failure(AllocationOrArc), []),
       ],
       [],
     ),
@@ -282,7 +285,7 @@ fn retain_ref_body() -> Array[@wasm_types.Instruction] {
     LocalGet(1),
     I32Const(-2),
     I32Eq,
-    If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(AllocationOrArc), []),
     LocalGet(0),
     LocalGet(1),
     I32Const(1),
@@ -351,7 +354,7 @@ fn byte_sequence_new_body(
     LocalGet(1),
     LocalGet(0),
     I32LtU,
-    If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(AllocationOrArc), []),
     LocalGet(1),
     allocate_function.call(),
     LocalSet(1),
@@ -591,7 +594,7 @@ fn byte_sequence_concat_body(
     LocalGet(4),
     LocalGet(2),
     I32LtU,
-    If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(AllocationOrArc), []),
     LocalGet(4),
     byte_sequence_new_function.call(),
     LocalSet(5),
