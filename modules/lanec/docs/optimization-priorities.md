@@ -122,7 +122,7 @@ instructions for an earlier Basic revision. They remain useful evidence for why
 callable-flow and representation specialization were introduced, but they are
 not a baseline for the current raw-Wasm pipeline.
 
-Explore Protocol v6 now provides owner-produced aggregate metrics and preserves
+Explore Protocol v11 provides owner-produced aggregate metrics and preserves
 function provenance at identity-owning stages. Tree stages remain
 aggregate-only, and ordinary compilation does not construct observations. These
 metrics are evidence, not optimization policy: decisions must not depend on
