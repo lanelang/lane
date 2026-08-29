@@ -85,16 +85,17 @@ fn lower_test_executable_to_physical_observed(
   entry : @buslane_lowering.BuslaneEntry,
   observe : (PhysicalLoweringStage) -> Unit,
 ) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
+  let (verified, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
   lower_executable_program_to_physical_observed(
     {
-      program: program.certify().unwrap(),
+      program: verified,
       externals,
       entry,
       retained_values: test_retained_values(program),
-      function_origins: @function_origin.FunctionOriginCatalog::uniform(
-        program,
-        SourceWritten,
-      ),
+      function_origins,
     },
     observe,
   ).map(verified => verified.image())
@@ -106,16 +107,17 @@ fn lower_test_executable_to_physical_without_representation_specialization(
   externals : @buslane_lowering.BuslaneExternalMap,
   entry : @buslane_lowering.BuslaneEntry,
 ) -> Result[@physical.PhysicalProgram, PhysicalLoweringError] {
+  let (verified, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
   lower_executable_program_to_physical_observed_with_specialization(
     {
-      program: program.certify().unwrap(),
+      program: verified,
       externals,
       entry,
       retained_values: test_retained_values(program),
-      function_origins: @function_origin.FunctionOriginCatalog::uniform(
-        program,
-        SourceWritten,
-      ),
+      function_origins,
     },
     _ => (),
     false,
@@ -168,13 +170,14 @@ fn lower_test_linked_program_to_physical(
 ///|
 fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
   let program : @buslane.Program = { metadata, terms: [], }
+  let (verified, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
   let runtime_metadata = @anf.lower_cps_core_to_runtime_anf({
-      program: program.certify().unwrap(),
+      program: verified,
       retained_values: [],
-      function_origins: @function_origin.FunctionOriginCatalog::uniform(
-        program,
-        SourceWritten,
-      ),
+      function_origins,
     })
     .unwrap()
     .metadata()
@@ -227,13 +230,14 @@ test "function plans allocate source and synthetic origins atomically" {
     ],
   }
   let lowerer = test_image_lowerer(metadata)
+  let (verified, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
   let anf = @anf.lower_cps_core_to_runtime_anf({
-    program: program.certify().unwrap(),
+    program: verified,
     retained_values: test_retained_values(program),
-    function_origins: @function_origin.FunctionOriginCatalog::uniform(
-      program,
-      SourceWritten,
-    ),
+    function_origins,
   }).unwrap()
   ignore(lowerer.plan(anf))
   debug_inspect(

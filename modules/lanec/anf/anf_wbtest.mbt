@@ -10,14 +10,11 @@ fn runtime_anf_test_input(program : @buslane.Program) -> RuntimeAnfInput {
         }
     }
   }
-  {
-    program: program.certify().unwrap(),
-    retained_values,
-    function_origins: @function_origin.FunctionOriginCatalog::uniform(
-      program,
-      SourceWritten,
-    ),
-  }
+  let (program, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
+  { program, retained_values, function_origins, }
 }
 
 ///|

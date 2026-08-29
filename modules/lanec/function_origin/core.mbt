@@ -71,6 +71,22 @@ pub fn FunctionOriginCatalog::transfer(
 }
 
 ///|
+/// Transfers origins across a Buslane-owned program snapshot. The snapshot
+/// owner supplies exact object identities; this catalog never infers clone
+/// relationships from mutable expression structure.
+pub fn FunctionOriginCatalog::transfer_clones(
+  self : FunctionOriginCatalog,
+  clones : ArrayView[@buslane.FunctionClone],
+) -> Bool {
+  for clone in clones {
+    if !self.transfer(clone.source, clone.target) {
+      return false
+    }
+  }
+  true
+}
+
+///|
 /// Constructs an explicitly uniform catalog for direct Buslane clients. The
 /// caller, not this traversal, owns the asserted origin.
 pub fn FunctionOriginCatalog::uniform(
@@ -89,6 +105,29 @@ pub fn FunctionOriginCatalog::uniform(
     }
   }
   catalog
+}
+
+///|
+/// Certifies a direct-client Buslane program and binds one asserted origin to
+/// the certified function identities. Compiler pipelines with mixed origins
+/// instead transfer their existing catalog through the returned clone map.
+pub fn certify_uniform_program(
+  program : @buslane.Program,
+  origin : FunctionOrigin,
+) -> Result[
+  (@buslane.VerifiedProgram, FunctionOriginCatalog),
+  @buslane.VerifyResult,
+] {
+  let catalog = FunctionOriginCatalog::uniform(program, origin)
+  match program.certify_with_function_clones() {
+    Err(result) => Err(result)
+    Ok((verified, clones)) => {
+      // Every source function was recorded with the same origin above, so the
+      // Buslane-produced clone map cannot conflict.
+      ignore(catalog.transfer_clones(clones[:]))
+      Ok((verified, catalog))
+    }
+  }
 }
 
 ///|

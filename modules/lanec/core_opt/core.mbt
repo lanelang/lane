@@ -120,7 +120,11 @@ fn optimize_or_raise(
   function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.VerifiedProgram raise CoreOptimizeError {
-  let input = request.program.program()
+  let (input, input_function_clones) = request.program.program_with_function_clones()
+  if function_origins is Some(catalog) &&
+    !catalog.transfer_clones(input_function_clones[:]) {
+    raise MissingFunctionOriginCompilerDefect
+  }
   if input.metadata.value_info(request.entry) is None {
     raise UnknownRoot(request.entry)
   }
@@ -154,8 +158,14 @@ fn optimize_or_raise(
       net_top_terms_removed=input.terms.length() - optimized.terms.length(),
     ),
   )
-  match optimized.certify() {
-    Ok(program) => program
+  match optimized.certify_with_function_clones() {
+    Ok((program, output_function_clones)) => {
+      if function_origins is Some(catalog) &&
+        !catalog.transfer_clones(output_function_clones[:]) {
+        raise MissingFunctionOriginCompilerDefect
+      }
+      program
+    }
     Err(result) => raise OutputVerificationCompilerDefect(result)
   }
 }

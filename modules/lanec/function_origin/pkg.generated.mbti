@@ -7,6 +7,7 @@ import {
 }
 
 // Values
+pub fn certify_uniform_program(@buslane.Program, FunctionOrigin) -> Result[(@buslane.VerifiedProgram, FunctionOriginCatalog), @buslane.VerifyResult]
 
 // Errors
 
@@ -31,6 +32,7 @@ pub fn FunctionOriginCatalog::origin(Self, @buslane.FunctionExpr) -> FunctionOri
 pub fn FunctionOriginCatalog::record(Self, @buslane.FunctionExpr, FunctionOrigin) -> Bool
 pub fn FunctionOriginCatalog::to_repr(Self) -> @debug.Repr
 pub fn FunctionOriginCatalog::transfer(Self, @buslane.FunctionExpr, @buslane.FunctionExpr) -> Bool
+pub fn FunctionOriginCatalog::transfer_clones(Self, ArrayView[@buslane.FunctionClone]) -> Bool
 pub fn FunctionOriginCatalog::uniform(@buslane.Program, FunctionOrigin) -> Self
 
 // Type aliases

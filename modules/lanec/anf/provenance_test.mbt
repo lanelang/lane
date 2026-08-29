@@ -34,13 +34,14 @@ test "ANF assigns stable identities and preserves binding provenance" {
       ]),
     ],
   }
+  let (verified, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
   let lowered = @anf.lower_cps_core_to_runtime_anf({
-    program: program.certify().unwrap(),
+    program: verified,
     retained_values: [outer],
-    function_origins: @function_origin.FunctionOriginCatalog::uniform(
-      program,
-      SourceWritten,
-    ),
+    function_origins,
   }).unwrap()
   debug_inspect(
     lowered.terms(),

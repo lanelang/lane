@@ -31,6 +31,7 @@ pub fn verify_physical_program(
 pub fn verify_physical_program_for_execution(
   image : PhysicalProgram,
 ) -> Result[VerifiedPhysicalProgram, PhysicalProgramVerificationError] {
+  let image = image.snapshot()
   Ok({ image, global_lifecycle: PhysicalProgramVerifier::{ image, }.verify(), }) catch {
     error => Err(error)
   }

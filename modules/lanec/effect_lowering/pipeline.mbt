@@ -84,9 +84,13 @@ fn lower_effects_or_raise(
   require_transitional_program(OpenContextResolution, resolved)
   observe_effect_lowering_stage(observe, OpenContextsResolved, resolved)
   let (lifted, function_origins) = lift_monadic_continuations_or_raise(resolved)
-  let certified = match lifted.certify() {
-    Ok(program) => program
+  let (certified, function_clones) = match
+    lifted.certify_with_function_clones() {
+    Ok(result) => result
     Err(result) => raise InvalidProgram(stage=CpsCore, result~)
+  }
+  if !function_origins.transfer_clones(function_clones[:]) {
+    raise FunctionOriginCompilerDefect
   }
   { program: certified, function_origins, }
 }

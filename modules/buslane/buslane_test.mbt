@@ -213,6 +213,65 @@ test "every metadata definition preserves an exhausted registry" {
 }
 
 ///|
+test "verified Buslane programs isolate every mutable nested array" {
+  let metadata = MetadataRegistry::MetadataRegistry()
+  let element = metadata.define_type_parameter("T", Type)
+  let box = metadata.define_type("Box", [element])
+  let boxed = metadata.define_data_constructor("Box", box, [], [
+    Parameter(element),
+  ])
+  let function = metadata.define_value(
+    "function",
+    Function,
+    Function([], Primitive(Unit), Empty),
+  )
+  let program : Program = {
+    metadata,
+    terms: [
+      LetRec([
+        {
+          id: function,
+          rhs: Function({
+            parameters: [],
+            result_type: Primitive(Unit),
+            body: Literal(Unit),
+          }),
+        },
+      ]),
+    ],
+  }
+  let certified = program.certify().unwrap()
+  let expected = @prettyprinter.render(certified.program(), width=100)
+
+  let source_type = metadata.types[box.index]
+  source_type.parameters.clear()
+  guard program.terms[0] is LetRec(source_bindings) else {
+    fail("expected a recursive source term")
+  }
+  guard source_bindings[0].rhs is Function(source_function) else {
+    fail("expected a recursive source function")
+  }
+  source_function.parameters.push(function)
+  source_bindings.clear()
+
+  let exposed = certified.program()
+  let exposed_constructor = exposed.metadata.data_constructors[boxed.index]
+  exposed_constructor.payload_types.clear()
+  guard exposed.terms[0] is LetRec(exposed_bindings) else {
+    fail("expected a recursive certified term")
+  }
+  guard exposed_bindings[0].rhs is Function(exposed_function) else {
+    fail("expected a recursive certified function")
+  }
+  exposed_function.parameters.push(function)
+  exposed_bindings.clear()
+
+  let isolated = certified.program()
+  assert_eq(@prettyprinter.render(isolated, width=100), expected)
+  assert_true(verify_program(isolated).is_ok())
+}
+
+///|
 test "buslane metadata owns nominal data shape" {
   let metadata = MetadataRegistry::MetadataRegistry()
   let option_param = metadata.define_type_parameter("T", Type)

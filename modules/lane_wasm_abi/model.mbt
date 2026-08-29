@@ -27,6 +27,12 @@ pub(all) struct ImportContract {
 } derive(Debug, Eq, Compare)
 
 ///|
+/// Returns a contract whose mutable parameter storage is independent.
+pub fn ImportContract::snapshot(self : ImportContract) -> ImportContract {
+  { ..self, parameters: self.parameters.copy(), }
+}
+
+///|
 pub fn ImportParameter::core_types(
   self : ImportParameter,
 ) -> Array[CoreValueType] {

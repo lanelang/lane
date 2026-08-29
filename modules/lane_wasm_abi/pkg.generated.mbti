@@ -43,6 +43,7 @@ pub fn ImportContract::op_ge(Self, Self) -> Bool
 pub fn ImportContract::op_gt(Self, Self) -> Bool
 pub fn ImportContract::op_le(Self, Self) -> Bool
 pub fn ImportContract::op_lt(Self, Self) -> Bool
+pub fn ImportContract::snapshot(Self) -> Self
 pub fn ImportContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ImportParameter {

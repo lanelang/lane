@@ -271,6 +271,11 @@ pub fn ExpressionFactsQuery::has_empty_effect(Self, Expr) -> Result[Bool, Verify
 pub fn ExpressionFactsQuery::new(Program) -> Self
 pub fn ExpressionFactsQuery::synthesize(Self, Expr) -> Result[ExpressionFacts, VerifyResult]
 
+pub(all) struct FunctionClone {
+  source : FunctionExpr
+  target : FunctionExpr
+}
+
 pub(all) struct FunctionExpr {
   parameters : Array[ValueId]
   result_type : Type
@@ -513,6 +518,7 @@ pub(all) struct Program {
   terms : Array[TopTerm]
 } derive(Eq, @debug.Debug)
 pub fn Program::certify(Self) -> Result[VerifiedProgram, VerifyResult]
+pub fn Program::certify_with_function_clones(Self) -> Result[(VerifiedProgram, Array[FunctionClone]), VerifyResult]
 pub fn Program::equal(Self, Self) -> Bool
 pub fn Program::not_equal(Self, Self) -> Bool
 pub fn Program::pretty(Self) -> @prettyprinter.Document
@@ -709,6 +715,7 @@ pub struct VerifiedProgram {
 pub fn VerifiedProgram::equal(Self, Self) -> Bool
 pub fn VerifiedProgram::not_equal(Self, Self) -> Bool
 pub fn VerifiedProgram::program(Self) -> Program
+pub fn VerifiedProgram::program_with_function_clones(Self) -> (Program, Array[FunctionClone])
 pub fn VerifiedProgram::to_repr(Self) -> @debug.Repr
 
 pub(all) struct VerifyDiagnostic {

@@ -125,6 +125,37 @@ test "physical verifier owns canonical instance-global initialization order" {
 }
 
 ///|
+test "verified Physical programs isolate images and lifecycle plans" {
+  let source = ordered_global_image([0, 1])
+  let expected = ordered_global_image([0, 1])
+  let verified = verify_physical_program_for_execution(source).unwrap()
+
+  source.callable_abis.clear()
+  guard source.functions[1] is PhysicalBody(source_initializer) else {
+    fail("expected the source initializer")
+  }
+  source_initializer.blocks[0].instructions.clear()
+
+  let exposed = verified.image()
+  exposed.functions.clear()
+  exposed.callable_abis[0].parameters.push({
+    representation: I64,
+    cleanup: Trivial,
+    kind: ScalarValue,
+  })
+  let exposed_lifecycle = verified.global_lifecycle()
+  exposed_lifecycle.roots.clear()
+
+  let isolated = verified.image()
+  assert_eq(isolated, expected)
+  assert_eq(verified.global_lifecycle().roots.map(root => root.global), [
+    { value: 0, },
+    { value: 1, },
+  ])
+  assert_true(verify_physical_program(isolated) is Ok(_))
+}
+
+///|
 test "physical verifier enforces Fatal message shape" {
   let message = verification_slot(
     I32,

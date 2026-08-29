@@ -60,12 +60,12 @@ pub struct VerifiedPhysicalProgram {
 pub fn VerifiedPhysicalProgram::image(
   self : VerifiedPhysicalProgram,
 ) -> PhysicalProgram {
-  self.image
+  self.image.snapshot()
 }
 
 ///|
 pub fn VerifiedPhysicalProgram::global_lifecycle(
   self : VerifiedPhysicalProgram,
 ) -> GlobalLifecyclePlan {
-  self.global_lifecycle
+  self.global_lifecycle.snapshot()
 }

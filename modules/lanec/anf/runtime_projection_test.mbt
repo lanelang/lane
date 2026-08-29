@@ -11,17 +11,24 @@ fn lower_all_runtime_anf(program : @buslane.Program) -> @anf.AnfProgram {
     }
   }
   match
-    @anf.lower_cps_core_to_runtime_anf({
-      program: program.certify().unwrap(),
-      retained_values,
-      function_origins: @function_origin.FunctionOriginCatalog::uniform(
-        program,
-        SourceWritten,
-      ),
-    }) {
+    @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(program, retained_values),
+    ) {
     Ok(program) => program
     Err(error) => abort("unexpected Runtime ANF failure: \{Repr(error)}")
   }
+}
+
+///|
+fn uniform_runtime_anf_input(
+  program : @buslane.Program,
+  retained_values : Array[@buslane.ValueId],
+) -> @anf.RuntimeAnfInput {
+  let (program, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
+  { program, retained_values, function_origins, }
 }
 
 ///|
@@ -112,14 +119,9 @@ test "runtime ANF contains only retained top-level terms" {
       ),
     ],
   }
-  let runtime = @anf.lower_cps_core_to_runtime_anf({
-    program: source.certify().unwrap(),
-    retained_values: [retained],
-    function_origins: @function_origin.FunctionOriginCatalog::uniform(
-      source,
-      SourceWritten,
-    ),
-  }).unwrap()
+  let runtime = @anf.lower_cps_core_to_runtime_anf(
+    uniform_runtime_anf_input(source, [retained]),
+  ).unwrap()
   assert_true(runtime.terms() is [Let(actual, _)] && actual == retained)
 }
 
@@ -151,14 +153,9 @@ test "runtime ANF rejects a retention set with a missing dependency" {
     ],
   }
   assert_true(
-    @anf.lower_cps_core_to_runtime_anf({
-      program: source.certify().unwrap(),
-      retained_values: [entry],
-      function_origins: @function_origin.FunctionOriginCatalog::uniform(
-        source,
-        SourceWritten,
-      ),
-    })
+    @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(source, [entry]),
+    )
     is Err(InvalidRetention(_)),
   )
 }
@@ -183,26 +180,16 @@ test "runtime ANF rejects malformed retained-value sets" {
     ],
   }
   assert_true(
-    @anf.lower_cps_core_to_runtime_anf({
-      program: source.certify().unwrap(),
-      retained_values: [entry, entry],
-      function_origins: @function_origin.FunctionOriginCatalog::uniform(
-        source,
-        SourceWritten,
-      ),
-    })
+    @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(source, [entry, entry]),
+    )
     is Err(DuplicateRetainedValue(actual)) &&
     actual == entry,
   )
   assert_true(
-    @anf.lower_cps_core_to_runtime_anf({
-      program: source.certify().unwrap(),
-      retained_values: [entry, orphan],
-      function_origins: @function_origin.FunctionOriginCatalog::uniform(
-        source,
-        SourceWritten,
-      ),
-    })
+    @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(source, [entry, orphan]),
+    )
     is Err(UnknownRetainedValue(actual)) &&
     actual == orphan,
   )
@@ -401,14 +388,9 @@ test "runtime ANF beta-reduces projected type-lambda applications" {
 test "runtime representation equality preserves semantic value categories" {
   let registry = @buslane.MetadataRegistry::MetadataRegistry()
   let program : @buslane.Program = { metadata: registry, terms: [], }
-  let metadata = @anf.lower_cps_core_to_runtime_anf({
-      program: program.certify().unwrap(),
-      retained_values: [],
-      function_origins: @function_origin.FunctionOriginCatalog::uniform(
-        program,
-        SourceWritten,
-      ),
-    })
+  let metadata = @anf.lower_cps_core_to_runtime_anf(
+      uniform_runtime_anf_input(program, []),
+    )
     .unwrap()
     .metadata()
   let left_parameter : @anf.RuntimeEvidenceParameter = {

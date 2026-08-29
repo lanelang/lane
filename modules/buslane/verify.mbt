@@ -298,11 +298,23 @@ pub fn verify_program(program : Program) -> VerifyResult {
 pub fn Program::certify(
   self : Program,
 ) -> Result[VerifiedProgram, VerifyResult] {
+  match self.certify_with_function_clones() {
+    Ok((program, _)) => Ok(program)
+    Err(result) => Err(result)
+  }
+}
+
+///|
+/// Certifies a raw program and returns the function identities rewritten by
+/// the certification snapshot. Compiler-owned identity side tables use this
+/// mapping to preserve their facts without weakening snapshot isolation.
+pub fn Program::certify_with_function_clones(
+  self : Program,
+) -> Result[(VerifiedProgram, Array[FunctionClone]), VerifyResult] {
   let result = verify_program(self)
   if result.is_ok() {
-    Ok({
-      program: { metadata: self.metadata.snapshot(), terms: self.terms.copy(), },
-    })
+    let (program, function_clones) = self.snapshot_with_function_clones()
+    Ok(({ program, }, function_clones))
   } else {
     Err(result)
   }
@@ -311,10 +323,15 @@ pub fn Program::certify(
 ///|
 /// Returns the certified program for read-only compiler transformation.
 pub fn VerifiedProgram::program(self : VerifiedProgram) -> Program {
-  {
-    metadata: self.program.metadata.snapshot(),
-    terms: self.program.terms.copy(),
-  }
+  self.program_with_function_clones().0
+}
+
+///|
+/// Returns an isolated compiler snapshot and its exact function identity map.
+pub fn VerifiedProgram::program_with_function_clones(
+  self : VerifiedProgram,
+) -> (Program, Array[FunctionClone]) {
+  self.program.snapshot_with_function_clones()
 }
 
 ///|

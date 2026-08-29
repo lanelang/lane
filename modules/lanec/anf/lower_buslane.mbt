@@ -24,18 +24,28 @@ pub fn lower_cps_core_to_runtime_anf(
 fn lower_cps_core_to_runtime_anf_or_raise(
   input : RuntimeAnfInput,
 ) -> AnfProgram raise RuntimeAnfLoweringError {
-  let program = input.program.program()
+  let (program, input_function_clones) = input.program.program_with_function_clones()
+  if !input.function_origins.transfer_clones(input_function_clones[:]) {
+    raise MissingFunctionOrigin
+  }
   validate_retained_values(program.terms, input.retained_values)
   let retained_terms = retained_top_terms(program.terms, input.retained_values)
   let retained_program : @buslane.Program = {
     metadata: program.metadata,
     terms: retained_terms,
   }
-  let retained = match retained_program.certify() {
-    Ok(program) => program
+  let (retained, retained_function_clones) = match
+    retained_program.certify_with_function_clones() {
+    Ok(result) => result
     Err(result) => raise InvalidRetention(result)
   }
-  let program = retained.program()
+  if !input.function_origins.transfer_clones(retained_function_clones[:]) {
+    raise MissingFunctionOrigin
+  }
+  let (program, program_function_clones) = retained.program_with_function_clones()
+  if !input.function_origins.transfer_clones(program_function_clones[:]) {
+    raise MissingFunctionOrigin
+  }
   let generic_plan = runtime_generic_plan(program, retained_terms)
   let lowerer = AnfLowerer::{
     generic_plan,

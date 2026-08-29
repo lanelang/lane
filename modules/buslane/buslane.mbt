@@ -372,18 +372,16 @@ pub fn MetadataRegistry::MetadataRegistry() -> MetadataRegistry {
 }
 
 ///|
-/// Returns a snapshot with independent registry table storage.
-///
-/// Metadata payload values are shared.
+/// Returns a recursively independent metadata snapshot.
 pub fn MetadataRegistry::snapshot(self : MetadataRegistry) -> MetadataRegistry {
   {
     name_allocator: self.name_allocator,
-    types: self.types.copy(),
-    type_parameters: self.type_parameters.copy(),
-    values: self.values.copy(),
-    data_constructors: self.data_constructors.copy(),
-    effects: self.effects.copy(),
-    operations: self.operations.copy(),
+    types: self.types.map(info => info.snapshot()),
+    type_parameters: self.type_parameters.map(info => info.snapshot()),
+    values: self.values.map(info => info.snapshot()),
+    data_constructors: self.data_constructors.map(info => info.snapshot()),
+    effects: self.effects.map(info => info.snapshot()),
+    operations: self.operations.map(info => info.snapshot()),
   }
 }
 

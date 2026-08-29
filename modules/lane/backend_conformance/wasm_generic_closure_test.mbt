@@ -14,15 +14,16 @@ fn lower_unoptimized_test_program(
         }
     }
   }
+  let (verified, function_origins) = @function_origin.certify_uniform_program(
+    program,
+    SourceWritten,
+  ).unwrap()
   @physical_lowering.lower_executable_program_to_physical({
-    program: program.certify().unwrap(),
+    program: verified,
     externals,
     entry,
     retained_values,
-    function_origins: @function_origin.FunctionOriginCatalog::uniform(
-      program,
-      SourceWritten,
-    ),
+    function_origins,
   }).map(verified => verified.image())
 }
 
