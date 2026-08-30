@@ -271,9 +271,9 @@ fn @bytecodec.ByteReader::read_intrinsic(
       self.update_view(rest)
       F64ToString
     }
-    [u8be(61), .. rest] => {
+    [u8be(62), .. rest] => {
       self.update_view(rest)
-      WasiFdWrite
+      WasmAbiStoreAddress
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
@@ -330,6 +330,10 @@ fn @bytecodec.ByteReader::read_wasm_import_parameter(
     [u8be(4), .. rest] => {
       self.update_view(rest)
       Direct(F64)
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      GuestAddress
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

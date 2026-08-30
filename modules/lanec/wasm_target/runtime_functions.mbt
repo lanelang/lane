@@ -94,6 +94,15 @@ fn compile_runtime_function(
           catalog.runtime(ReleaseReference),
         ),
       }
+    ByteSequenceStoreAddress =>
+      {
+        locals: [I32, I32, I32],
+        body: byte_sequence_store_address_body(
+          catalog.runtime(RequireByteSequenceLayout),
+          catalog.runtime(ByteSequenceNew),
+          catalog.runtime(ReleaseReference),
+        ),
+      }
     ByteSequenceIsValidUtf8 =>
       {
         locals: [I32, I32, I32, I32],
@@ -517,6 +526,86 @@ fn byte_sequence_set_body(
     LocalGet(0),
     release_ref_function.call(),
     LocalGet(4),
+  ]
+}
+
+///|
+fn byte_sequence_store_address_body(
+  require_byte_sequence_layout_function : WasmFunctionHandle,
+  byte_sequence_new_function : WasmFunctionHandle,
+  release_ref_function : WasmFunctionHandle,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    require_byte_sequence_layout_function.call(),
+    LocalGet(1),
+    I64Const(0L),
+    I64LtS,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I64Const(4L),
+    I64Add,
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    I64ExtendI32U,
+    I64GtU,
+    If(Empty, [Unreachable], []),
+    LocalGet(2),
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    I32GtU,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I32WrapI64,
+    LocalSet(3),
+    LocalGet(0),
+    I32Const(12),
+    I32Add,
+    LocalGet(2),
+    I32Add,
+    LocalSet(4),
+    LocalGet(0),
+    I32Load(0, 2, 0L),
+    I32Const(1),
+    I32Eq,
+    If(
+      Empty,
+      [
+        LocalGet(0),
+        LocalGet(3),
+        I32Add,
+        LocalGet(4),
+        I32Store(0, 2, 12L),
+        LocalGet(0),
+        Return,
+      ],
+      [],
+    ),
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    byte_sequence_new_function.call(),
+    LocalSet(5),
+    LocalGet(5),
+    I32Const(12),
+    I32Add,
+    LocalGet(0),
+    I32Const(12),
+    I32Add,
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    MemoryCopy(0, 0),
+    LocalGet(5),
+    LocalGet(3),
+    I32Add,
+    LocalGet(5),
+    I32Const(12),
+    I32Add,
+    LocalGet(2),
+    I32Add,
+    I32Store(0, 2, 12L),
+    LocalGet(0),
+    release_ref_function.call(),
+    LocalGet(5),
   ]
 }
 

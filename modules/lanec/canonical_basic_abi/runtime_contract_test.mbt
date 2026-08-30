@@ -1,7 +1,8 @@
 ///|
 test "runtime contract preserves a missing declaration as a typed ABI error" {
-  let contract = CanonicalBasicAbiRuntimeContract::from_void_type(
+  let contract = CanonicalBasicAbiRuntimeContract::from_types(
     Some({ index: 0, }),
+    None,
   )
   guard contract.certify([], MetadataRegistry()) is Err(error) else {
     fail("missing canonical Void declaration unexpectedly certified")
@@ -26,5 +27,56 @@ test "runtime contract preserves a missing declaration as a typed ABI error" {
       #|  suggestions: [],
       #|}
     ),
+  )
+}
+
+///|
+test "runtime contract certifies the exact WasmAddress object shape" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let type_id = metadata.define_type("WasmAddress", [])
+  ignore(
+    metadata.define_data_constructor("WasmAddress", type_id, [], [
+      @buslane.Type::Primitive(Bytes),
+      @buslane.Type::Primitive(I32),
+    ]),
+  )
+  let contract = CanonicalBasicAbiRuntimeContract::from_types(
+    None,
+    Some(type_id),
+  )
+  let declarations = [
+    CanonicalBasicAbiObjectTypeDeclaration::{
+      module_path: "Basic.Wasm.Abi",
+      name: "WasmAddress",
+      type_id,
+    },
+  ]
+  assert_true(contract.certify(declarations, metadata) is Ok(_))
+}
+
+///|
+test "runtime contract rejects a forged WasmAddress object shape" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let type_id = metadata.define_type("WasmAddress", [])
+  ignore(
+    metadata.define_data_constructor("WasmAddress", type_id, [], [
+      @buslane.Type::Primitive(Bytes),
+      @buslane.Type::Primitive(I64),
+    ]),
+  )
+  let contract = CanonicalBasicAbiRuntimeContract::from_types(
+    None,
+    Some(type_id),
+  )
+  let declarations = [
+    CanonicalBasicAbiObjectTypeDeclaration::{
+      module_path: "Basic.Wasm.Abi",
+      name: "WasmAddress",
+      type_id,
+    },
+  ]
+  assert_true(
+    contract.certify(declarations, metadata)
+    is Err(InvalidDeclaration(provider=WasmAddress, reason=_)),
   )
 }

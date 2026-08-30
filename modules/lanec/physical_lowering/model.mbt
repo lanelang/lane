@@ -62,6 +62,7 @@ priv enum PlannedEntry {
   CallableAdapter(CallableAdapterPlan)
   LayoutConstructor(LayoutConstructorPlan)
   RuntimeImport(@wasm_abi.ImportContract)
+  RuntimeImportAdapter(RuntimeImportAdapterPlan)
 }
 
 ///|
@@ -100,7 +101,15 @@ pub(all) enum PhysicalFunctionOrigin {
     module_name~ : String,
     field_name~ : String
   )
+  RuntimeImportAdapter(module_name~ : String, field_name~ : String)
 } derive(Debug, Eq)
+
+///|
+priv struct RuntimeImportAdapterPlan {
+  import_function : @physical.FunctionId
+  contract : @wasm_abi.ImportContract
+  source_type : @anf.RuntimeType
+}
 
 ///|
 priv struct PlannedFunction {

@@ -75,6 +75,7 @@ fn compile_instruction(
       }
       result
     }
+    KeepAlive(_) => []
     ConstI64(destination, value) =>
       [I64Const(value), LocalSet(locals.slot_local(destination))]
     ConstI32(destination, value) =>
@@ -290,24 +291,20 @@ fn compile_instruction(
         I64ExtendI32U,
         LocalSet(locals.slot_local(destination)),
       ]
-    WasiFdWrite(destination, fd, bytes) =>
+    ByteSequenceAddress(destination, source, offset) =>
       [
-        LocalGet(locals.slot_local(bytes)),
+        LocalGet(locals.slot_local(source)),
         function_catalog.runtime(RequireByteSequenceLayout).call(),
-        I32Const(static_image.wasi_iovec_base),
-        LocalGet(locals.slot_local(bytes)),
+        LocalGet(locals.slot_local(offset)),
+        LocalGet(locals.slot_local(source)),
+        I32Load(0, 2, 8L),
+        I32GtU,
+        If(Empty, [Unreachable], []),
+        LocalGet(locals.slot_local(source)),
         I32Const(12),
         I32Add,
-        I32Store(0, 2, 0L),
-        I32Const(static_image.wasi_iovec_base),
-        LocalGet(locals.slot_local(bytes)),
-        I32Load(0, 2, 8L),
-        I32Store(0, 2, 4L),
-        LocalGet(locals.slot_local(fd)),
-        I32Const(static_image.wasi_iovec_base),
-        I32Const(1),
-        I32Const(static_image.wasi_iovec_base + 8),
-        function_catalog.wasi_preview1_import(FdWrite).call(),
+        LocalGet(locals.slot_local(offset)),
+        I32Add,
         LocalSet(locals.slot_local(destination)),
       ]
     ByteSequenceGet(destination, source, index) =>
@@ -327,6 +324,14 @@ fn compile_instruction(
       ]
       result
     }
+    ByteSequenceStoreAddress(destination, source, index, offset) =>
+      [
+        LocalGet(locals.slot_local(source)),
+        LocalGet(locals.slot_local(index)),
+        LocalGet(locals.slot_local(offset)),
+        function_catalog.runtime(ByteSequenceStoreAddress).call(),
+        LocalSet(locals.slot_local(destination)),
+      ]
     ByteSequenceConcat(destination, left, right) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(locals.slot_local(left)),

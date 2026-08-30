@@ -14,6 +14,7 @@ pub(all) enum BasicTypeProvider {
   Tuple
   List
   Void
+  WasmAddress
   Deriver
   Product
   Sum
@@ -118,7 +119,7 @@ pub(all) enum Intrinsic {
   BytesLength
   BytesGet
   BytesSet
-  WasiFdWrite
+  WasmAbiStoreAddress
 } derive(Eq, @debug.Debug)
 pub fn Intrinsic::equal(Self, Self) -> Bool
 pub fn Intrinsic::from_name(String) -> Self?

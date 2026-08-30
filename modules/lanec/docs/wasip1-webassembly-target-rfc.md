@@ -115,11 +115,26 @@ above `wasi_snapshot_preview1.fd_write`; it is not a host import taking a Lane
 `String` and is not registered in a Lane runtime registry.
 
 WASI Preview 1 operates on guest memory. The compiler and Basic therefore need
-one deliberately narrow guest-memory interface that can expose a borrowed
-byte range and temporary WASI records such as `ciovec` and `nwritten`. This
-interface owns the mapping between Lane's memory representation and WASI's
-pointer-length ABI. It must not expose general unchecked pointer arithmetic as
-ordinary source-language functionality.
+one deliberately narrow guest-memory interface. Basic builds one contiguous
+`Bytes` allocation containing every record and byte range for a synchronous
+host call. A `WasmAbiFrameBuilder` records in-frame address relocations as
+relative offsets; `seal` materializes them only after all scalar and byte
+updates and returns an immutable `WasmAbiFrame`. This build/seal distinction
+prevents copy-on-write after pointer materialization from staling an embedded
+address. The canonical `WasmAddress` value is
+`{ storage : Bytes; offset : I32 }`, and an address may point only into its own
+sealed frame. Physical Lowering projects that carrier to the frame's wasm32
+payload address immediately before the import call and keeps the storage owner
+alive until the call returns. Neither Basic nor user source can extract the raw
+`i32` pointer.
+
+The source-facing import contract records a `GuestAddress` parameter; the WASI
+catalog also owns its deterministic core-contract projection to `i32`. Thus the
+actual WebAssembly import remains the exact Preview 1 signature while source
+code cannot manufacture an unowned pointer. Frame construction uses ordinary
+`Bytes` operations plus one target-generic address relocation primitive that
+writes an in-frame payload address. There is no operation-specific
+`fd_write` compiler intrinsic.
 
 ### Source `extern`
 
@@ -134,10 +149,12 @@ registry entry. Its declared Lane type must lower mechanically to the import's
 core-Wasm function type.
 
 The initial raw-extern value universe is intentionally small: `Unit`, `I32`,
-`I64`, `F32`, `F64`, and, when required by the accepted profile, `V128`.
-Strings, Bytes, nominal data, generic values, closures, layout witnesses, and
+`I64`, `F32`, `F64`, and the canonical `WasmAddress`; it may include `V128`
+when required by the accepted profile. `WasmAddress` is the sole nominal
+exception and has the certified lowering described above. Strings, arbitrary
+Bytes, other nominal data, generic values, closures, layout witnesses, and
 host-language objects do not cross this seam implicitly. A library must expose
-an explicit scalar or guest-memory protocol for richer values.
+an explicit scalar or frame-based guest-memory protocol for richer values.
 
 WASI declarations use the same syntax but are certified against the canonical
 WASI catalog rather than trusted as arbitrary user declarations. A mismatched
@@ -166,6 +183,11 @@ Lane references never cross the host seam as raw long-lived pointers. A WASI
 call may observe only the exact borrowed byte or record ranges prepared for
 that call. Memory growth, object movement policy, ARC, and destruction remain
 compiler/runtime implementation facts behind the Wasm Physical Program seam.
+
+This frame boundary does not decide a general platform profile, application
+memory/export policy, or entry-point convention for non-WASI platforms. Those
+policies can be designed independently because the frame contract only defines
+how one synchronous core-Wasm import borrows Lane-owned guest memory.
 
 ## Panic and process termination
 
@@ -199,8 +221,11 @@ The target architecture has the following single owners:
 
 - the Lane WebAssembly Profile owns the permitted and required Wasm features;
 - the WASI catalog owns standardized import identities and function types;
+- the Canonical Basic ABI owns the exact `WasmAddress` source identity and
+  shape;
 - raw `extern` type lowering owns the mechanically representable core-Wasm
-  import shape;
+  import shape, while Physical Lowering alone materializes guest addresses and
+  their lifetime;
 - the Wasm Physical Program owns target-specific calling, memory, ownership,
   and control-flow facts before emission;
 - the WebAssembly emitter owns module indices and emits each reachable helper

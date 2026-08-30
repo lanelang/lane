@@ -35,7 +35,8 @@ fn PhysicalProgramVerifier::verify_instruction(
         )
       }
     }
-    Release(source) => ignore(self.slot_metadata(site, body, source))
+    Release(source) | KeepAlive(source) =>
+      ignore(self.slot_metadata(site, body, source))
     ConstI64(destination, _) =>
       self.expect_value_shape(
         site,
@@ -324,14 +325,6 @@ fn PhysicalProgramVerifier::verify_instruction(
       self.expect_kind(site, body, destination, ScalarValue)
       self.expect_kind(site, body, source, ByteSequenceValue)
     }
-    WasiFdWrite(destination, fd, bytes) => {
-      self.expect_slot(site, body, destination, I32, Trivial)
-      self.expect_slot(site, body, fd, I32, Trivial)
-      self.expect_kind(site, body, destination, ScalarValue)
-      self.expect_kind(site, body, fd, ScalarValue)
-      self.expect_slot(site, body, bytes, I32, OwnedRef)
-      self.expect_kind(site, body, bytes, ByteSequenceValue)
-    }
     ByteSequenceGet(destination, source, index) => {
       self.expect_slot(site, body, destination, I32, Trivial)
       self.expect_kind(site, body, destination, ScalarValue)
@@ -377,6 +370,23 @@ fn PhysicalProgramVerifier::verify_instruction(
       self.expect_slot(site, body, destination, I32, Trivial)
       self.expect_kind(site, body, destination, ScalarValue)
       self.expect_kind(site, body, source, ByteSequenceValue)
+    }
+    ByteSequenceAddress(destination, source, offset) => {
+      self.expect_slot(site, body, destination, I32, Trivial)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_kind(site, body, source, ByteSequenceValue)
+      self.expect_slot(site, body, offset, I32, Trivial)
+      self.expect_kind(site, body, offset, ScalarValue)
+    }
+    ByteSequenceStoreAddress(destination, source, index, offset) => {
+      self.expect_slot(site, body, destination, I32, OwnedRef)
+      self.expect_slot(site, body, source, I32, OwnedRef)
+      self.expect_kind(site, body, destination, ByteSequenceValue)
+      self.expect_kind(site, body, source, ByteSequenceValue)
+      self.expect_slot(site, body, index, I64, Trivial)
+      self.expect_slot(site, body, offset, I32, Trivial)
+      self.expect_kind(site, body, index, ScalarValue)
+      self.expect_kind(site, body, offset, ScalarValue)
     }
     I32Add(destination, left, right)
     | I32Sub(destination, left, right)

@@ -966,6 +966,7 @@ fn PhysicalProgramVerifier::apply_instruction_flow(
           self.fail(site, "Release requires a definitely live owner")
         Unavailable => self.fail(site, "Release reads an uninitialized slot")
       }
+    KeepAlive(source) => ignore(self.read_flow(site, state, source))
     ConstI64(destination, _)
     | ConstI32(destination, _)
     | ConstChar(destination, _)
@@ -1114,6 +1115,12 @@ fn PhysicalProgramVerifier::apply_instruction_flow(
       ignore(self.consume_owner(site, body, state, source))
       self.write_from_metadata(site, body, state, destination)
     }
+    ByteSequenceStoreAddress(destination, source, index, offset) => {
+      ignore(self.read_flow(site, state, index))
+      ignore(self.read_flow(site, state, offset))
+      ignore(self.consume_owner(site, body, state, source))
+      self.write_from_metadata(site, body, state, destination)
+    }
     ByteSequenceConcat(destination, left, right) => {
       ignore(self.consume_owner(site, body, state, left))
       ignore(self.consume_owner(site, body, state, right))
@@ -1237,8 +1244,11 @@ fn PhysicalProgramVerifier::apply_trivial_instruction_flow(
       self.write_trivial_after_reads(site, body, state, destination, [
         source, index,
       ])
-    WasiFdWrite(destination, left, right)
-    | ByteSequenceEqual(destination, left, right)
+    ByteSequenceAddress(destination, source, offset) =>
+      self.write_trivial_after_reads(site, body, state, destination, [
+        source, offset,
+      ])
+    ByteSequenceEqual(destination, left, right)
     | I32Add(destination, left, right)
     | I32Sub(destination, left, right)
     | I32Mul(destination, left, right)

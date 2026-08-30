@@ -66,6 +66,7 @@ pub(all) enum BasicTypeProvider {
   Tuple
   List
   Void
+  WasmAddress
   Deriver
   Product
   Sum
@@ -81,6 +82,7 @@ pub fn BasicTypeProvider::all() -> Array[BasicTypeProvider] {
     Tuple,
     List,
     Void,
+    WasmAddress,
     Deriver,
     Product,
     Sum,
@@ -111,6 +113,7 @@ pub fn BasicTypeProvider::module_path(self : BasicTypeProvider) -> String {
     Tuple => "Basic.Data.Tuple"
     List => "Basic.Data.List"
     Void => "Basic.Data.Void"
+    WasmAddress => "Basic.Wasm.Abi"
     Deriver | Product | Sum | TypeInfo | FieldInfo | VariantInfo =>
       "Basic.Trait.Derive"
     Iso => "Basic.Trait.Iso"
@@ -123,6 +126,7 @@ pub fn BasicTypeProvider::type_name(self : BasicTypeProvider) -> String {
     Tuple => "Tuple"
     List => "List"
     Void => "Void"
+    WasmAddress => "WasmAddress"
     Deriver => "Deriver"
     Product => "Product"
     Sum => "Sum"
@@ -247,7 +251,7 @@ pub(all) enum Intrinsic {
   BytesLength
   BytesGet
   BytesSet
-  WasiFdWrite
+  WasmAbiStoreAddress
 } derive(Debug, Eq)
 
 ///|
@@ -314,7 +318,7 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%bytes_length" => Some(BytesLength)
     "%bytes_get" => Some(BytesGet)
     "%bytes_set" => Some(BytesSet)
-    "%wasi_fd_write" => Some(WasiFdWrite)
+    "%wasm_abi_store_address" => Some(WasmAbiStoreAddress)
     _ => None
   }
 }
@@ -383,7 +387,7 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     BytesLength => "%bytes_length"
     BytesGet => "%bytes_get"
     BytesSet => "%bytes_set"
-    WasiFdWrite => "%wasi_fd_write"
+    WasmAbiStoreAddress => "%wasm_abi_store_address"
   }
 }
 
@@ -447,12 +451,7 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     BytesGet => pure_intrinsic_function(parameters=[Bytes, I64], result=Byte)
     BytesSet =>
       pure_intrinsic_function(parameters=[Bytes, I64, Byte], result=Bytes)
-    WasiFdWrite =>
-      Function(
-        parameters=[I32, Bytes],
-        result=I32,
-        effect=BuiltinIo,
-        implementation=Direct,
-      )
+    WasmAbiStoreAddress =>
+      pure_intrinsic_function(parameters=[Bytes, I64, I32], result=Bytes)
   }
 }

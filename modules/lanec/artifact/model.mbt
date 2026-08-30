@@ -17,7 +17,7 @@ pub(all) struct ModuleInterfaceArtifact {
 pub let module_interface_artifact_schema_version = 14
 
 ///|
-pub let module_object_artifact_schema_version = 25
+pub let module_object_artifact_schema_version = 26
 
 ///|
 pub let compiled_module_artifact_schema_version = 2

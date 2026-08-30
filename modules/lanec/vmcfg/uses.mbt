@@ -5,6 +5,7 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | Move(_, source)
     | RetainCopy(_, source)
     | Release(source)
+    | KeepAlive(source)
     | LoadTag(_, source)
     | LoadObjectWitness(_, _, source, _)
     | ByteToI64(_, source)
@@ -37,7 +38,7 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(_, source)
     | UneraseUnit(source)
     | InitGlobal(_, source) => [source]
-    WasiFdWrite(_, fd, bytes) => [fd, bytes]
+    ByteSequenceAddress(_, source, offset) => [source, offset]
     ByteSequenceConcat(_, left, right)
     | ByteSequenceEqual(_, left, right)
     | ByteSequenceMake(_, left, right)
@@ -88,7 +89,9 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | F64Gt(_, left, right)
     | F64Ge(_, left, right) => [left, right]
     ByteSequenceSlice(_, string, start, length)
-    | ByteSequenceSet(_, string, start, length) => [string, start, length]
+    | ByteSequenceSet(_, string, start, length)
+    | ByteSequenceStoreAddress(_, string, start, length) =>
+      [string, start, length]
     CallDirect(_, environment, witnesses, arguments, _) => {
       let uses = []
       if environment is Some(value) {
@@ -279,7 +282,8 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(destination, _)
     | EraseUnit(destination)
     | BorrowGlobal(destination, _) => [destination]
-    WasiFdWrite(destination, _, _) => [destination]
+    ByteSequenceAddress(destination, _, _)
+    | ByteSequenceStoreAddress(destination, _, _, _) => [destination]
     CallDirect(_, _, _, _, destination)
     | CallPackedDirect(_, _, _, _, destination)
     | CallValue(_, _, _, destination) =>
@@ -293,6 +297,6 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
       }
       destinations
     }
-    Release(_) | UneraseUnit(_) | InitGlobal(_, _) => []
+    Release(_) | KeepAlive(_) | UneraseUnit(_) | InitGlobal(_, _) => []
   }
 }

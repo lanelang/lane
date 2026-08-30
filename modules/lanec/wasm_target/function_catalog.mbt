@@ -63,6 +63,7 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
     ByteSequenceMake => wasm_function_type([I64, I32], [I32])
     ByteSequenceIndex | ByteSequenceGet => wasm_function_type([I32, I64], [I32])
     ByteSequenceSet => wasm_function_type([I32, I64, I32], [I32])
+    ByteSequenceStoreAddress => wasm_function_type([I32, I64, I32], [I32])
     ByteSequenceIsValidUtf8 => wasm_function_type([I32], [I32])
     InstanceGlobalCleanup => wasm_function_type([], [])
   }
@@ -99,6 +100,7 @@ fn runtime_function_order() -> Array[WasmRuntimeFunctionRole] {
     ByteSequenceIndex,
     ByteSequenceGet,
     ByteSequenceSet,
+    ByteSequenceStoreAddress,
     ByteSequenceIsValidUtf8,
     InstanceGlobalCleanup,
   ]
@@ -332,14 +334,6 @@ fn WasmFunctionCatalog::internal_import(
   function : @internal_abi.InternalRuntimeFunction,
 ) -> WasmFunctionHandle {
   self.require(InternalRuntimeImport(function))
-}
-
-///|
-fn WasmFunctionCatalog::wasi_preview1_import(
-  self : WasmFunctionCatalog,
-  import_ : @wasm_abi.WasiPreview1Import,
-) -> WasmFunctionHandle {
-  self.require(WasiPreview1Import(import_))
 }
 
 ///|

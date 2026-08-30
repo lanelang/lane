@@ -1,7 +1,10 @@
 module Examples.Valid115
 
-// WASI declarations use the standardized core WebAssembly signature.
-pub let fd_write : (I32, I32, I32, I32) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
+import Basic.Wasm.Abi.{ WasmAddress }
+
+// Guest addresses retain their backing ABI frame while the raw host call runs.
+pub let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io =
+  extern("wasi_snapshot_preview1", "fd_write")
 
 pub fn answer() -> Unit {
   ()

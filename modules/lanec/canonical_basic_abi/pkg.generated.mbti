@@ -98,14 +98,16 @@ pub fn CanonicalBasicAbiObjectTypeDeclaration::to_repr(Self) -> @debug.Repr
 
 pub struct CanonicalBasicAbiRuntimeContract {
   void_type : @buslane.TypeId?
+  wasm_address_type : @buslane.TypeId?
 } derive(Eq, @debug.Debug)
 pub fn CanonicalBasicAbiRuntimeContract::certify(Self, Array[CanonicalBasicAbiObjectTypeDeclaration], @buslane.MetadataRegistry) -> Result[CertifiedCanonicalBasicAbiRuntimeContract, CanonicalBasicAbiRuntimeContractError]
 pub fn CanonicalBasicAbiRuntimeContract::empty() -> Self
 pub fn CanonicalBasicAbiRuntimeContract::equal(Self, Self) -> Bool
-pub fn CanonicalBasicAbiRuntimeContract::from_void_type(@buslane.TypeId?) -> Self
+pub fn CanonicalBasicAbiRuntimeContract::from_types(@buslane.TypeId?, @buslane.TypeId?) -> Self
 pub fn CanonicalBasicAbiRuntimeContract::not_equal(Self, Self) -> Bool
 pub fn CanonicalBasicAbiRuntimeContract::to_repr(Self) -> @debug.Repr
 pub fn CanonicalBasicAbiRuntimeContract::void_type(Self) -> @buslane.TypeId?
+pub fn CanonicalBasicAbiRuntimeContract::wasm_address_type(Self) -> @buslane.TypeId?
 
 pub(all) enum CanonicalBasicAbiRuntimeContractError {
   MissingDeclaration(provider~ : @abi.BasicTypeProvider)
@@ -123,6 +125,7 @@ pub fn CertifiedCanonicalBasicAbiRuntimeContract::equal(Self, Self) -> Bool
 pub fn CertifiedCanonicalBasicAbiRuntimeContract::not_equal(Self, Self) -> Bool
 pub fn CertifiedCanonicalBasicAbiRuntimeContract::to_repr(Self) -> @debug.Repr
 pub fn CertifiedCanonicalBasicAbiRuntimeContract::void_type(Self) -> @buslane.TypeId?
+pub fn CertifiedCanonicalBasicAbiRuntimeContract::wasm_address_type(Self) -> @buslane.TypeId?
 
 // Type aliases
 

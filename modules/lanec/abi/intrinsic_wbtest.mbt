@@ -174,22 +174,17 @@ test "floating-point string intrinsics have exact names and signatures" {
 }
 
 ///|
-test "WASI fd_write bridge owns its exact effectful signature" {
+test "Wasm ABI address storage is a pure representation intrinsic" {
   assert_eq(
     (
-      Intrinsic::from_name("%wasi_fd_write"),
-      WasiFdWrite.name(),
-      WasiFdWrite.signature(),
+      Intrinsic::from_name("%wasm_abi_store_address"),
+      WasmAbiStoreAddress.name(),
+      WasmAbiStoreAddress.signature(),
     ),
     (
-      Some(WasiFdWrite),
-      "%wasi_fd_write",
-      Function(
-        parameters=[I32, Bytes],
-        result=I32,
-        effect=BuiltinIo,
-        implementation=Direct,
-      ),
+      Some(WasmAbiStoreAddress),
+      "%wasm_abi_store_address",
+      expected_direct_intrinsic(parameters=[Bytes, I64, I32], result=Bytes),
     ),
   )
 }

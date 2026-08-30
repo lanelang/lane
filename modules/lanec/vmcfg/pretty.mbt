@@ -116,6 +116,7 @@ fn render_instruction(instruction : Instruction) -> String {
     RetainCopy(destination, source) =>
       unary_instruction("retain_copy", destination, source)
     Release(source) => "release \{render_value(source)}"
+    KeepAlive(source) => "keep_alive \{render_value(source)}"
     ConstI64(destination, value) =>
       "const_i64 \{render_value(destination)}, \{value}"
     ConstI32(destination, value) =>
@@ -178,8 +179,10 @@ fn render_instruction(instruction : Instruction) -> String {
       "byte_sequence_slice \{render_value(destination)}, \{render_value(source)}, \{render_value(start)}, \{render_value(length)}"
     ByteSequenceIsValidUtf8(destination, source) =>
       unary_instruction("byte_sequence_is_valid_utf8", destination, source)
-    WasiFdWrite(destination, fd, bytes) =>
-      binary_instruction("wasi_fd_write", destination, fd, bytes)
+    ByteSequenceAddress(destination, source, offset) =>
+      binary_instruction("byte_sequence_address", destination, source, offset)
+    ByteSequenceStoreAddress(destination, source, index, offset) =>
+      "byte_sequence_store_address \{render_value(destination)}, \{render_value(source)}, \{render_value(index)}, \{render_value(offset)}"
     I32Add(destination, left, right) =>
       binary_instruction("i32_add", destination, left, right)
     I32Sub(destination, left, right) =>

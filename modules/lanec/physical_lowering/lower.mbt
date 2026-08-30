@@ -158,6 +158,8 @@ fn lower_executable_program_to_physical_or_raise(
       LayoutConstructor(plan) =>
         functions.push(Body(lowerer.lower_layout_constructor(plan)))
       RuntimeImport(import_) => functions.push(RuntimeImport(import_))
+      RuntimeImportAdapter(plan) =>
+        functions.push(Body(lowerer.lower_runtime_import_adapter(plan)))
     }
     plan_index += 1
   }
@@ -311,8 +313,10 @@ fn PhysicalFunctionOrigin::indirect_call_origin(
     CallableAdapter(..) => CallableAdapter
     RepresentationWorker(..) => RepresentationWorker
     Initializer(..) | InitializerOrchestrator => Initialization
-    IntrinsicWrapper(..) | LayoutConstructor | RuntimeImport(..) =>
-      RuntimeSupport
+    IntrinsicWrapper(..)
+    | LayoutConstructor
+    | RuntimeImport(..)
+    | RuntimeImportAdapter(..) => RuntimeSupport
   }
 }
 

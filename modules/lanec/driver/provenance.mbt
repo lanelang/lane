@@ -166,6 +166,8 @@ fn ExploreFunctionGraphBuilder::physical_roles(
           field_name~,
         ),
       ]
+    RuntimeImportAdapter(module_name~, field_name~) =>
+      [RuntimeImportAdapter(module_name~, field_name~)]
   }
 }
 
@@ -237,6 +239,7 @@ fn wasm_runtime_name(role : @wasm_compiler.WasmRuntimeFunctionRole) -> String {
     ByteSequenceIndex => "byte sequence index"
     ByteSequenceGet => "byte sequence get"
     ByteSequenceSet => "byte sequence set"
+    ByteSequenceStoreAddress => "byte sequence store address"
     ByteSequenceIsValidUtf8 => "byte sequence is valid UTF-8"
     InstanceGlobalCleanup => "instance global cleanup"
   }

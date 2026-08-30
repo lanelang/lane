@@ -10,6 +10,7 @@ pub(all) enum CoreValueType {
 pub(all) enum ImportParameter {
   ErasedUnit
   Direct(CoreValueType)
+  GuestAddress
 } derive(Debug, Eq, Compare)
 
 ///|
@@ -33,12 +34,29 @@ pub fn ImportContract::snapshot(self : ImportContract) -> ImportContract {
 }
 
 ///|
+/// Projects the source-facing guest contract to the exact core Wasm import
+/// signature. Guest addresses are represented by wasm32 `i32` only after the
+/// compiler-owned lifetime adapter has materialized them.
+pub fn ImportContract::core_contract(self : ImportContract) -> ImportContract {
+  {
+    ..self,
+    parameters: self.parameters.map(parameter => {
+      match parameter {
+        GuestAddress => Direct(I32)
+        ErasedUnit | Direct(_) => parameter
+      }
+    }),
+  }
+}
+
+///|
 pub fn ImportParameter::core_types(
   self : ImportParameter,
 ) -> Array[CoreValueType] {
   match self {
     ErasedUnit => []
     Direct(type_) => [type_]
+    GuestAddress => [I32]
   }
 }
 

@@ -4,14 +4,9 @@ fn compile_wasi_fd_write_fixture() -> @physical.PhysicalProgram raise {
     (
       #|module Main
       #|
-      #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
-      #|let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
-      #|let wasi_fd_write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
-      #|
+      #|import Basic.Io.{ println }
       #|pub fn main() -> Unit ! Io {
-      #|  let bytes = bytes_concat(string_to_bytes("hello"), string_to_bytes("\n"))
-      #|  let _errno = wasi_fd_write(1i32, bytes)
-      #|  ()
+      #|  println("hello")
       #|}
     ),
   )

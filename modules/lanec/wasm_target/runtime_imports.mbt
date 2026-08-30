@@ -39,7 +39,7 @@ fn compile_runtime_import_adapter(
   for kind in import_.parameters {
     match kind {
       ErasedUnit => ()
-      Direct(_) => {
+      Direct(_) | GuestAddress => {
         instructions.push(LocalGet(parameter_index))
         parameter_index += 1
       }

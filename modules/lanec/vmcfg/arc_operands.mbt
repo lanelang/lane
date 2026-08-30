@@ -26,6 +26,11 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
         operands: [(source, Consume)],
         materialize: values => Release(values[0]),
       }
+    KeepAlive(source) =>
+      {
+        operands: [(source, Borrow)],
+        materialize: values => KeepAlive(values[0]),
+      }
     CallDirect(target, environment, witnesses, arguments, destination) => {
       let operands = []
       if environment is Some(value) {
@@ -176,6 +181,13 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
           ByteSequenceSet(destination, values[0], values[1], values[2])
         },
       }
+    ByteSequenceStoreAddress(destination, source, index, offset) =>
+      {
+        operands: [(source, Consume), (index, Borrow), (offset, Borrow)],
+        materialize: values => {
+          ByteSequenceStoreAddress(destination, values[0], values[1], values[2])
+        },
+      }
     ByteSequenceConcat(destination, left, right) =>
       {
         operands: [(left, Consume), (right, Consume)],
@@ -311,7 +323,7 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
     | F64ToF32(_, _)
     | F32ToString(_, _)
     | F64ToString(_, _)
-    | WasiFdWrite(_, _, _)
+    | ByteSequenceAddress(_, _, _)
     | EraseUnit(_)
     | BorrowGlobal(_, _) =>
       {

@@ -35,6 +35,7 @@ fn emit_instruction(
     RetainCopy(destination, source) =>
       RetainCopy(slot(destination), slot(source))
     Release(source) => Release(slot(source))
+    KeepAlive(source) => KeepAlive(slot(source))
     ConstI64(destination, value) => ConstI64(slot(destination), value)
     ConstI32(destination, value) => ConstI32(slot(destination), value)
     ConstF32(destination, bits) => ConstF32(slot(destination), bits)
@@ -166,8 +167,15 @@ fn emit_instruction(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(slot(destination), slot(source))
-    WasiFdWrite(destination, fd, bytes) =>
-      WasiFdWrite(slot(destination), slot(fd), slot(bytes))
+    ByteSequenceAddress(destination, source, offset) =>
+      ByteSequenceAddress(slot(destination), slot(source), slot(offset))
+    ByteSequenceStoreAddress(destination, source, index, offset) =>
+      ByteSequenceStoreAddress(
+        slot(destination),
+        slot(source),
+        slot(index),
+        slot(offset),
+      )
     I32Add(destination, left, right) =>
       I32Add(slot(destination), slot(left), slot(right))
     I32Sub(destination, left, right) =>

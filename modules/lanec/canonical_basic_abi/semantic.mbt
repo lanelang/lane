@@ -31,6 +31,7 @@ pub fn CanonicalBasicAbi::from_module_input(
   let void_declaration = validate_canonical_void(identities, declarations)
   let tuple = validate_canonical_tuple(identities, declarations)
   let list = validate_canonical_list(identities, declarations)
+  let wasm_address = validate_canonical_wasm_address(identities, declarations)
   let structural_derive = validate_structural_derive_abi(
     identities, declarations, void_declaration,
   )
@@ -40,7 +41,7 @@ pub fn CanonicalBasicAbi::from_module_input(
   ] = Map([])
   for provider in @abi.BasicTypeProvider::all() {
     providers[provider] = certified_provider_type(
-      provider, tuple, list, void_declaration, structural_derive,
+      provider, tuple, list, void_declaration, structural_derive, wasm_address,
     )
   }
   { providers, void_declaration, structural_derive, }
@@ -56,11 +57,13 @@ fn certified_provider_type(
     CanonicalBasicAbiError,
   ],
   structural_derive : Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError],
+  wasm_address : Result[@symbol.TypeSymbolId, CanonicalBasicAbiError],
 ) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError] {
   match provider {
     Tuple => tuple
     List => list
     Void => void_declaration.map(declaration => declaration.symbol)
+    WasmAddress => wasm_address
     Deriver => structural_derive.map(abi => abi.deriver)
     Product => structural_derive.map(abi => abi.product)
     Sum => structural_derive.map(abi => abi.sum)
@@ -69,6 +72,36 @@ fn certified_provider_type(
     FieldInfo => structural_derive.map(abi => abi.field_info)
     VariantInfo => structural_derive.map(abi => abi.variant_info)
   }
+}
+
+///|
+fn validate_canonical_wasm_address(
+  identities : CanonicalBasicAbiIdentityCatalog,
+  declarations : Array[@module_interface.ModuleInterfaceType],
+) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError] {
+  let provider = @abi.BasicTypeProvider::WasmAddress
+  let declaration = match
+    canonical_basic_struct(identities, declarations, provider) {
+    Ok(declaration) => declaration
+    Err(error) => return Err(error)
+  }
+  guard declaration.type_parameters.is_empty() &&
+    declaration.type_members.is_empty() &&
+    declaration.fields is [storage, offset] &&
+    storage.name == "storage" &&
+    storage.index == 0 &&
+    storage.type_ == Primitive(Bytes) &&
+    offset.name == "offset" &&
+    offset.index == 1 &&
+    offset.type_ == Primitive(I32) else {
+    return Err(
+      InvalidProvider(
+        provider~,
+        reason="the declaration must be `struct WasmAddress { storage : Bytes; offset : I32 }`",
+      ),
+    )
+  }
+  Ok(declaration.symbol)
 }
 
 ///|

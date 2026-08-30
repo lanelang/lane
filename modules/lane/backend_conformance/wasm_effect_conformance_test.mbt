@@ -3,15 +3,65 @@ fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
     #|import Basic.Data.Void.{ Void }
+    #|import Basic.Wasm.Abi.{ WasmAddress, address, allocate, copy_bytes, seal, store_address, store_i32 }
     #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
     #|let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
-    #|let wasi_fd_write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
+    #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
+    #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
+    #|let i64_to_i32 : (I64) -> I32 = builtin("%i64_to_i32")
+    #|let wasi_fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
     #|pub fn println(value : String) -> Unit ! Io {
     #|  let bytes = bytes_concat(string_to_bytes(value), string_to_bytes("\n"))
-    #|  let _errno = wasi_fd_write(1i32, bytes)
+    #|  let length = bytes_length(bytes)
+    #|  let frame = copy_bytes(allocate(i64_add(12, length)), 12, bytes)
+    #|  let frame = store_address(frame, 0, 12i32)
+    #|  let frame = store_i32(frame, 4, i64_to_i32(length))
+    #|  let frame = store_i32(frame, 8, 0i32)
+    #|  let frame = seal(frame)
+    #|  let _errno = wasi_fd_write(1i32, address(frame, 0i32), 1i32, address(frame, 8i32))
     #|  ()
     #|}
     #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+  )
+}
+
+///|
+fn effect_conformance_basic_wasm_abi() -> String {
+  (
+    #|module Basic.Wasm.Abi
+    #|let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
+    #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
+    #|let bytes_make : (I64, Byte) -> Bytes = builtin("%bytes_make")
+    #|let bytes_set : (Bytes, I64, Byte) -> Bytes = builtin("%bytes_set")
+    #|let i32_to_i64 : (I32) -> I64 = builtin("%i32_to_i64")
+    #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
+    #|let i64_div : (I64, I64) -> I64 = builtin("%i64_div")
+    #|let i64_equal : (I64, I64) -> Bool = builtin("%i64_equal")
+    #|let i64_less : (I64, I64) -> Bool = builtin("%i64_less")
+    #|let i64_rem : (I64, I64) -> I64 = builtin("%i64_rem")
+    #|let i64_to_byte : (I64) -> Byte = builtin("%i64_to_byte")
+    #|let wasm_abi_store_address : (Bytes, I64, I32) -> Bytes = builtin("%wasm_abi_store_address")
+    #|pub enum Relocations { none(); relocation(I64, I32, Relocations) }
+    #|pub struct WasmAbiFrameBuilder { storage : Bytes; relocations : Relocations }
+    #|pub struct WasmAbiFrame { storage : Bytes }
+    #|pub struct WasmAddress { storage : Bytes; offset : I32 }
+    #|pub fn allocate(size : I64) -> WasmAbiFrameBuilder { WasmAbiFrameBuilder::{ storage: bytes_make(size, i64_to_byte(0)), relocations: none() } }
+    #|pub fn address(frame : WasmAbiFrame, offset : I32) -> WasmAddress { WasmAddress::{ storage: frame.storage, offset } }
+    #|pub fn store_address(frame : WasmAbiFrameBuilder, index : I64, offset : I32) -> WasmAbiFrameBuilder { WasmAbiFrameBuilder::{ storage: frame.storage, relocations: relocation(index, offset, frame.relocations) } }
+    #|pub fn store_i32(frame : WasmAbiFrameBuilder, index : I64, value : I32) -> WasmAbiFrameBuilder {
+    #|  let signed = i32_to_i64(value)
+    #|  let bits = if i64_less(signed, 0) { i64_add(signed, 4294967296) } else { signed }
+    #|  let storage = bytes_set(frame.storage, index, i64_to_byte(i64_rem(bits, 256)))
+    #|  let storage = bytes_set(storage, i64_add(index, 1), i64_to_byte(i64_rem(i64_div(bits, 256), 256)))
+    #|  let storage = bytes_set(storage, i64_add(index, 2), i64_to_byte(i64_rem(i64_div(bits, 65536), 256)))
+    #|  WasmAbiFrameBuilder::{ storage: bytes_set(storage, i64_add(index, 3), i64_to_byte(i64_div(bits, 16777216))), relocations: frame.relocations }
+    #|}
+    #|pub fn copy_bytes(frame : WasmAbiFrameBuilder, destination : I64, source : Bytes) -> WasmAbiFrameBuilder { WasmAbiFrameBuilder::{ storage: copy_loop(frame.storage, destination, source, 0, bytes_length(source)), relocations: frame.relocations } }
+    #|pub fn seal(frame : WasmAbiFrameBuilder) -> WasmAbiFrame { WasmAbiFrame::{ storage: relocate(frame.storage, frame.relocations) } }
+    #|fn relocate(storage : Bytes, relocations : Relocations) -> Bytes { match relocations { none() => storage; relocation(index, offset, rest) => relocate(wasm_abi_store_address(storage, index, offset), rest) } }
+    #|fn copy_loop(destination : Bytes, destination_offset : I64, source : Bytes, offset : I64, length : I64) -> Bytes {
+    #|  if i64_equal(offset, length) { destination } else { copy_loop(bytes_set(destination, i64_add(destination_offset, offset), bytes_get(source, offset)), destination_offset, source, i64_add(offset, 1), length) }
+    #|}
   )
 }
 
@@ -31,6 +81,7 @@ fn compile_effect_conformance_image(
   let result = compile_program_for_test(source, [
     effect_conformance_basic_io(),
     effect_conformance_basic_void(),
+    effect_conformance_basic_wasm_abi(),
   ])
   if !result.diagnostics().is_empty() {
     fail("effect conformance compilation failed: \{Repr(result.diagnostics())}")
@@ -117,15 +168,25 @@ fn assert_effect_erased_host_boundary(
       imports.push(import_)
     }
   }
-  assert_eq(imports, [])
-  assert_true(
-    image.functions.any(function => {
-      function is PhysicalBody(body) &&
+  assert_eq(imports, [
+    @wasm_abi.WasiPreview1Import::FdWrite.contract().core_contract(),
+  ])
+  let adapter_bodies = image.functions.filter_map(function => {
+    if function is PhysicalBody(body) &&
       body.blocks.any(block => {
         block.instructions.any(instruction => {
-          instruction is WasiFdWrite(_, _, _)
+          instruction is ByteSequenceAddress(_, _, _)
         })
-      })
+      }) {
+      Some(body)
+    } else {
+      None
+    }
+  })
+  assert_eq(adapter_bodies.length(), 1)
+  assert_true(
+    adapter_bodies[0].blocks.any(block => {
+      block.instructions.any(instruction => instruction is KeepAlive(_))
     }),
   )
 }
@@ -142,6 +203,52 @@ fn assert_effect_conformance(
   assert_eq(interpreter_output, expected)
   assert_eq(wasm_output, expected)
   assert_eq(interpreter_output, wasm_output)
+}
+
+///|
+fn assert_effect_conformance_traps(source : String) -> Unit raise {
+  let image = compile_effect_conformance_image(source)
+  let (interpreter, interpreter_output) = execute_effect_conformance(
+    image,
+    Interpreter,
+  )
+  let (jit, jit_output) = execute_effect_conformance(image, Jit)
+  assert_true(interpreter is Err(EngineTrap(detail=_)))
+  assert_true(jit is Err(EngineTrap(detail=_)))
+  assert_eq(interpreter_output, [])
+  assert_eq(jit_output, [])
+}
+
+///|
+test "guest addresses reject offsets outside their sealed frame" {
+  assert_effect_conformance_traps(
+    (
+      #|module Main
+      #|import Basic.Wasm.Abi.{ WasmAddress, address, allocate, seal }
+      #|let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
+      #|pub fn main() -> Unit ! Io {
+      #|  let frame = seal(allocate(12))
+      #|  let _errno = fd_write(1i32, address(frame, 13i32), 0i32, address(frame, 8i32))
+      #|  ()
+      #|}
+    ),
+  )
+}
+
+///|
+test "frame sealing rejects an out-of-bounds address relocation" {
+  assert_effect_conformance_traps(
+    (
+      #|module Main
+      #|import Basic.Wasm.Abi.{ WasmAddress, address, allocate, seal, store_address }
+      #|let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
+      #|pub fn main() -> Unit ! Io {
+      #|  let frame = seal(store_address(allocate(12), 10, 0i32))
+      #|  let _errno = fd_write(1i32, address(frame, 0i32), 0i32, address(frame, 8i32))
+      #|  ()
+      #|}
+    ),
+  )
 }
 
 ///|

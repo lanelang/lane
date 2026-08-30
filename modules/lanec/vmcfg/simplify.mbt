@@ -435,6 +435,7 @@ fn map_instruction_values(
     RetainCopy(destination, source) =>
       RetainCopy(transform(destination), transform(source))
     Release(value) => Release(transform(value))
+    KeepAlive(value) => KeepAlive(transform(value))
     ConstI64(destination, value) => ConstI64(transform(destination), value)
     ConstI32(destination, value) => ConstI32(transform(destination), value)
     ConstF32(destination, bits) => ConstF32(transform(destination), bits)
@@ -568,8 +569,19 @@ fn map_instruction_values(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(transform(destination), transform(source))
-    WasiFdWrite(destination, fd, bytes) =>
-      WasiFdWrite(transform(destination), transform(fd), transform(bytes))
+    ByteSequenceAddress(destination, source, offset) =>
+      ByteSequenceAddress(
+        transform(destination),
+        transform(source),
+        transform(offset),
+      )
+    ByteSequenceStoreAddress(destination, source, index, offset) =>
+      ByteSequenceStoreAddress(
+        transform(destination),
+        transform(source),
+        transform(index),
+        transform(offset),
+      )
     I32Add(destination, left, right) =>
       I32Add(transform(destination), transform(left), transform(right))
     I32Sub(destination, left, right) =>

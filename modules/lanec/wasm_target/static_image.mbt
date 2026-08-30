@@ -17,7 +17,6 @@ priv struct StaticImage {
   callable_table_size : Int
   global_lifecycle : @physical.GlobalLifecyclePlan
   global_cleanup_table_base : Int
-  wasi_iovec_base : Int
 }
 
 ///|
@@ -150,7 +149,8 @@ fn instruction_requires_byte_sequence_layout(
     | ByteSequenceConcat(_, _, _)
     | ByteSequenceSlice(_, _, _, _)
     | ByteSequenceIsValidUtf8(_, _)
-    | WasiFdWrite(_, _, _) => true
+    | ByteSequenceAddress(_, _, _)
+    | ByteSequenceStoreAddress(_, _, _, _) => true
     _ => false
   }
 }
@@ -335,16 +335,6 @@ fn build_static_image(
     writer.write_i32_le((root.global.value << 2) | cleanup_tag)
   }
   pad_to(writer, 8)
-  let wasi_iovec_base = if function_catalog.requires(
-      WasiPreview1Import(FdWrite),
-    ) {
-    let base = writer.length()
-    write_zeroes(writer, 12)
-    base
-  } else {
-    0
-  }
-  pad_to(writer, 8)
   let heap_base = writer.length()
   {
     bytes: writer.to_bytes(),
@@ -364,7 +354,6 @@ fn build_static_image(
     callable_table_size,
     global_lifecycle,
     global_cleanup_table_base,
-    wasi_iovec_base,
   }
 }
 

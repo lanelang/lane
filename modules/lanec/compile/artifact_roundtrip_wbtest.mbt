@@ -240,11 +240,11 @@ test "effect aliases export through interface artifacts" {
 }
 
 ///|
-test "built-in Io roundtrips through typed artifacts" {
+test "Wasm ABI address storage roundtrips through typed artifacts" {
   let compiled = compile_modules_for_test(
     (
       #|module Main
-      #|pub let write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
+      #|pub let write : (Bytes, I64, I32) -> Bytes = builtin("%wasm_abi_store_address")
       #|pub fn run(action : () -> Unit ! Io) -> Unit ! Io {
       #|  action()
       #|}
@@ -279,7 +279,7 @@ test "built-in Io roundtrips through typed artifacts" {
     })
     .join("\n"),
     content=(
-      #|write: (I32, Bytes) -> I32 ! Io
+      #|write: (Bytes, I64, I32) -> Bytes
       #|run: (() -> Unit ! Io) -> Unit ! Io
     ),
   )
@@ -293,7 +293,7 @@ test "built-in Io roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 25
+      #|schema: 26
       #|
       #|imported interfaces:
       #|  (none)
@@ -305,20 +305,20 @@ test "built-in Io roundtrips through typed artifacts" {
       #|  value write
       #|  value run
       #|public entries:
-      #|  Main.write : (I32, Bytes) -> I32 ! Io
+      #|  Main.write : (Bytes, I64, I32) -> Bytes
       #|  Main.run : (() -> Unit ! Io) -> Unit ! Io
       #|compiler intrinsics:
-      #|  %wasi_fd_write : (I32, Bytes) -> I32 ! Io
+      #|  %wasm_abi_store_address : (Bytes, I64, I32) -> Bytes
       #|runtime imports:
       #|  (none)
       #|buslane:
       #|  buslane {
       #|    metadata {
       #|      next_unique#4;
-      #|      value value#0 = "write"#0 value : (I32, Bytes) -> I32 ! Io;
+      #|      value value#0 = "write"#0 value : (Bytes, I64, I32) -> Bytes;
       #|      value value#1 = "run"#1 function : (() -> Unit ! Io) -> Unit ! Io;
       #|      value value#2 = "action"#2 parameter : () -> Unit ! Io;
-      #|      value value#3 = "%wasi_fd_write"#3 external : (I32, Bytes) -> I32 ! Io;
+      #|      value value#3 = "%wasm_abi_store_address"#3 external : (Bytes, I64, I32) -> Bytes;
       #|    }
       #|    external value#3
       #|    letrec {
@@ -847,7 +847,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 25
+      #|schema: 26
       #|
       #|imported interfaces:
       #|  (none)

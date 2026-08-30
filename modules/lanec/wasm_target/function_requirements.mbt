@@ -107,6 +107,16 @@ fn require_physical_instruction_dependencies(
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceGet))
     ByteSequenceSet(_, _, _, _) =>
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceSet))
+    ByteSequenceAddress(_, _, _) =>
+      require_wasm_function(
+        dependencies,
+        RuntimeFunction(RequireByteSequenceLayout),
+      )
+    ByteSequenceStoreAddress(_, _, _, _) =>
+      require_wasm_function(
+        dependencies,
+        RuntimeFunction(ByteSequenceStoreAddress),
+      )
     ByteSequenceEqual(_, _, _) =>
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceEqual))
     ByteSequenceConcat(_, _, _) =>
@@ -118,13 +128,6 @@ fn require_physical_instruction_dependencies(
         dependencies,
         RuntimeFunction(ByteSequenceIsValidUtf8),
       )
-    WasiFdWrite(_, _, _) => {
-      require_wasm_function(dependencies, WasiPreview1Import(FdWrite))
-      require_wasm_function(
-        dependencies,
-        RuntimeFunction(RequireByteSequenceLayout),
-      )
-    }
     F32ToString(_, _) => {
       require_wasm_function(dependencies, InternalRuntimeImport(F32ToString))
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceNew))
@@ -224,6 +227,12 @@ fn runtime_function_dependencies(
       dependencies.append([
         RuntimeFunction(ByteSequenceNew),
         RuntimeFunction(ByteSequenceIndex),
+        RuntimeFunction(ReleaseReference),
+      ])
+    ByteSequenceStoreAddress =>
+      dependencies.append([
+        RuntimeFunction(RequireByteSequenceLayout),
+        RuntimeFunction(ByteSequenceNew),
         RuntimeFunction(ReleaseReference),
       ])
     InstanceGlobalCleanup =>

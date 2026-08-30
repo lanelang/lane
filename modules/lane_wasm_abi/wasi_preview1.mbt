@@ -13,7 +13,7 @@ pub fn WasiPreview1Import::contract(
       {
         module_name: "wasi_snapshot_preview1",
         field_name: "fd_write",
-        parameters: [Direct(I32), Direct(I32), Direct(I32), Direct(I32)],
+        parameters: [Direct(I32), GuestAddress, Direct(I32), GuestAddress],
         result: Direct(I32),
       }
     ProcExit =>
