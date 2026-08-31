@@ -8,12 +8,25 @@ import {
 }
 
 // Values
-pub fn lower_effects(@buslane.VerifiedProgram) -> Result[EffectLoweringResult, SynthesisError]
+pub fn lower_effects(@buslane.VerifiedProgram) -> Result[CpsCoreProgram, SynthesisError]
 
-pub fn lower_effects_observed(@buslane.VerifiedProgram, (EffectLoweringSnapshot) -> Unit) -> Result[EffectLoweringResult, SynthesisError]
+pub fn lower_effects_observed(@buslane.VerifiedProgram, (EffectLoweringSnapshot) -> Unit) -> Result[CpsCoreProgram, SynthesisError]
 
 // Errors
+pub(all) suberror CpsCoreVerificationError {
+  MissingFunctionOrigin(owner~ : @buslane.ValueId?)
+  ResidualPerform(owner~ : @buslane.ValueId?, operation~ : @buslane.OperationId)
+  ResidualHandle(owner~ : @buslane.ValueId?)
+  ResidualResume(owner~ : @buslane.ValueId?, value~ : @buslane.ValueId)
+  EscapedSourceEffectParameter(@buslane.TypeParameterId)
+  AlgebraicLatentEffect(owner~ : @buslane.ValueId?, effect~ : @buslane.Effect)
+} derive(Eq, @debug.Debug)
+pub fn CpsCoreVerificationError::equal(Self, Self) -> Bool
+pub fn CpsCoreVerificationError::not_equal(Self, Self) -> Bool
+pub fn CpsCoreVerificationError::to_repr(Self) -> @debug.Repr
+
 pub(all) suberror SynthesisError {
+  InvalidCpsCore(CpsCoreVerificationError)
   InvalidProgram(stage~ : EffectLoweringVerificationStage, result~ : @buslane.VerifyResult)
   TypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
   MetadataAllocationCompilerDefect(@buslane.MetadataAllocationError)
@@ -48,13 +61,16 @@ pub fn SynthesisError::not_equal(Self, Self) -> Bool
 pub fn SynthesisError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
-pub(all) struct EffectLoweringResult {
-  program : @buslane.VerifiedProgram
-  function_origins : @function_origin.FunctionOriginCatalog
+pub struct CpsCoreProgram {
+  // private fields
 } derive(Eq, @debug.Debug)
-pub fn EffectLoweringResult::equal(Self, Self) -> Bool
-pub fn EffectLoweringResult::not_equal(Self, Self) -> Bool
-pub fn EffectLoweringResult::to_repr(Self) -> @debug.Repr
+pub fn CpsCoreProgram::equal(Self, Self) -> Bool
+pub fn CpsCoreProgram::function_origins(Self) -> @function_origin.FunctionOriginCatalog
+pub fn CpsCoreProgram::not_equal(Self, Self) -> Bool
+pub fn CpsCoreProgram::program(Self) -> @buslane.VerifiedProgram
+pub fn CpsCoreProgram::recertify(Self, @buslane.VerifiedProgram, @function_origin.FunctionOriginCatalog) -> Result[Self, CpsCoreVerificationError]
+pub fn CpsCoreProgram::snapshot(Self) -> (@buslane.Program, @function_origin.FunctionOriginCatalog)
+pub fn CpsCoreProgram::to_repr(Self) -> @debug.Repr
 
 pub(all) struct EffectLoweringScale {
   top_terms : Int

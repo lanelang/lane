@@ -221,6 +221,15 @@ An owner-produced read-only observation of a verified private effect-lowering
 stage, containing rendered text and aggregate scale but no transitional AST.
 _Avoid_: typed IR transfer, driver-owned traversal, constructible stage wrapper
 
+**CPS Core Program**:
+The opaque phase certificate produced only by Effect Lowering over the existing
+Buslane representation. It proves ordinary Buslane well-formedness plus the
+absence of residual effect operations, handlers, resumptions, algebraic latent
+effects, and escaped source effect binders, and it atomically owns complete
+Function Origin provenance. Effect-Aware Core Optimization may re-certify this
+value; Runtime ANF accepts no unqualified Buslane substitute.
+_Avoid_: CPS AST copy, unchecked Buslane program, consumer-owned residual-effect check
+
 **Effect Specialization Demand**:
 A canonical request to retain a generic definition or create one concrete
 effect-specialized instance at a reachable source definition site.

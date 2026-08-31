@@ -12,6 +12,7 @@ import {
 }
 
 import {
+  "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/wasm_target",
   "Milky2018/lane_runtime",
   "Milky2018/lane_runtime/wasm" @lane_wasm_runtime,
@@ -19,6 +20,10 @@ import {
   "Milky2018/wasm_core/types" @wasm_types,
   "Milky2018/wasmoon/runtime" @wasmoon_runtime,
 } for "wbtest"
+
+import {
+  "Milky2018/lanec/effect_lowering",
+} for "test"
 
 supported_targets = "+all"
 

@@ -11,9 +11,8 @@ pub struct AnfProgram {
 /// executable reachability. Runtime ANF construction projects only these
 /// terms; backend consumers never recompute source-program occurrence facts.
 pub(all) struct RuntimeAnfInput {
-  program : @buslane.VerifiedProgram
+  cps_core : @effect_lowering.CpsCoreProgram
   retained_values : Array[@buslane.ValueId]
-  function_origins : @function_origin.FunctionOriginCatalog
 }
 
 ///|
@@ -38,8 +37,6 @@ pub(all) suberror RuntimeAnfLoweringError {
   MissingFunctionOrigin
   InvalidRuntimeProjection(detail~ : String)
   InvalidRuntimeAnf(RuntimeAnfVerificationFailure)
-  ResidualPerform(@buslane.OperationId)
-  ResidualHandle
 } derive(Debug, Eq)
 
 ///|

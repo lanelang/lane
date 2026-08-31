@@ -40,6 +40,7 @@ pub(all) suberror CoreOptimizeError {
   MissingFunctionOriginCompilerDefect
   ConflictingFunctionOriginCompilerDefect
   OutputVerificationCompilerDefect(@buslane.VerifyResult)
+  CpsCoreVerificationCompilerDefect(@effect_lowering.CpsCoreVerificationError)
 } derive(Debug, Eq)
 
 ///|
@@ -92,13 +93,27 @@ pub fn optimize_observed(
 }
 
 ///|
-/// Optimizes CPS Core while transferring transformation-owned provenance to
-/// every rebuilt or cloned function object.
-pub fn optimize_preserving_function_origins(
-  request : CoreOptimizeRequest,
-  function_origins : @function_origin.FunctionOriginCatalog,
-) -> Result[@buslane.VerifiedProgram, CoreOptimizeError] {
-  optimize_observed_with_origins(request, Some(function_origins), _ => ())
+/// Optimizes certified CPS Core while preserving and re-certifying its stronger
+/// phase contract and transformation-owned function provenance.
+pub fn optimize_cps_core(
+  program : @effect_lowering.CpsCoreProgram,
+  entry : @buslane.ValueId,
+  roots : Array[@buslane.ValueId],
+) -> Result[@effect_lowering.CpsCoreProgram, CoreOptimizeError] {
+  let function_origins = program.function_origins()
+  let optimized = match
+    optimize_observed_with_origins(
+      { program: program.program(), entry, roots, },
+      Some(function_origins),
+      _ => (),
+    ) {
+    Ok(optimized) => optimized
+    Err(error) => return Err(error)
+  }
+  match program.recertify(optimized, function_origins) {
+    Ok(program) => Ok(program)
+    Err(error) => Err(CpsCoreVerificationCompilerDefect(error))
+  }
 }
 
 ///|

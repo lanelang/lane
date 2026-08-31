@@ -30,6 +30,7 @@ pub fn FunctionOriginCatalog::new() -> Self
 pub fn FunctionOriginCatalog::not_equal(Self, Self) -> Bool
 pub fn FunctionOriginCatalog::origin(Self, @buslane.FunctionExpr) -> FunctionOrigin?
 pub fn FunctionOriginCatalog::record(Self, @buslane.FunctionExpr, FunctionOrigin) -> Bool
+pub fn FunctionOriginCatalog::snapshot(Self) -> Self
 pub fn FunctionOriginCatalog::to_repr(Self) -> @debug.Repr
 pub fn FunctionOriginCatalog::transfer(Self, @buslane.FunctionExpr, @buslane.FunctionExpr) -> Bool
 pub fn FunctionOriginCatalog::transfer_clones(Self, ArrayView[@buslane.FunctionClone]) -> Bool

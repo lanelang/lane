@@ -3,16 +3,16 @@ package "Milky2018/lanec/core_opt"
 
 import {
   "Milky2018/buslane",
-  "Milky2018/lanec/function_origin",
+  "Milky2018/lanec/effect_lowering",
   "moonbitlang/core/debug",
 }
 
 // Values
 pub fn optimize(CoreOptimizeRequest) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
 
-pub fn optimize_observed(CoreOptimizeRequest, (CoreOptimizationObservation) -> Unit) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
+pub fn optimize_cps_core(@effect_lowering.CpsCoreProgram, @buslane.ValueId, Array[@buslane.ValueId]) -> Result[@effect_lowering.CpsCoreProgram, CoreOptimizeError]
 
-pub fn optimize_preserving_function_origins(CoreOptimizeRequest, @function_origin.FunctionOriginCatalog) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
+pub fn optimize_observed(CoreOptimizeRequest, (CoreOptimizationObservation) -> Unit) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
 
 // Errors
 pub(all) suberror CoreOptimizeError {
@@ -25,6 +25,7 @@ pub(all) suberror CoreOptimizeError {
   MissingFunctionOriginCompilerDefect
   ConflictingFunctionOriginCompilerDefect
   OutputVerificationCompilerDefect(@buslane.VerifyResult)
+  CpsCoreVerificationCompilerDefect(@effect_lowering.CpsCoreVerificationError)
 } derive(Eq, @debug.Debug)
 pub fn CoreOptimizeError::equal(Self, Self) -> Bool
 pub fn CoreOptimizeError::not_equal(Self, Self) -> Bool

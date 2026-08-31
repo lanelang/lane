@@ -24,10 +24,7 @@ pub fn lower_cps_core_to_runtime_anf(
 fn lower_cps_core_to_runtime_anf_or_raise(
   input : RuntimeAnfInput,
 ) -> AnfProgram raise RuntimeAnfLoweringError {
-  let (program, input_function_clones) = input.program.program_with_function_clones()
-  if !input.function_origins.transfer_clones(input_function_clones[:]) {
-    raise MissingFunctionOrigin
-  }
+  let (program, function_origins) = input.cps_core.snapshot()
   validate_retained_values(program.terms, input.retained_values)
   let retained_terms = retained_top_terms(program.terms, input.retained_values)
   let retained_program : @buslane.Program = {
@@ -39,17 +36,17 @@ fn lower_cps_core_to_runtime_anf_or_raise(
     Ok(result) => result
     Err(result) => raise InvalidRetention(result)
   }
-  if !input.function_origins.transfer_clones(retained_function_clones[:]) {
+  if !function_origins.transfer_clones(retained_function_clones[:]) {
     raise MissingFunctionOrigin
   }
   let (program, program_function_clones) = retained.program_with_function_clones()
-  if !input.function_origins.transfer_clones(program_function_clones[:]) {
+  if !function_origins.transfer_clones(program_function_clones[:]) {
     raise MissingFunctionOrigin
   }
   let generic_plan = runtime_generic_plan(program, retained_terms)
   let lowerer = AnfLowerer::{
     generic_plan,
-    function_origins: input.function_origins,
+    function_origins,
     next_temp: 0,
     next_function: 0,
   }
@@ -282,9 +279,10 @@ fn AnfLowerer::lower_to_atom(
           continuation,
         )
       })
-    Perform(perform) => raise ResidualPerform(perform.operation)
-    Handle(_) => raise ResidualHandle
-    Resume(id) => continuation(Ref(id))
+    Perform(_) | Handle(_) | Resume(_) =>
+      raise InvalidRuntimeProjection(
+        detail="certified CPS Core contains a residual effect expression",
+      )
   }
 }
 

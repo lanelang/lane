@@ -6,11 +6,10 @@
 /// belongs to the linked program from which this value was elaborated.
 /// Runtime ANF lowering is the sole boundary that projects away effect syntax.
 pub(all) struct ExecutableProgram {
-  program : @buslane.VerifiedProgram
+  cps_core : @effect_lowering.CpsCoreProgram
   externals : @buslane_lowering.BuslaneExternalMap
   entry : @buslane_lowering.BuslaneEntry
   retained_values : Array[@buslane.ValueId]
-  function_origins : @function_origin.FunctionOriginCatalog
 } derive(Debug, Eq)
 
 ///|

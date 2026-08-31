@@ -14,16 +14,12 @@ fn lower_unoptimized_test_program(
         }
     }
   }
-  let (verified, function_origins) = @function_origin.certify_uniform_program(
-    program,
-    SourceWritten,
-  ).unwrap()
+  let cps_core = @effect_lowering.lower_effects(program.certify().unwrap()).unwrap()
   @physical_lowering.lower_executable_program_to_physical({
-    program: verified,
+    cps_core,
     externals,
     entry,
     retained_values,
-    function_origins,
   }).map(verified => verified.image())
 }
 

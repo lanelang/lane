@@ -30,6 +30,28 @@ test "function origins follow object identity rather than structural equality" {
 }
 
 ///|
+test "function origin snapshots isolate later extensions" {
+  let source : @buslane.FunctionExpr = {
+    parameters: [],
+    result_type: Primitive(Unit),
+    body: Literal(Unit),
+  }
+  let added : @buslane.FunctionExpr = {
+    parameters: [],
+    result_type: Primitive(I64),
+    body: Literal(I64(42L)),
+  }
+  let original = @function_origin.FunctionOriginCatalog::new()
+  assert_true(original.record(source, SourceWritten))
+  let snapshot = original.snapshot()
+  assert_true(snapshot.record(added, SelectiveCps))
+  assert_eq(
+    (original.origin(added), snapshot.origin(added)),
+    (None, Some(SelectiveCps)),
+  )
+}
+
+///|
 test "Buslane snapshots explicitly transfer function origin identities" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let main = metadata.define_value(

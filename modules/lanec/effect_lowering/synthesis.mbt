@@ -15,6 +15,7 @@ fn[T] normalization_or_synthesis_defect(
 
 ///|
 pub(all) suberror SynthesisError {
+  InvalidCpsCore(CpsCoreVerificationError)
   InvalidProgram(
     stage~ : EffectLoweringVerificationStage,
     result~ : @buslane.VerifyResult

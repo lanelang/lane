@@ -7,7 +7,6 @@ import {
   "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/effect_specialization",
   "Milky2018/lanec/elaborate/buslane_lowering",
-  "Milky2018/lanec/function_origin",
   "Milky2018/lanec/module/link",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
@@ -47,16 +46,15 @@ pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.VerifiedProgram)
   CoreOptimized(@buslane.VerifiedProgram)
   EffectLowering(@effect_lowering.EffectLoweringSnapshot)
-  MonadicContinuationsLifted(@buslane.VerifiedProgram)
-  CpsCoreOptimized(@buslane.VerifiedProgram)
+  MonadicContinuationsLifted(@effect_lowering.CpsCoreProgram)
+  CpsCoreOptimized(@effect_lowering.CpsCoreProgram)
 }
 
 pub(all) struct ExecutableProgram {
-  program : @buslane.VerifiedProgram
+  cps_core : @effect_lowering.CpsCoreProgram
   externals : @buslane_lowering.BuslaneExternalMap
   entry : @buslane_lowering.BuslaneEntry
   retained_values : Array[@buslane.ValueId]
-  function_origins : @function_origin.FunctionOriginCatalog
 } derive(Eq, @debug.Debug)
 pub fn ExecutableProgram::equal(Self, Self) -> Bool
 pub fn ExecutableProgram::not_equal(Self, Self) -> Bool

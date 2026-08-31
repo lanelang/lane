@@ -28,13 +28,6 @@ pub(all) struct EffectLoweringScale {
 } derive(Debug, Eq)
 
 ///|
-/// Verified CPS Core together with transformation-owned function provenance.
-pub(all) struct EffectLoweringResult {
-  program : @buslane.VerifiedProgram
-  function_origins : @function_origin.FunctionOriginCatalog
-} derive(Debug, Eq)
-
-///|
 /// A read-only observation of a verified private stage. It deliberately carries
 /// no constructible transitional AST.
 pub(all) struct EffectLoweringSnapshot {
@@ -48,7 +41,7 @@ pub(all) struct EffectLoweringSnapshot {
 /// Every private stage is checked before its snapshot is reported.
 pub fn lower_effects(
   program : @buslane.VerifiedProgram,
-) -> Result[EffectLoweringResult, SynthesisError] {
+) -> Result[CpsCoreProgram, SynthesisError] {
   Ok(lower_effects_or_raise(program, None)) catch {
     error => Err(error)
   }
@@ -59,7 +52,7 @@ pub fn lower_effects(
 pub fn lower_effects_observed(
   program : @buslane.VerifiedProgram,
   observe : (EffectLoweringSnapshot) -> Unit,
-) -> Result[EffectLoweringResult, SynthesisError] {
+) -> Result[CpsCoreProgram, SynthesisError] {
   Ok(lower_effects_or_raise(program, Some(observe))) catch {
     error => Err(error)
   }
@@ -69,8 +62,9 @@ pub fn lower_effects_observed(
 fn lower_effects_or_raise(
   verified : @buslane.VerifiedProgram,
   observe : ((EffectLoweringSnapshot) -> Unit)?,
-) -> EffectLoweringResult raise SynthesisError {
+) -> CpsCoreProgram raise SynthesisError {
   let program = verified.program()
+  let eliminated_effect_parameters = source_effect_parameters(program.metadata)
   let elaborated = elaborate_handlers(program)
   require_transitional_program(HandlerElaboration, elaborated)
   observe_effect_lowering_stage(observe, HandlersElaborated, elaborated)
@@ -92,7 +86,13 @@ fn lower_effects_or_raise(
   if !function_origins.transfer_clones(function_clones[:]) {
     raise FunctionOriginCompilerDefect
   }
-  { program: certified, function_origins, }
+  match
+    certify_initial_cps_core_program(
+      certified, function_origins, eliminated_effect_parameters,
+    ) {
+    Ok(program) => program
+    Err(error) => raise InvalidCpsCore(error)
+  }
 }
 
 ///|
