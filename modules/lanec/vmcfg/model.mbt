@@ -79,6 +79,12 @@ pub(all) struct ProjectionSelection {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum RuntimeImportArgument {
+  Direct(ValueId)
+  GuestAddress(ValueId, ValueId)
+} derive(Debug, Eq)
+
+///|
 pub(all) enum Instruction {
   Copy(ValueId, ValueId)
   Move(ValueId, ValueId)
@@ -96,6 +102,18 @@ pub(all) enum Instruction {
   CallDirect(
     @physical.FunctionId,
     ValueId?,
+    Array[ValueId],
+    Array[ValueId],
+    ValueId?
+  )
+  CallRuntimeImport(
+    @physical.FunctionId,
+    Array[RuntimeImportArgument],
+    ValueId?
+  )
+  CallPackedDirect(
+    @physical.FunctionId,
+    ValueId,
     Array[ValueId],
     Array[ValueId],
     ValueId?
@@ -132,7 +150,11 @@ pub(all) enum Instruction {
   ByteSequenceConcat(ValueId, ValueId, ValueId)
   ByteSequenceSlice(ValueId, ValueId, ValueId, ValueId)
   ByteSequenceIsValidUtf8(ValueId, ValueId)
-  WasiFdWrite(ValueId, ValueId, ValueId)
+  ByteBufferMake(ValueId, ValueId)
+  ByteBufferWriteBytes(ValueId, ValueId, ValueId)
+  ByteBufferWriteI32(ValueId, ValueId, ValueId)
+  ByteBufferWriteAddress(ValueId, ValueId, ValueId, ValueId)
+  ByteBufferReadI32(ValueId, ValueId, ValueId)
   I32Add(ValueId, ValueId, ValueId)
   I32Sub(ValueId, ValueId, ValueId)
   I32Mul(ValueId, ValueId, ValueId)
@@ -221,6 +243,12 @@ pub(all) enum Terminator {
   SwitchTag(ValueId, Array[Edge], Edge)
   Return(ValueId?)
   TailCallDirect(@physical.FunctionId, ValueId?, Array[ValueId], Array[ValueId])
+  TailCallPackedDirect(
+    @physical.FunctionId,
+    ValueId,
+    Array[ValueId],
+    Array[ValueId]
+  )
   TailCallValue(ValueId, Array[ValueId], Array[ValueId])
   Fatal(ValueId)
   Unreachable

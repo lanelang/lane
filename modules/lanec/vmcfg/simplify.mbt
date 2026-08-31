@@ -1,92 +1,24 @@
 ///|
 fn simplify_body(body : FunctionBody) -> FunctionBody raise FinalizeError {
-  let mut simplified = body
-  let iteration_limit = body.blocks.length() + body.values.length() + 1
-  for _ in 0..<iteration_limit {
+  for simplified = body {
     let next = simplify_body_once(simplified)
     if next == simplified {
-      break
+      return next
     }
-    simplified = next
+    continue next
   }
-  simplified
 }
 
 ///|
 fn simplify_body_once(body : FunctionBody) -> FunctionBody raise FinalizeError {
-  let body = { ..body, blocks: propagate_local_scalar_values(body), }
-  let body = { ..body, blocks: body.blocks.map(fold_constant_terminator), }
+  let body = propagate_sparse_constants(body)
+  let body = { ..body, blocks: remove_unreachable_blocks(body.blocks), }
+  let body = eliminate_common_scalar_expressions(body)
   let body = { ..body, blocks: remove_dead_scalar_instructions(body), }
   let body = { ..body, blocks: remove_unused_block_parameters(body), }
   let body = { ..body, blocks: thread_empty_jump_blocks(body), }
   let body = { ..body, blocks: merge_linear_blocks(body.blocks), }
   { ..body, blocks: remove_unreachable_blocks(body.blocks), }
-}
-
-///|
-fn propagate_local_scalar_values(
-  body : FunctionBody,
-) -> Array[Block] raise FinalizeError {
-  let use_def = analyze_use_def(body)
-  body.blocks.mapi(fn(block_index, block) {
-    let aliases : Array[(ValueId, ValueId)] = []
-    let constants : Array[(Instruction, ValueId)] = []
-    let instructions = []
-    for original in block.instructions {
-      let instruction = map_instruction_values(original, fn(value) {
-        resolve_value_alias(value, aliases)
-      })
-      let destinations = instruction_destinations(instruction)
-      let local_destination = match destinations {
-        [destination] if use_def.is_used_only_in_block(destination, block_index) &&
-          body.values[destination.value].ownership is Trivial &&
-          !value_is_erased_companion(body.values, destination) =>
-          Some(destination)
-        _ => None
-      }
-      match instruction {
-        Copy(destination, source) if local_destination == Some(destination) &&
-          compatible_trivial_values(body.values, destination, source) =>
-          aliases.push((destination, source))
-        _ if local_destination is Some(destination) &&
-          instruction_is_scalar_constant(instruction) =>
-          match find_equivalent_constant(instruction, constants) {
-            Some(existing) if compatible_trivial_values(
-                body.values,
-                destination,
-                existing,
-              ) => aliases.push((destination, existing))
-            _ => {
-              constants.push((instruction, destination))
-              instructions.push(instruction)
-            }
-          }
-        _ => instructions.push(instruction)
-      }
-    }
-    {
-      ..block,
-      instructions,
-      terminator: map_terminator_values(block.terminator, fn(value) {
-        resolve_value_alias(value, aliases)
-      }),
-    }
-  })
-}
-
-///|
-fn resolve_value_alias(
-  initial : ValueId,
-  aliases : Array[(ValueId, ValueId)],
-) -> ValueId {
-  let mut value = initial
-  for index = aliases.length() - 1; index >= 0; index = index - 1 {
-    let (candidate, replacement) = aliases[index]
-    if candidate == value {
-      value = replacement
-    }
-  }
-  value
 }
 
 ///|
@@ -102,93 +34,18 @@ fn compatible_trivial_values(
 }
 
 ///|
-fn instruction_is_scalar_constant(instruction : Instruction) -> Bool {
-  match instruction {
-    ConstI64(_, _)
-    | ConstI32(_, _)
-    | ConstF32(_, _)
-    | ConstChar(_, _)
-    | ConstF64(_, _)
-    | ConstBool(_, _)
-    | ConstLayout(_, _)
-    | ConstFunction(_, _) => true
-    _ => false
-  }
-}
-
-///|
-fn find_equivalent_constant(
-  instruction : Instruction,
-  constants : Array[(Instruction, ValueId)],
-) -> ValueId? {
-  for entry in constants {
-    let (candidate, value) = entry
-    if scalar_constants_equal(instruction, candidate) {
-      return Some(value)
+fn resolve_value_alias(
+  initial : ValueId,
+  aliases : Array[(ValueId, ValueId)],
+) -> ValueId {
+  let mut value = initial
+  for index = aliases.length() - 1; index >= 0; index = index - 1 {
+    let (candidate, replacement) = aliases[index]
+    if candidate == value {
+      value = replacement
     }
   }
-  None
-}
-
-///|
-fn scalar_constants_equal(left : Instruction, right : Instruction) -> Bool {
-  match (left, right) {
-    (ConstI64(_, left), ConstI64(_, right)) => left == right
-    (ConstI32(_, left), ConstI32(_, right)) => left == right
-    (ConstF32(_, left), ConstF32(_, right)) => left == right
-    (ConstChar(_, left), ConstChar(_, right)) => left == right
-    (ConstF64(_, left), ConstF64(_, right)) => left == right
-    (ConstBool(_, left), ConstBool(_, right)) => left == right
-    (ConstLayout(_, left), ConstLayout(_, right)) => left == right
-    (ConstFunction(_, left), ConstFunction(_, right)) => left == right
-    _ => false
-  }
-}
-
-///|
-fn fold_constant_terminator(block : Block) -> Block {
-  let terminator = match block.terminator {
-    BranchBool(condition, if_true, if_false) =>
-      match find_bool_constant(block.instructions, condition) {
-        Some(true) => Jump(if_true)
-        Some(false) => Jump(if_false)
-        None => block.terminator
-      }
-    SwitchTag(tag, cases, default) =>
-      match find_int_constant(block.instructions, tag) {
-        Some(value) if value >= 0L && value < cases.length().to_int64() =>
-          Jump(cases[value.to_int()])
-        _ => SwitchTag(tag, cases, default)
-      }
-    _ => block.terminator
-  }
-  { ..block, terminator, }
-}
-
-///|
-fn find_bool_constant(
-  instructions : Array[Instruction],
-  value : ValueId,
-) -> Bool? {
-  for instruction in instructions {
-    if instruction is ConstBool(destination, constant) && destination == value {
-      return Some(constant)
-    }
-  }
-  None
-}
-
-///|
-fn find_int_constant(
-  instructions : Array[Instruction],
-  value : ValueId,
-) -> Int64? {
-  for instruction in instructions {
-    if instruction is ConstI64(destination, constant) && destination == value {
-      return Some(constant)
-    }
-  }
-  None
+  value
 }
 
 ///|
@@ -477,6 +334,7 @@ fn map_terminator_edges(
       SwitchTag(tag, cases.map(transform), transform(default))
     Return(_)
     | TailCallDirect(_, _, _, _)
+    | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
     | Fatal(_)
     | Unreachable => terminator
@@ -507,6 +365,13 @@ fn map_terminator_values(
       TailCallDirect(
         target,
         environment.map(transform),
+        witnesses.map(transform),
+        arguments.map(transform),
+      )
+    TailCallPackedDirect(target, callable, witnesses, arguments) =>
+      TailCallPackedDirect(
+        target,
+        transform(callable),
         witnesses.map(transform),
         arguments.map(transform),
       )
@@ -586,6 +451,26 @@ fn map_instruction_values(
       CallDirect(
         target,
         environment.map(transform),
+        witnesses.map(transform),
+        arguments.map(transform),
+        destination.map(transform),
+      )
+    CallRuntimeImport(target, arguments, destination) =>
+      CallRuntimeImport(
+        target,
+        arguments.map(fn(argument) {
+          match argument {
+            Direct(value) => Direct(transform(value))
+            GuestAddress(buffer, offset) =>
+              GuestAddress(transform(buffer), transform(offset))
+          }
+        }),
+        destination.map(transform),
+      )
+    CallPackedDirect(target, callable, witnesses, arguments, destination) =>
+      CallPackedDirect(
+        target,
+        transform(callable),
         witnesses.map(transform),
         arguments.map(transform),
         destination.map(transform),
@@ -695,8 +580,29 @@ fn map_instruction_values(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(transform(destination), transform(source))
-    WasiFdWrite(destination, fd, bytes) =>
-      WasiFdWrite(transform(destination), transform(fd), transform(bytes))
+    ByteBufferMake(destination, length) =>
+      ByteBufferMake(transform(destination), transform(length))
+    ByteBufferWriteBytes(buffer, index, source) =>
+      ByteBufferWriteBytes(
+        transform(buffer),
+        transform(index),
+        transform(source),
+      )
+    ByteBufferWriteI32(buffer, index, value) =>
+      ByteBufferWriteI32(transform(buffer), transform(index), transform(value))
+    ByteBufferWriteAddress(buffer, index, target, offset) =>
+      ByteBufferWriteAddress(
+        transform(buffer),
+        transform(index),
+        transform(target),
+        transform(offset),
+      )
+    ByteBufferReadI32(destination, buffer, index) =>
+      ByteBufferReadI32(
+        transform(destination),
+        transform(buffer),
+        transform(index),
+      )
     I32Add(destination, left, right) =>
       I32Add(transform(destination), transform(left), transform(right))
     I32Sub(destination, left, right) =>

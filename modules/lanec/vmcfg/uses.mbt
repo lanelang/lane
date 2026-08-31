@@ -37,7 +37,7 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(_, source)
     | UneraseUnit(source)
     | InitGlobal(_, source) => [source]
-    WasiFdWrite(_, fd, bytes) => [fd, bytes]
+    ByteBufferMake(_, length) => [length]
     ByteSequenceConcat(_, left, right)
     | ByteSequenceEqual(_, left, right)
     | ByteSequenceMake(_, left, right)
@@ -88,7 +88,12 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | F64Gt(_, left, right)
     | F64Ge(_, left, right) => [left, right]
     ByteSequenceSlice(_, string, start, length)
-    | ByteSequenceSet(_, string, start, length) => [string, start, length]
+    | ByteSequenceSet(_, string, start, length)
+    | ByteBufferWriteBytes(string, start, length)
+    | ByteBufferWriteI32(string, start, length) => [string, start, length]
+    ByteBufferReadI32(_, buffer, index) => [buffer, index]
+    ByteBufferWriteAddress(buffer, index, target, offset) =>
+      [buffer, index, target, offset]
     CallDirect(_, environment, witnesses, arguments, _) => {
       let uses = []
       if environment is Some(value) {
@@ -98,6 +103,21 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
       uses.append(arguments)
       uses
     }
+    CallRuntimeImport(_, arguments, _) => {
+      let uses = []
+      for argument in arguments {
+        match argument {
+          Direct(value) => uses.push(value)
+          GuestAddress(buffer, offset) => {
+            uses.push(buffer)
+            uses.push(offset)
+          }
+        }
+      }
+      uses
+    }
+    CallPackedDirect(_, callable, witnesses, arguments, _) =>
+      [callable] + witnesses + arguments
     CallValue(callable, witnesses, arguments, _) =>
       [callable] + witnesses + arguments
     MakeData(_, _, layout, witnesses, fields)
@@ -160,6 +180,8 @@ fn terminator_operand_values(terminator : Terminator) -> Array[ValueId] {
       uses.append(arguments)
       uses
     }
+    TailCallPackedDirect(_, callable, witnesses, arguments) =>
+      [callable] + witnesses + arguments
     TailCallValue(callable, witnesses, arguments) =>
       [callable] + witnesses + arguments
   }
@@ -275,8 +297,12 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(destination, _)
     | EraseUnit(destination)
     | BorrowGlobal(destination, _) => [destination]
-    WasiFdWrite(destination, _, _) => [destination]
-    CallDirect(_, _, _, _, destination) | CallValue(_, _, _, destination) =>
+    ByteBufferMake(destination, _) | ByteBufferReadI32(destination, _, _) =>
+      [destination]
+    CallDirect(_, _, _, _, destination)
+    | CallRuntimeImport(_, _, destination)
+    | CallPackedDirect(_, _, _, _, destination)
+    | CallValue(_, _, _, destination) =>
       destination.map(value => [value]).unwrap_or([])
     BorrowField(_, _, _, result) | BorrowCapture(_, _, _, result) =>
       projection_destinations(result)
@@ -287,6 +313,11 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
       }
       destinations
     }
-    Release(_) | UneraseUnit(_) | InitGlobal(_, _) => []
+    Release(_)
+    | ByteBufferWriteBytes(_, _, _)
+    | ByteBufferWriteI32(_, _, _)
+    | ByteBufferWriteAddress(_, _, _, _)
+    | UneraseUnit(_)
+    | InitGlobal(_, _) => []
   }
 }

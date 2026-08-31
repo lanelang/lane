@@ -4,12 +4,8 @@ priv struct FunctionLocalPlan {
   locals : Array[@wasm_types.ValueType]
   slot_local_count : Int
   control_local_count : Int
-  arc_local_count : Int
   transfer_locals : Array[Array[Int]]
   dispatcher_local : Int?
-  slot_cleanups : Array[@physical.Cleanup]
-  erased_liveness_locals : Array[Int]
-  mut arc_frame_state_instruction_count : Int
 }
 
 ///|
@@ -72,15 +68,6 @@ fn plan_function_locals(
   } else {
     None
   }
-  let erased_liveness_locals = Array::make(body.slots.length(), -1)
-  let mut erased_owned_count = 0
-  for index, slot in body.slots {
-    if slot.cleanup is OwnedErased {
-      erased_liveness_locals[index] = parameter_count + locals.length()
-      locals.push(I32)
-      erased_owned_count += 1
-    }
-  }
   {
     parameter_count,
     locals,
@@ -90,12 +77,8 @@ fn plan_function_locals(
     f32_pool.length() +
     f64_pool.length() +
     (if dispatcher_local is Some(_) { 1 } else { 0 }),
-    arc_local_count: erased_owned_count,
     transfer_locals,
     dispatcher_local,
-    slot_cleanups: body.slots.map(slot => slot.cleanup),
-    erased_liveness_locals,
-    arc_frame_state_instruction_count: 0,
   }
 }
 
@@ -119,66 +102,4 @@ fn FunctionLocalPlan::transfer_local(
 ///|
 fn FunctionLocalPlan::dispatcher_state_local(self : FunctionLocalPlan) -> Int {
   self.dispatcher_local.unwrap()
-}
-
-///|
-fn FunctionLocalPlan::erased_liveness_local(
-  self : FunctionLocalPlan,
-  slot : @physical.SlotId,
-) -> Int {
-  self.erased_liveness_locals[slot.value]
-}
-
-///|
-fn FunctionLocalPlan::mark_slot_live(
-  self : FunctionLocalPlan,
-  slot : @physical.SlotId,
-) -> Array[@wasm_types.Instruction] {
-  let instructions : Array[@wasm_types.Instruction] = match
-    self.slot_cleanups[slot.value] {
-    Trivial | OwnedRef | OwnedCallable => []
-    OwnedErased => [I32Const(1), LocalSet(self.erased_liveness_local(slot))]
-  }
-  self.arc_frame_state_instruction_count += wasm_instruction_array_size(
-    instructions,
-  )
-  instructions
-}
-
-///|
-fn FunctionLocalPlan::mark_slot_dead(
-  self : FunctionLocalPlan,
-  slot : @physical.SlotId,
-) -> Array[@wasm_types.Instruction] {
-  let instructions : Array[@wasm_types.Instruction] = match
-    self.slot_cleanups[slot.value] {
-    Trivial => []
-    OwnedRef => [I32Const(0), LocalSet(self.slot_local(slot))]
-    OwnedCallable => [I64Const(0L), LocalSet(self.slot_local(slot))]
-    OwnedErased => [I32Const(0), LocalSet(self.erased_liveness_local(slot))]
-  }
-  self.arc_frame_state_instruction_count += wasm_instruction_array_size(
-    instructions,
-  )
-  instructions
-}
-
-///|
-fn FunctionLocalPlan::mark_slot_dead_after_definition(
-  self : FunctionLocalPlan,
-  source : @physical.SlotId,
-  destination : @physical.SlotId,
-) -> Array[@wasm_types.Instruction] {
-  if source == destination {
-    []
-  } else {
-    self.mark_slot_dead(source)
-  }
-}
-
-///|
-fn FunctionLocalPlan::arc_frame_state_instructions(
-  self : FunctionLocalPlan,
-) -> Int {
-  self.arc_frame_state_instruction_count
 }

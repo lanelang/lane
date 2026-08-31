@@ -54,8 +54,11 @@ fn wasm_function_type(
 fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
   match role {
     Allocate => wasm_function_type([I32], [I32])
-    Free | RetainReference | ReleaseReference | RequireByteSequenceLayout =>
-      wasm_function_type([I32], [])
+    Free
+    | RetainReference
+    | ReleaseReference
+    | RequireByteSequenceLayout
+    | RequireByteBufferLayout => wasm_function_type([I32], [])
     ByteSequenceNew => wasm_function_type([I32], [I32])
     ByteSequenceEqual | ByteSequenceConcat =>
       wasm_function_type([I32, I32], [I32])
@@ -64,6 +67,11 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
     ByteSequenceIndex | ByteSequenceGet => wasm_function_type([I32, I64], [I32])
     ByteSequenceSet => wasm_function_type([I32, I64, I32], [I32])
     ByteSequenceIsValidUtf8 => wasm_function_type([I32], [I32])
+    ByteBufferMake => wasm_function_type([I64], [I32])
+    ByteBufferWriteBytes => wasm_function_type([I32, I64, I32], [])
+    ByteBufferWriteI32 => wasm_function_type([I32, I64, I32], [])
+    ByteBufferWriteAddress => wasm_function_type([I32, I64, I32, I32], [])
+    ByteBufferReadI32 => wasm_function_type([I32, I64], [I32])
     InstanceGlobalCleanup => wasm_function_type([], [])
   }
 }
@@ -71,17 +79,15 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
 ///|
 fn helper_function_type(role : WasmHelperFunctionRole) -> WasmFunctionType {
   match role {
-    CallableAbiGuard => wasm_function_type([I64, I32], [])
+    CallableAbiGuard | PackedCallableTargetGuard =>
+      wasm_function_type([I64, I32], [])
     NoopErased
     | RetainReferenceErased
     | ReleaseReferenceErased
     | RetainCallable
     | ReleaseCallable => wasm_function_type([I64], [])
-    CleanupLiveReference => wasm_function_type([I32], [])
-    CleanupLiveCallable => wasm_function_type([I64], [])
-    CleanupLiveErased => wasm_function_type([I64, I32, I32], [])
     DestroyNoop | DestroyShape(_) => wasm_function_type([I32], [])
-    ByteSequenceSizer => wasm_function_type([I32], [I32])
+    ByteStorageSizer => wasm_function_type([I32], [I32])
   }
 }
 
@@ -102,6 +108,12 @@ fn runtime_function_order() -> Array[WasmRuntimeFunctionRole] {
     ByteSequenceGet,
     ByteSequenceSet,
     ByteSequenceIsValidUtf8,
+    ByteBufferMake,
+    RequireByteBufferLayout,
+    ByteBufferWriteBytes,
+    ByteBufferWriteI32,
+    ByteBufferWriteAddress,
+    ByteBufferReadI32,
     InstanceGlobalCleanup,
   ]
 }
@@ -112,30 +124,25 @@ fn helper_function_order(
 ) -> Array[WasmHelperFunctionRole] {
   let roles : Array[WasmHelperFunctionRole] = [
     CallableAbiGuard,
+    PackedCallableTargetGuard,
     NoopErased,
     RetainReferenceErased,
     ReleaseReferenceErased,
     RetainCallable,
     ReleaseCallable,
-    CleanupLiveReference,
-    CleanupLiveCallable,
-    CleanupLiveErased,
     DestroyNoop,
   ]
   for shape in 0..<image.object_shapes.length() {
     roles.push(DestroyShape(shape~))
   }
-  roles.push(ByteSequenceSizer)
+  roles.push(ByteStorageSizer)
   roles
 }
 
 ///|
 fn helper_is_layout_callback(role : WasmHelperFunctionRole) -> Bool {
   match role {
-    CallableAbiGuard
-    | CleanupLiveReference
-    | CleanupLiveCallable
-    | CleanupLiveErased => false
+    CallableAbiGuard | PackedCallableTargetGuard => false
     _ => true
   }
 }
@@ -148,10 +155,15 @@ fn address_taken_functions(image : @physical.PhysicalProgram) -> Array[Bool] {
     for block in body.blocks {
       for instruction in block.instructions {
         match instruction {
-          ConstFunction(_, function) | MakeClosure(_, function, _) =>
+          ConstFunction(_, function)
+          | MakeClosure(_, function, _)
+          | CallPackedDirect(function, _, _, _, _) =>
             address_taken[function.value - 1] = true
           _ => ()
         }
+      }
+      if block.terminator is TailCallPackedDirect(function, _, _, _) {
+        address_taken[function.value - 1] = true
       }
     }
   }
@@ -337,14 +349,6 @@ fn WasmFunctionCatalog::internal_import(
 }
 
 ///|
-fn WasmFunctionCatalog::wasi_preview1_import(
-  self : WasmFunctionCatalog,
-  import_ : @wasm_abi.WasiPreview1Import,
-) -> WasmFunctionHandle {
-  self.require(WasiPreview1Import(import_))
-}
-
-///|
 fn WasmFunctionCatalog::image_function(
   self : WasmFunctionCatalog,
   function : @physical.FunctionId,
@@ -458,6 +462,7 @@ fn WasmFunctionCatalog::validate(
 ) -> Unit raise WasmCompileError {
   let actual_layouts = wasm_runtime_layout_ids(image)
   if self.runtime_layouts.byte_sequence != actual_layouts.byte_sequence ||
+    self.runtime_layouts.byte_buffer != actual_layouts.byte_buffer ||
     self.runtime_layouts.reference != actual_layouts.reference {
     raise InvalidFunctionCatalog(
       detail="runtime layout identities differ from the physical layout table",

@@ -41,6 +41,12 @@ pub extend FunctionBody with Debug::{to_repr}
 pub extend FunctionBody with Eq::{not_equal, equal}
 
 ///|
+pub extend RuntimeImportArgument with Debug::{to_repr}
+
+///|
+pub extend RuntimeImportArgument with Eq::{not_equal, equal}
+
+///|
 pub extend FunctionEntry with Debug::{to_repr}
 
 ///|

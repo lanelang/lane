@@ -210,6 +210,8 @@ fn reachable_functions(
         match instruction {
           ConstFunction(_, target)
           | CallDirect(target, _, _, _, _)
+          | CallRuntimeImport(target, _, _)
+          | CallPackedDirect(target, _, _, _, _)
           | MakeClosure(_, target, _) =>
             mark_reachable_function(
               image.functions,
@@ -220,8 +222,11 @@ fn reachable_functions(
           _ => ()
         }
       }
-      if block.terminator is TailCallDirect(target, _, _, _) {
-        mark_reachable_function(image.functions, reachable, worklist, target)
+      match block.terminator {
+        TailCallDirect(target, _, _, _)
+        | TailCallPackedDirect(target, _, _, _) =>
+          mark_reachable_function(image.functions, reachable, worklist, target)
+        _ => ()
       }
     }
   }
@@ -278,6 +283,20 @@ fn remap_instruction_function_ids(
         arguments,
         destination,
       )
+    CallRuntimeImport(function, arguments, destination) =>
+      CallRuntimeImport(
+        remap_function_id(function, mappings),
+        arguments,
+        destination,
+      )
+    CallPackedDirect(function, callable, witnesses, arguments, destination) =>
+      CallPackedDirect(
+        remap_function_id(function, mappings),
+        callable,
+        witnesses,
+        arguments,
+        destination,
+      )
     MakeClosure(destination, function, environment) =>
       MakeClosure(
         destination,
@@ -298,6 +317,13 @@ fn remap_terminator_function_ids(
       TailCallDirect(
         remap_function_id(function, mappings),
         environment,
+        witnesses,
+        arguments,
+      )
+    TailCallPackedDirect(function, callable, witnesses, arguments) =>
+      TailCallPackedDirect(
+        remap_function_id(function, mappings),
+        callable,
         witnesses,
         arguments,
       )

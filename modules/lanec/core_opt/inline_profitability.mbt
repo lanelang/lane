@@ -36,12 +36,3 @@ fn is_straight_line_value(expression : @buslane.Expr) -> Bool {
     LetRec(_, _) | Call(_, _) | Match(_) | Perform(_) | Handle(_) => false
   }
 }
-
-///|
-fn application_reduction_is_profitable(
-  original : @buslane.Expr,
-  candidate : @buslane.Expr,
-  _analysis : CoreAnalysis,
-) -> Bool {
-  core_expression_size(candidate) < core_expression_size(original)
-}

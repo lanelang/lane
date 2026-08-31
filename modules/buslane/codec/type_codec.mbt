@@ -134,6 +134,7 @@ fn @bytecodec.ByteWriter::write_primitive_type(
       I32 => 7
       Char => 8
       F32 => 9
+      ByteBuffer => 10
     },
   )
 }
@@ -183,6 +184,10 @@ fn @bytecodec.ByteReader::read_primitive_type(
     [u8be(9), .. rest] => {
       self.update_view(rest)
       F32
+    }
+    [u8be(10), .. rest] => {
+      self.update_view(rest)
+      ByteBuffer
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

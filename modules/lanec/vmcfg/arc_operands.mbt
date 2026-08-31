@@ -58,6 +58,68 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
         },
       }
     }
+    CallRuntimeImport(target, arguments, destination) => {
+      let operands = []
+      for argument in arguments {
+        match argument {
+          Direct(value) => operands.push((value, Borrow))
+          GuestAddress(buffer, offset) => {
+            operands.push((buffer, Borrow))
+            operands.push((offset, Borrow))
+          }
+        }
+      }
+      {
+        operands,
+        materialize: values => {
+          let mut cursor = 0
+          let lowered = arguments.map(fn(argument) {
+            match argument {
+              Direct(_) => {
+                let value = values[cursor]
+                cursor += 1
+                Direct(value)
+              }
+              GuestAddress(_, _) => {
+                let buffer = values[cursor]
+                let offset = values[cursor + 1]
+                cursor += 2
+                GuestAddress(buffer, offset)
+              }
+            }
+          })
+          CallRuntimeImport(target, lowered, destination)
+        },
+      }
+    }
+    CallPackedDirect(target, callable, witnesses, arguments, destination) => {
+      let operands = [(callable, ArcOperandMode::Consume)]
+      operands.append(consume(witnesses))
+      operands.append(consume(arguments))
+      {
+        operands,
+        materialize: values => {
+          let mut cursor = 1
+          let lowered_witnesses = witnesses.map(fn(_) {
+            let value = values[cursor]
+            cursor += 1
+            value
+          })
+          let lowered_arguments = arguments.map(fn(_) {
+            let value = values[cursor]
+            cursor += 1
+            value
+          })
+          CallPackedDirect(
+            target,
+            values[0],
+            lowered_witnesses,
+            lowered_arguments,
+            destination,
+          )
+        },
+      }
+    }
     CallValue(callable, witnesses, arguments, destination) => {
       let operands = [(callable, ArcOperandMode::Consume)]
       operands.append(consume(witnesses))
@@ -283,7 +345,11 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
     | F64ToF32(_, _)
     | F32ToString(_, _)
     | F64ToString(_, _)
-    | WasiFdWrite(_, _, _)
+    | ByteBufferMake(_, _)
+    | ByteBufferWriteBytes(_, _, _)
+    | ByteBufferWriteI32(_, _, _)
+    | ByteBufferWriteAddress(_, _, _, _)
+    | ByteBufferReadI32(_, _, _)
     | EraseUnit(_)
     | BorrowGlobal(_, _) =>
       {
@@ -363,6 +429,33 @@ fn arc_terminal_plan(terminator : Terminator) -> ArcTerminalPlan? {
         },
       })
     }
+    TailCallPackedDirect(target, callable, witnesses, arguments) => {
+      let operands = [(callable, ArcOperandMode::Consume)]
+      operands.append(witnesses.map(value => (value, Consume)))
+      operands.append(arguments.map(value => (value, Consume)))
+      Some({
+        operands,
+        materialize: values => {
+          let mut cursor = 1
+          let lowered_witnesses = witnesses.map(fn(_) {
+            let value = values[cursor]
+            cursor += 1
+            value
+          })
+          let lowered_arguments = arguments.map(fn(_) {
+            let value = values[cursor]
+            cursor += 1
+            value
+          })
+          TailCallPackedDirect(
+            target,
+            values[0],
+            lowered_witnesses,
+            lowered_arguments,
+          )
+        },
+      })
+    }
     TailCallValue(callable, witnesses, arguments) => {
       let operands = [(callable, ArcOperandMode::Consume)]
       operands.append(witnesses.map(value => (value, Consume)))
@@ -387,7 +480,7 @@ fn arc_terminal_plan(terminator : Terminator) -> ArcTerminalPlan? {
     }
     Fatal(message) =>
       Some({
-        operands: [(message, Consume)],
+        operands: [(message, Borrow)],
         materialize: values => Fatal(values[0]),
       })
     Unreachable => Some({ operands: [], materialize: _ => Unreachable, })

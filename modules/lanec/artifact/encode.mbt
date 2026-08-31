@@ -47,11 +47,13 @@ fn write_canonical_basic_abi_runtime_contract(
   writer : @bytecodec.ByteWriter,
   contract : @canonical_basic_abi.CanonicalBasicAbiRuntimeContract,
 ) -> Unit {
-  match contract.void_type() {
-    None => writer.write_u8(0)
-    Some(type_id) => {
-      writer.write_u8(1)
-      write_buslane_type_id(writer, type_id)
+  for type_id in [contract.void_type(), contract.wasm_address_type()] {
+    match type_id {
+      None => writer.write_u8(0)
+      Some(type_id) => {
+        writer.write_u8(1)
+        write_buslane_type_id(writer, type_id)
+      }
     }
   }
 }
@@ -165,7 +167,11 @@ fn write_intrinsic(
       F64ToI64 => 58
       F32ToString => 59
       F64ToString => 60
-      WasiFdWrite => 61
+      ByteBufferMake => 62
+      ByteBufferWriteBytes => 63
+      ByteBufferWriteI32 => 64
+      ByteBufferWriteAddress => 65
+      ByteBufferReadI32 => 66
     },
   )
 }
@@ -196,6 +202,7 @@ fn write_wasm_import_parameter(
       Direct(I64) => 2
       Direct(F32) => 3
       Direct(F64) => 4
+      GuestAddress => 5
     },
   )
 }

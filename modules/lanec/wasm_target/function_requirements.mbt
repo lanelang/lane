@@ -70,6 +70,22 @@ fn require_physical_instruction_dependencies(
       require_wasm_function(dependencies, image_function_origin(image, target))
     CallDirect(target, _, _, _, _) =>
       require_wasm_function(dependencies, image_function_origin(image, target))
+    CallRuntimeImport(target, arguments, _) => {
+      require_wasm_function(dependencies, image_function_origin(image, target))
+      if arguments.any(argument => argument is GuestAddress(_, _)) {
+        require_wasm_function(
+          dependencies,
+          RuntimeFunction(RequireByteBufferLayout),
+        )
+      }
+    }
+    CallPackedDirect(target, _, _, _, _) => {
+      require_wasm_function(dependencies, image_function_origin(image, target))
+      require_wasm_function(
+        dependencies,
+        HelperFunction(PackedCallableTargetGuard),
+      )
+    }
     CallValue(_, _, _, _, _) =>
       require_wasm_function(dependencies, HelperFunction(CallableAbiGuard))
     MakeData(_, _, _, _, _) | MakeEnv(_, _, _, _, _) =>
@@ -100,6 +116,19 @@ fn require_physical_instruction_dependencies(
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceGet))
     ByteSequenceSet(_, _, _, _) =>
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceSet))
+    ByteBufferMake(_, _) =>
+      require_wasm_function(dependencies, RuntimeFunction(ByteBufferMake))
+    ByteBufferWriteBytes(_, _, _) =>
+      require_wasm_function(dependencies, RuntimeFunction(ByteBufferWriteBytes))
+    ByteBufferWriteI32(_, _, _) =>
+      require_wasm_function(dependencies, RuntimeFunction(ByteBufferWriteI32))
+    ByteBufferWriteAddress(_, _, _, _) =>
+      require_wasm_function(
+        dependencies,
+        RuntimeFunction(ByteBufferWriteAddress),
+      )
+    ByteBufferReadI32(_, _, _) =>
+      require_wasm_function(dependencies, RuntimeFunction(ByteBufferReadI32))
     ByteSequenceEqual(_, _, _) =>
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceEqual))
     ByteSequenceConcat(_, _, _) =>
@@ -111,13 +140,6 @@ fn require_physical_instruction_dependencies(
         dependencies,
         RuntimeFunction(ByteSequenceIsValidUtf8),
       )
-    WasiFdWrite(_, _, _) => {
-      require_wasm_function(dependencies, WasiPreview1Import(FdWrite))
-      require_wasm_function(
-        dependencies,
-        RuntimeFunction(RequireByteSequenceLayout),
-      )
-    }
     F32ToString(_, _) => {
       require_wasm_function(dependencies, InternalRuntimeImport(F32ToString))
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceNew))
@@ -139,12 +161,17 @@ fn require_physical_terminator_dependencies(
   match terminator {
     TailCallDirect(target, _, _, _) =>
       require_wasm_function(dependencies, image_function_origin(image, target))
+    TailCallPackedDirect(target, _, _, _) => {
+      require_wasm_function(dependencies, image_function_origin(image, target))
+      require_wasm_function(
+        dependencies,
+        HelperFunction(PackedCallableTargetGuard),
+      )
+    }
     TailCallValue(_, _, _, _) =>
       require_wasm_function(dependencies, HelperFunction(CallableAbiGuard))
-    Fatal(_) => {
+    Fatal(_) =>
       require_wasm_function(dependencies, InternalRuntimeImport(FatalString))
-      require_wasm_function(dependencies, RuntimeFunction(ReleaseReference))
-    }
     _ => ()
   }
 }
@@ -157,9 +184,6 @@ fn physical_body_dependencies(
   let dependencies : Array[WasmFunctionOrigin] = []
   for slot in body.slots {
     require_reference_operation(dependencies, slot.cleanup, false)
-  }
-  for entry in plan_frame_cleanup(body.slots) {
-    require_wasm_function(dependencies, HelperFunction(entry.helper()))
   }
   for block in body.blocks {
     for instruction in block.instructions {
@@ -198,7 +222,11 @@ fn runtime_function_dependencies(
 ) -> Array[WasmFunctionOrigin] {
   let dependencies : Array[WasmFunctionOrigin] = []
   match role {
-    Allocate | Free | RetainReference | RequireByteSequenceLayout => ()
+    Allocate
+    | Free
+    | RetainReference
+    | RequireByteSequenceLayout
+    | RequireByteBufferLayout => ()
     ReleaseReference => dependencies.push(RuntimeFunction(Free))
     ByteSequenceNew => dependencies.push(RuntimeFunction(Allocate))
     ByteSequenceEqual | ByteSequenceIndex | ByteSequenceIsValidUtf8 =>
@@ -217,6 +245,14 @@ fn runtime_function_dependencies(
         RuntimeFunction(ByteSequenceIndex),
         RuntimeFunction(ReleaseReference),
       ])
+    ByteBufferMake => dependencies.push(RuntimeFunction(Allocate))
+    ByteBufferWriteBytes =>
+      dependencies.append([
+        RuntimeFunction(RequireByteBufferLayout),
+        RuntimeFunction(RequireByteSequenceLayout),
+      ])
+    ByteBufferWriteI32 | ByteBufferWriteAddress | ByteBufferReadI32 =>
+      dependencies.push(RuntimeFunction(RequireByteBufferLayout))
     InstanceGlobalCleanup =>
       for root in global_lifecycle.owned_roots {
         require_reference_operation(dependencies, root.cleanup, false)
@@ -232,15 +268,15 @@ fn helper_function_dependencies(
 ) -> Array[WasmFunctionOrigin] {
   let dependencies : Array[WasmFunctionOrigin] = []
   match role {
-    CallableAbiGuard | NoopErased | DestroyNoop | ByteSequenceSizer => ()
+    CallableAbiGuard
+    | PackedCallableTargetGuard
+    | NoopErased
+    | DestroyNoop
+    | ByteStorageSizer => ()
     RetainReferenceErased | RetainCallable =>
       dependencies.push(RuntimeFunction(RetainReference))
-    ReleaseReferenceErased
-    | ReleaseCallable
-    | CleanupLiveReference
-    | CleanupLiveCallable =>
+    ReleaseReferenceErased | ReleaseCallable =>
       dependencies.push(RuntimeFunction(ReleaseReference))
-    CleanupLiveErased => ()
     DestroyShape(shape~) => {
       let members = match image.object_shapes[shape] {
         Data(shape) => shape.members
@@ -330,8 +366,8 @@ fn require_layout_support(
       require_wasm_function(roots, HelperFunction(ReleaseCallable))
       require_wasm_function(roots, HelperFunction(DestroyNoop))
     }
-    ByteSequence => {
-      require_wasm_function(roots, HelperFunction(ByteSequenceSizer))
+    ByteSequence | ByteBuffer => {
+      require_wasm_function(roots, HelperFunction(ByteStorageSizer))
       require_wasm_function(roots, HelperFunction(RetainReferenceErased))
       require_wasm_function(roots, HelperFunction(ReleaseReferenceErased))
       require_wasm_function(roots, HelperFunction(DestroyNoop))

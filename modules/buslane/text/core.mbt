@@ -100,6 +100,7 @@ fn token_label(token : Token) -> String {
     STRING_TYPE => "String"
     BYTE_TYPE => "Byte"
     BYTES_TYPE => "Bytes"
+    BYTE_BUFFER_TYPE => "ByteBuffer"
     IO => "Io"
     PANIC => "Panic"
     FORALL => "forall"

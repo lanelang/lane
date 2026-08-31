@@ -191,7 +191,6 @@ fn internal_runtime_imports_match(wasm_module : @wasm_types.Module) -> Bool {
 ///|
 struct RuntimeControlGlobals {
   max_live_heap_bytes : Int
-  max_call_depth : Int
   failure_code : Int
 }
 
@@ -220,17 +219,12 @@ fn resolve_runtime_control_globals(
     Ok(index) => index
     Err(detail) => return Err(detail)
   }
-  let max_call_depth = match
-    runtime_control_global_index(wasm_module, MaxCallDepth) {
-    Ok(index) => index
-    Err(detail) => return Err(detail)
-  }
   let failure_code = match
     runtime_control_global_index(wasm_module, FailureCode) {
     Ok(index) => index
     Err(detail) => return Err(detail)
   }
-  Ok({ max_live_heap_bytes, max_call_depth, failure_code, })
+  Ok({ max_live_heap_bytes, failure_code, })
 }
 
 ///|
@@ -352,9 +346,6 @@ fn LoadedImage::new_instance_or_raise(
   store
   .get_global(instance.global_addrs[self.control_globals.max_live_heap_bytes])
   .set(I32(encode_execution_limit(config.max_live_heap_bytes)))
-  store
-  .get_global(instance.global_addrs[self.control_globals.max_call_depth])
-  .set(I32(encode_execution_limit(config.max_call_depth)))
   {
     store,
     instance,
@@ -578,14 +569,10 @@ fn ExecutionInstance::execution_failure(
   if self.failure.error is Some(error) {
     return Err(error)
   }
-  match failure_code {
-    1 => Err(ExecutionResourceLimit(kind=CallDepth))
-    2 => Err(ExecutionResourceLimit(kind=LiveHeapBytes))
-    3 => Err(EngineTrap(detail="Wasm allocation or ARC failure"))
-    4 =>
-      Err(
-        InternalRuntimeFailure(detail="Wasm instance-global lifecycle failure"),
-      )
-    _ => Err(EngineTrap(detail=engine_detail))
+  match @internal_abi.RuntimeFailureCode::from_code(failure_code) {
+    Some(LiveHeapBytes) => Err(ExecutionResourceLimit(kind=LiveHeapBytes))
+    Some(AllocationOrArc) =>
+      Err(EngineTrap(detail="Wasm allocation or ARC failure"))
+    None => Err(EngineTrap(detail=engine_detail))
   }
 }

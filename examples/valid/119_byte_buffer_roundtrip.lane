@@ -1,0 +1,15 @@
+module Examples.Valid119
+
+import Basic.Builtins.{ i32_equal }
+import Basic.Io.{ println }
+import Basic.Wasm.Abi.{ allocate, read_i32, write_i32 }
+
+pub fn answer() -> Unit ! Io {
+  let buffer = allocate(4)
+  write_i32(buffer, 0, 42i32)
+  if i32_equal(read_i32(buffer, 0), 42i32) {
+    println("buffer roundtrip")
+  } else {
+    println("buffer mismatch")
+  }
+}

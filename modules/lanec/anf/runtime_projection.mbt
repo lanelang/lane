@@ -614,6 +614,7 @@ fn RuntimeGenericPlan::normalized_runtime_type(
     Primitive(F32) => Scalar(F32)
     Primitive(Byte) => Scalar(Byte)
     Primitive(String) | Primitive(Bytes) => ByteSequence
+    Primitive(ByteBuffer) => ByteBuffer
     Parameter(parameter) => {
       let expression = self.intern_type_expression(
         Parameter(Projected(parameter.index)),

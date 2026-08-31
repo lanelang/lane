@@ -61,6 +61,26 @@ fn emit_instruction(
         destination.map(value => slot(value)),
       )
     }
+    CallRuntimeImport(target, arguments, destination) =>
+      CallRuntimeImport(
+        target,
+        arguments.map(argument => {
+          match argument {
+            Direct(value) => Direct(slot(value))
+            GuestAddress(buffer, offset) =>
+              GuestAddress(slot(buffer), slot(offset))
+          }
+        }),
+        destination.map(slot),
+      )
+    CallPackedDirect(target, callable, witnesses, arguments, destination) =>
+      CallPackedDirect(
+        target,
+        slot(callable),
+        witnesses.map(value => slot(value)),
+        arguments.map(value => slot(value)),
+        destination.map(value => slot(value)),
+      )
     CallValue(callable, witnesses, arguments, destination) => {
       let lowered_callable = slot(callable)
       let lowered_witnesses = witnesses.map(value => slot(value))
@@ -158,8 +178,21 @@ fn emit_instruction(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(slot(destination), slot(source))
-    WasiFdWrite(destination, fd, bytes) =>
-      WasiFdWrite(slot(destination), slot(fd), slot(bytes))
+    ByteBufferMake(destination, length) =>
+      ByteBufferMake(slot(destination), slot(length))
+    ByteBufferWriteBytes(buffer, index, source) =>
+      ByteBufferWriteBytes(slot(buffer), slot(index), slot(source))
+    ByteBufferWriteI32(buffer, index, value) =>
+      ByteBufferWriteI32(slot(buffer), slot(index), slot(value))
+    ByteBufferWriteAddress(buffer, index, target, offset) =>
+      ByteBufferWriteAddress(
+        slot(buffer),
+        slot(index),
+        slot(target),
+        slot(offset),
+      )
+    ByteBufferReadI32(destination, buffer, index) =>
+      ByteBufferReadI32(slot(destination), slot(buffer), slot(index))
     I32Add(destination, left, right) =>
       I32Add(slot(destination), slot(left), slot(right))
     I32Sub(destination, left, right) =>
@@ -349,6 +382,13 @@ fn emit_terminator(
       TailCallDirect(
         target,
         environment.map(slot),
+        witnesses.map(slot),
+        arguments.map(slot),
+      )
+    TailCallPackedDirect(target, callable, witnesses, arguments) =>
+      TailCallPackedDirect(
+        target,
+        slot(callable),
         witnesses.map(slot),
         arguments.map(slot),
       )

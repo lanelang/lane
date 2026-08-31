@@ -136,7 +136,7 @@ fn validate_object_side_tables(
     )
     if source_type is Some(source_type) {
       validate_runtime_import_signature(
-        object, import_, source_type, diagnostics,
+        object, canonical_basic_abi, import_, source_type, diagnostics,
       )
     }
     if external_values.contains(import_.value) {
@@ -245,6 +245,7 @@ fn intrinsic_value_type_matches(
     String => type_ == Primitive(String)
     Byte => type_ == Primitive(Byte)
     Bytes => type_ == Primitive(Bytes)
+    ByteBuffer => type_ == Primitive(ByteBuffer)
     CanonicalBasicVoid =>
       match canonical_basic_abi.void_type() {
         Some(type_id) => type_ == Constructor(type_id)
@@ -268,6 +269,7 @@ fn intrinsic_effect_matches(
 ///|
 fn validate_runtime_import_signature(
   object : LinkModuleObject,
+  canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract?,
   import_ : @buslane_lowering.BuslaneRuntimeImport,
   source_type : @buslane.Type,
   diagnostics : Array[CompilerDiagnostic],
@@ -298,7 +300,7 @@ fn validate_runtime_import_signature(
     return
   }
   let parameter_contracts = parameters.map(type_ => {
-    runtime_import_source_parameter(type_)
+    runtime_import_source_parameter(canonical_basic_abi, type_)
   })
   let result_contract = runtime_import_source_result(result)
   if parameter_contracts.any(contract => contract is None) ||
@@ -318,6 +320,7 @@ fn validate_runtime_import_signature(
 
 ///|
 fn runtime_import_source_parameter(
+  canonical_basic_abi : @canonical_basic_abi.CertifiedCanonicalBasicAbiRuntimeContract?,
   type_ : @buslane.Type,
 ) -> @wasm_abi.ImportParameter? {
   match type_ {
@@ -326,6 +329,8 @@ fn runtime_import_source_parameter(
     Primitive(I64) => Some(Direct(I64))
     Primitive(F32) => Some(Direct(F32))
     Primitive(F64) => Some(Direct(F64))
+    Constructor(type_id) if canonical_basic_abi is Some(contract) &&
+      contract.wasm_address_type() == Some(type_id) => Some(GuestAddress)
     _ => None
   }
 }

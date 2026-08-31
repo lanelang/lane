@@ -55,6 +55,7 @@ pub impl @prettyprinter.Pretty for RuntimeType with fn pretty(
     Unit => text("Unit")
     Scalar(kind) => text("\{Repr(kind)}")
     ByteSequence => text("ByteSequence")
+    ByteBuffer => text("ByteBuffer")
     Data(owner, _) => text("data#\{owner.index}")
     Callable(parameters, result) =>
       @pretty.parenthesized_inline(parameters.map(RuntimeType::pretty)) +

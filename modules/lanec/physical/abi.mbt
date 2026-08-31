@@ -133,6 +133,7 @@ fn import_parameter_value_abi(
   match parameter {
     ErasedUnit => None
     Direct(type_) => Some(core_value_abi(type_))
+    GuestAddress => Some(core_value_abi(I32))
   }
 }
 

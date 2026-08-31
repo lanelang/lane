@@ -89,6 +89,7 @@ fn prepare_or_raise(image : Image) -> CanonicalPreArcImage raise FinalizeError {
     devirtualized.image,
     devirtualized.direct_environment_targets,
   )
+  let image = devirtualize_calls_to_fixed_point(image)
   let image = select_consuming_projections(image)
   let image = {
     ..image,
@@ -106,6 +107,20 @@ fn prepare_or_raise(image : Image) -> CanonicalPreArcImage raise FinalizeError {
     image: canonical.image,
     source_functions: canonical.source_functions,
     indirect_calls: observe_indirect_calls(canonical.image),
+  }
+}
+
+///|
+fn devirtualize_calls_to_fixed_point(
+  image : Image,
+) -> Image raise FinalizeError {
+  for current = image {
+    let flow = analyze_callable_flow(current)
+    let next = apply_devirtualization(current, flow, [])
+    if next == current {
+      return next
+    }
+    continue next
   }
 }
 

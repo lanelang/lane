@@ -1022,6 +1022,90 @@ test "physical verifier enforces result ABI at every static call boundary" {
 }
 
 ///|
+test "physical verifier owns structured runtime-import address shape" {
+  let import_ : @wasm_abi.ImportContract = {
+    module_name: "wasi_snapshot_preview1",
+    field_name: "fd_write",
+    parameters: [Direct(I32), GuestAddress, Direct(I32)],
+    result: Direct(I32),
+  }
+  fn caller(buffer_kind : SemanticValueKind) -> FunctionBody {
+    {
+      ..verification_body(
+        slots=[
+          verification_slot(I32),
+          verification_slot(I32, cleanup=OwnedRef, kind=Some(buffer_kind)),
+          verification_slot(I32),
+          verification_slot(I32),
+          verification_slot(I32),
+        ],
+        instructions=[
+          CallRuntimeImport(
+            { value: 3, },
+            [
+              Direct({ value: 0, }),
+              GuestAddress({ value: 1, }, { value: 2, }),
+              Direct({ value: 3, }),
+            ],
+            Some({ value: 4, }),
+          ),
+          Release({ value: 1, }),
+        ],
+      ),
+      inputs: {
+        environment: None,
+        witnesses: [],
+        user_parameters: [
+          { value: 0, },
+          { value: 1, },
+          { value: 2, },
+          { value: 3, },
+        ],
+      },
+    }
+  }
+  debug_inspect(
+    (
+      verify_physical_program(
+        verification_image(verification_body(), functions=[
+          PhysicalBody(caller(ByteBufferValue)),
+          RuntimeImport(import_),
+        ]),
+      ),
+      verify_physical_program(
+        verification_image(verification_body(), functions=[
+          PhysicalBody(caller(ByteSequenceValue)),
+          RuntimeImport(import_),
+        ]),
+      ),
+      verify_physical_program(
+        verification_image(verification_body(), functions=[
+          PhysicalBody(caller(ByteBufferValue)),
+          PhysicalBody(verification_body()),
+        ]),
+      ),
+    ),
+    content=(
+      #|(
+      #|  Ok(()),
+      #|  Err(
+      #|    InvalidPhysicalProgram(
+      #|      site=Instruction({ value: 2 }, { value: 0 }, 0),
+      #|      detail="SlotId 1 must have ByteBufferValue semantic kind, got ByteSequenceValue",
+      #|    ),
+      #|  ),
+      #|  Err(
+      #|    InvalidPhysicalProgram(
+      #|      site=Instruction({ value: 2 }, { value: 0 }, 0),
+      #|      detail="structured runtime-import call targets a physical body",
+      #|    ),
+      #|  ),
+      #|)
+    ),
+  )
+}
+
+///|
 test "physical verifier rejects an erased member with the wrong stored evidence" {
   let body = verification_body(
     slots=[

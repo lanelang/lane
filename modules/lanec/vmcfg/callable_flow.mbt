@@ -288,6 +288,25 @@ fn analyze_callable_instruction(
       }
       changed
     }
+    CallPackedDirect(target, _, witnesses, arguments, destination) => {
+      let mut changed = propagate_callable_inputs(
+        image,
+        analysis,
+        target,
+        Some(Unknown([], [FunctionParameter])),
+        witnesses.map(value => facts[value.value]),
+        arguments.map(value => facts[value.value]),
+      )
+      if destination is Some(destination) &&
+        refine_callable_fact_array(
+          facts,
+          destination.value,
+          function_result_fact(analysis.results, target),
+        ) {
+        changed = true
+      }
+      changed
+    }
     CallValue(callable, witnesses, arguments, destination) => {
       let callable_fact = if analysis.resolve_opaque_calls {
         complete_callable_at_callsite(
@@ -374,6 +393,27 @@ fn analyze_callable_terminator(
           analysis,
           target,
           environment.map(value => facts[value.value]),
+          witnesses.map(value => facts[value.value]),
+          arguments.map(value => facts[value.value]),
+        ) {
+        changed = true
+      }
+      if refine_callable_fact_array(
+          analysis.results,
+          function_index,
+          function_result_fact(analysis.results, target)
+          .through(FunctionResult)
+          .cross_function(),
+        ) {
+        changed = true
+      }
+    }
+    TailCallPackedDirect(target, _, witnesses, arguments) => {
+      if propagate_callable_inputs(
+          image,
+          analysis,
+          target,
+          Some(Unknown([], [FunctionParameter])),
           witnesses.map(value => facts[value.value]),
           arguments.map(value => facts[value.value]),
         ) {
@@ -656,6 +696,7 @@ fn terminator_edges(terminator : Terminator) -> Array[Edge] {
     SwitchTag(_, cases, default) => cases + [default]
     Return(_)
     | TailCallDirect(_, _, _, _)
+    | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
     | Fatal(_)
     | Unreachable => []

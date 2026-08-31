@@ -247,6 +247,15 @@ fn projection_use_requires_owner(
     | InitGlobal(_, source) => source == value
     CallDirect(_, environment, _, arguments, _) =>
       environment == Some(value) || arguments.contains(value)
+    CallRuntimeImport(_, arguments, _) =>
+      arguments.any(fn(argument) {
+        match argument {
+          Direct(argument) => argument == value
+          GuestAddress(buffer, offset) => buffer == value || offset == value
+        }
+      })
+    CallPackedDirect(_, callable, _, arguments, _) =>
+      callable == value || arguments.contains(value)
     CallValue(callable, _, arguments, _) =>
       callable == value || arguments.contains(value)
     MakeData(_, _, _, _, fields) | MakeEnv(_, _, _, _, fields) =>
@@ -272,6 +281,8 @@ fn projection_terminator_requires_owner(
       default.arguments.contains(value)
     TailCallDirect(_, environment, _, arguments) =>
       environment == Some(value) || arguments.contains(value)
+    TailCallPackedDirect(_, callable, _, arguments) =>
+      callable == value || arguments.contains(value)
     TailCallValue(callable, _, arguments) =>
       callable == value || arguments.contains(value)
     Fatal(message) => message == value

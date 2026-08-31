@@ -370,7 +370,8 @@ original provider definitions.
 
 The implementation uses `ModuleInterfaceCatalog` as the cross-interface lookup
 owner, `ModuleInterfaceExport` as the single public-access representation, and
-interface artifact schema 14. `ResolvedPublicExport` retains authored source
+interface artifact schema 14 introduced the public export table; the current
+schema 15 additionally admits the `ByteBuffer` primitive. `ResolvedPublicExport` retains authored source
 spans only in the live semantic pipeline; those spans are not encoded in `.lmi`
 artifacts.
 

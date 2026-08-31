@@ -258,7 +258,11 @@ _Avoid_: whole-program CPS, VM stack capture
 Whole-program optimization over verified Buslane before effect lowering and
 again over verified CPS Core after monadic lift. At both seams `Empty` denotes
 observational purity; effect information is projected away only while
-constructing runtime ANF.
+constructing runtime ANF. Administrative type and value applications whose
+callee is a single-use local literal are beta-reduced to a fixed point before
+Runtime ANF classifies callable escape. This moves no effectful computation,
+duplicates no callable, and prevents generated continuations from becoming
+closures merely because CPS first named them.
 _Avoid_: effect-blind DCE, physical-program optimization
 
 **Function Origin**:
@@ -276,8 +280,8 @@ _Avoid_: optimization input, runtime ABI fact, anonymous-means-CPS heuristic
 The closed backend-lowerable ANF produced only by projecting verified,
 effect-aware CPS Core through the Executable Retention Set. It owns
 `RuntimeType`, `RuntimeEvidence`, retained top-level terms, and an immutable
-runtime type-expression catalog; these distinguish scalar, byte-sequence,
-nominal reference, data, callable, and erased representations without carrying
+runtime type-expression catalog; these distinguish scalar, immutable byte
+sequence, mutable byte buffer, nominal reference, data, callable, and erased representations without carrying
 Buslane `Type`, `Effect`, `Kind`, `GenericArgument`, or type-lambda syntax.
 Stable Buslane declaration IDs survive only as nominal symbols. Nominal runtime
 arguments select construction and projection evidence, but do not define a
@@ -385,6 +389,15 @@ environments, aggregate members, immutable globals, and known function results.
 Devirtualization and environment-ABI planning consume this fact directly.
 _Avoid_: instruction-adjacency pattern, reference-count eligibility, rewrite fallback
 
+**Packed Direct Call**:
+A VM CFG and Physical Program call with an explicit function target whose
+environment owner remains a packed callable. Callable-flow alone selects this
+form after proving one exact target. WebAssembly authenticates that the
+carrier's embedded target is the explicit target, transfers its environment,
+and emits a direct call without the Callable ABI Guard Helper or indirect-table
+dispatch.
+_Avoid_: target selection from callable bits, unchecked carrier, late ABI inference
+
 **Deferred Callable Adaptation**:
 The Structural Representation Adaptation between two callable contracts.
 The complete structural physical contract is the private key used to share an
@@ -412,7 +425,7 @@ convention need not compute the same result; the closed arguments are mandatory
 because Generic Nominal Data Schemas can hide nested representation differences
 from the outer invocation boundary. Closure environment shape belongs to the
 implementation, not to callable compatibility, and therefore never changes the
-meaning of the Physical Callable ABI Graph. Closed Runtime ANF arguments are
+meaning of the Physical Callable Contract Graph. Closed Runtime ANF arguments are
 compared by their Runtime ANF-owned alpha equivalence: bound evidence identities
 may be renamed, while free identities, nominal arguments, and type-expression
 semantics remain significant.
@@ -429,12 +442,15 @@ formerly escaping closure has one direct use, VM CFG moves its single-block
 body into that call without cloning code.
 _Avoid_: rendered type pair, layout ID pair, adapter name, size threshold
 
-**Physical Callable ABI Graph**:
-The physical ABI owner's finite nominal graph for recursive Callable Invocation
-Contracts. It describes executable call compatibility only. Semantic callable
-flow, binder scope, specialization demand, and worker selection do not enter
-its identity.
-_Avoid_: recursive structural ABI tree, callable-instance graph, source binder identity
+**Physical Callable Contract Graph**:
+The Representation Elaboration owner's finite nominal graph for recursive
+Callable Invocation Contracts and their complete representation boundaries.
+Construction reserves a node identity before descending into nested callable
+positions. Invocation compatibility, structural adaptation, adapter sharing,
+and representation-worker sharing consume coinductive graph equivalence; no
+second callable-ABI graph restates the same recursive shape. Semantic callable
+flow, specialization demand, and worker selection do not enter graph identity.
+_Avoid_: recursive structural tree, duplicate ABI graph, source binder identity
 
 **Structural Representation Adaptation**:
 The explicit conversion of one value from a complete source Physical Value
@@ -526,6 +542,13 @@ The one-pass projection of finalized VM CFG through a Physical Slot Plan into
 the Physical Program.
 _Avoid_: allocation pass, emitted-opcode remapping
 
+**Structured Runtime Import Call**:
+A Physical call whose operands preserve each host parameter's ABI role.
+`GuestAddress` carries its `ByteBuffer` owner and `I32` offset together until
+WebAssembly emission computes the transient wasm32 address immediately before
+the synchronous import. The call operand is the lifetime use.
+_Avoid_: raw pointer slot, address-producing opcode, keep-alive instruction
+
 **Finalized Callable ABI**:
 The canonical callable shape derived from finalized slot metadata and interned
 once for functions, runtime imports, and indirect call sites.
@@ -554,33 +577,24 @@ _Avoid_: raw image plus a repeated verifier call, consumer-derived lifecycle
 **Wasm Expansion Accounting**:
 The Wasm emission owner's exact attribution of every emitted instruction and
 local to function ABI setup, physical storage, a physical opcode family,
-control flow, runtime guards, ARC frame state, per-frame ARC unwinding, shared
-ARC cleanup support, runtime imports, runtime support, helpers, or entry
-lifecycle. Each emitted defined function must account for its complete code and
-locals before it enters the Wasm module. Explore aggregates these owned facts;
-it does not infer them from rendered WAT.
+control flow, runtime guards, runtime imports, runtime support, helpers, or
+entry lifecycle. Each emitted defined function must account for its complete
+code and locals before it enters the Wasm module. Explore aggregates these
+owned facts; it does not infer them from rendered WAT.
 _Avoid_: WAT parsing, sampled costs, heuristic attribution
 
-**Frame Cleanup Plan**:
-The single Wasm-planning projection of a Verified Physical Program function's
-slot metadata into typed reference, callable, and erased cleanup entries. It is
-produced before the function catalog allocates identities; requirements and
-emission consume the same plan. Physical verification remains the owner of
-ownership and erased-companion validity, so the plan does not infer semantics
-from emitted Wasm or repair invalid input.
-_Avoid_: repeated slot scans, emitter-owned cleanup policy, inline cleanup body
-
-**Shared Frame Cleanup Helper**:
-One canonical Wasm implementation for each complete Frame Cleanup Plan entry
-kind. A function's unwind path supplies its verified slot values and liveness;
-the helper owns only the shared release mechanics. These helpers are ordinary
-direct-call support and never occupy the callable table.
-_Avoid_: per-slot release expansion, callable-table helper, ARC optimization
+**Fatal Instance Abort**:
+The WebAssembly target rule that a fatal failure terminates and discards the
+current single-shot instance. The private Wasm exception carries structured
+failure to Wasmoon but creates no generated catch, frame liveness, or recovery
+cleanup. Normal ARC and successful Instance Global shutdown remain explicit.
+_Avoid_: inferred exceptional edges, per-frame unwind state, post-fatal reuse
 
 **Callable ABI Guard Helper**:
 The single private Wasm helper that validates the dynamic callable-table target
 and complete Callable ABI compatibility before an indirect call transfers any
-owner. Its compatibility matrix is produced from the finalized callable ABI
-catalog. Call sites provide the packed callable and expected ABI identity; they
-do not reproduce the guard policy.
+owner. The static image records one finalized canonical ABI identity for each
+callable-table target. Call sites provide the packed callable and expected ABI
+identity; the helper compares those identities and does not reproduce the ABI
+description or guard policy.
 _Avoid_: per-call inlined ABI policy, Wasm value-type equality

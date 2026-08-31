@@ -8,7 +8,7 @@ LoisVM v1 provides exactly four dedicated String instructions: `string_length`, 
 
 `string_slice(destination, source, start, length)` consumes one `I32 + OwnedRef` String owner. Start and length are `I64 + Trivial` Lane Int values interpreted as ASCII byte indices, which also equal character indices in v1. A valid range requires nonnegative start and length, non-overflowing addition, and `start + length <= byte_length`. A proper subrange allocates an independent exact-size String and copies bytes. A complete-range slice may move the input owner directly. No slice retains a parent String or creates a view object.
 
-Concatenation length overflow, a negative or out-of-bounds slice, signed or unsigned range overflow, wasm32 addressability overflow, and allocation failure throw the private non-recoverable fatal exception. Fatal failure unwinds owned slots according to the established cleanup contract and the host discards the instance.
+Concatenation length overflow, a negative or out-of-bounds slice, signed or unsigned range overflow, wasm32 addressability overflow, and allocation failure throw the private non-recoverable fatal exception. Fatal failure abandons remaining owners and the host discards the single-shot instance.
 
 The binary encodings contain only slots. Length encodes destination then source. Concatenation and equality encode destination, left, then right. Slice encodes destination, String source, start, then length. No instruction carries encoding, index-unit, bounds, allocation, or ownership mode flags.
 

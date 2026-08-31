@@ -26,6 +26,7 @@ pub(all) enum IntrinsicType {
   String
   Byte
   Bytes
+  ByteBuffer
   CanonicalBasicVoid
 } derive(Debug, Eq)
 
@@ -66,6 +67,7 @@ pub(all) enum BasicTypeProvider {
   Tuple
   List
   Void
+  WasmAddress
   Deriver
   Product
   Sum
@@ -81,6 +83,7 @@ pub fn BasicTypeProvider::all() -> Array[BasicTypeProvider] {
     Tuple,
     List,
     Void,
+    WasmAddress,
     Deriver,
     Product,
     Sum,
@@ -111,6 +114,7 @@ pub fn BasicTypeProvider::module_path(self : BasicTypeProvider) -> String {
     Tuple => "Basic.Data.Tuple"
     List => "Basic.Data.List"
     Void => "Basic.Data.Void"
+    WasmAddress => "Basic.Wasm.Abi"
     Deriver | Product | Sum | TypeInfo | FieldInfo | VariantInfo =>
       "Basic.Trait.Derive"
     Iso => "Basic.Trait.Iso"
@@ -123,6 +127,7 @@ pub fn BasicTypeProvider::type_name(self : BasicTypeProvider) -> String {
     Tuple => "Tuple"
     List => "List"
     Void => "Void"
+    WasmAddress => "WasmAddress"
     Deriver => "Deriver"
     Product => "Product"
     Sum => "Sum"
@@ -247,7 +252,11 @@ pub(all) enum Intrinsic {
   BytesLength
   BytesGet
   BytesSet
-  WasiFdWrite
+  ByteBufferMake
+  ByteBufferWriteBytes
+  ByteBufferWriteI32
+  ByteBufferWriteAddress
+  ByteBufferReadI32
 } derive(Debug, Eq)
 
 ///|
@@ -314,7 +323,11 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%bytes_length" => Some(BytesLength)
     "%bytes_get" => Some(BytesGet)
     "%bytes_set" => Some(BytesSet)
-    "%wasi_fd_write" => Some(WasiFdWrite)
+    "%byte_buffer_make" => Some(ByteBufferMake)
+    "%byte_buffer_write_bytes" => Some(ByteBufferWriteBytes)
+    "%byte_buffer_write_i32" => Some(ByteBufferWriteI32)
+    "%byte_buffer_write_address" => Some(ByteBufferWriteAddress)
+    "%byte_buffer_read_i32" => Some(ByteBufferReadI32)
     _ => None
   }
 }
@@ -383,7 +396,11 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     BytesLength => "%bytes_length"
     BytesGet => "%bytes_get"
     BytesSet => "%bytes_set"
-    WasiFdWrite => "%wasi_fd_write"
+    ByteBufferMake => "%byte_buffer_make"
+    ByteBufferWriteBytes => "%byte_buffer_write_bytes"
+    ByteBufferWriteI32 => "%byte_buffer_write_i32"
+    ByteBufferWriteAddress => "%byte_buffer_write_address"
+    ByteBufferReadI32 => "%byte_buffer_read_i32"
   }
 }
 
@@ -447,9 +464,37 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
     BytesGet => pure_intrinsic_function(parameters=[Bytes, I64], result=Byte)
     BytesSet =>
       pure_intrinsic_function(parameters=[Bytes, I64, Byte], result=Bytes)
-    WasiFdWrite =>
+    ByteBufferMake =>
       Function(
-        parameters=[I32, Bytes],
+        parameters=[I64],
+        result=ByteBuffer,
+        effect=BuiltinIo,
+        implementation=Direct,
+      )
+    ByteBufferWriteBytes =>
+      Function(
+        parameters=[ByteBuffer, I64, Bytes],
+        result=Unit,
+        effect=BuiltinIo,
+        implementation=Direct,
+      )
+    ByteBufferWriteI32 =>
+      Function(
+        parameters=[ByteBuffer, I64, I32],
+        result=Unit,
+        effect=BuiltinIo,
+        implementation=Direct,
+      )
+    ByteBufferWriteAddress =>
+      Function(
+        parameters=[ByteBuffer, I64, ByteBuffer, I32],
+        result=Unit,
+        effect=BuiltinIo,
+        implementation=Direct,
+      )
+    ByteBufferReadI32 =>
+      Function(
+        parameters=[ByteBuffer, I64],
         result=I32,
         effect=BuiltinIo,
         implementation=Direct,

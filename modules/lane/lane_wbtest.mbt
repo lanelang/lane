@@ -355,13 +355,39 @@ fn wasi_basic_io_source() -> String {
   (
     #|module Basic.Io
     #|
+    #|import Basic.Wasm.Abi.{ write_stdout }
+    #|
     #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
     #|let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
-    #|let wasi_fd_write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
     #|
     #|pub fn println(value : String) -> Unit ! Io {
     #|  let bytes = bytes_concat(string_to_bytes(value), string_to_bytes("\n"))
-    #|  let _errno = wasi_fd_write(1i32, bytes)
+    #|  write_stdout(bytes)
+    #|}
+  )
+}
+
+///|
+fn wasi_basic_abi_source() -> String {
+  (
+    #|module Basic.Wasm.Abi
+    #|let make : (I64) -> ByteBuffer ! Io = builtin("%byte_buffer_make")
+    #|let write_bytes : (ByteBuffer, I64, Bytes) -> Unit ! Io = builtin("%byte_buffer_write_bytes")
+    #|let write_i32 : (ByteBuffer, I64, I32) -> Unit ! Io = builtin("%byte_buffer_write_i32")
+    #|let write_address : (ByteBuffer, I64, ByteBuffer, I32) -> Unit ! Io = builtin("%byte_buffer_write_address")
+    #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
+    #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
+    #|let i64_to_i32 : (I64) -> I32 = builtin("%i64_to_i32")
+    #|pub struct WasmAddress { storage : ByteBuffer; offset : I32 }
+    #|let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
+    #|pub fn write_stdout(source : Bytes) -> Unit ! Io {
+    #|  let length = bytes_length(source)
+    #|  let frame = make(i64_add(12, length))
+    #|  write_bytes(frame, 12, source)
+    #|  write_address(frame, 0, frame, 12i32)
+    #|  write_i32(frame, 4, i64_to_i32(length))
+    #|  write_i32(frame, 8, 0i32)
+    #|  let _errno = fd_write(1i32, WasmAddress::{ storage: frame, offset: 0i32 }, 1i32, WasmAddress::{ storage: frame, offset: 8i32 })
     #|  ()
     #|}
   )
@@ -370,6 +396,9 @@ fn wasi_basic_io_source() -> String {
 ///|
 async test "exec executes explicit Basic Io linked input" {
   let workspace = ".tmp-lane-exec-basic-io"
+  let abi_source = "\{workspace}/abi.lane"
+  let abi_interface = "\{workspace}/abi.lmi"
+  let abi_object = "\{workspace}/abi.lmo"
   let basic_source = "\{workspace}/io.lane"
   let basic_interface = "\{workspace}/io.lmi"
   let basic_object = "\{workspace}/io.lmo"
@@ -379,6 +408,7 @@ async test "exec executes explicit Basic Io linked input" {
   let program_path = "\{workspace}/program.wasm"
   cleanup_library_fixture(workspace)
   @fs.mkdir(workspace)
+  write_source_file(abi_source, wasi_basic_abi_source())
   write_source_file(basic_source, wasi_basic_io_source())
   write_source_file(
     main_source,
@@ -391,10 +421,27 @@ async test "exec executes explicit Basic Io linked input" {
       #|}
     ),
   )
-  guard lane_compile(basic_source, [], basic_interface, basic_object, false)
-    is Succeeded else {
+  let abi_compile = lane_compile(
+    abi_source,
+    [],
+    abi_interface,
+    abi_object,
+    false,
+  )
+  guard abi_compile is Succeeded else {
     cleanup_library_fixture(workspace)
-    abort("expected basic compile to succeed")
+    abort("expected Wasm ABI compile to succeed: \{Repr(abi_compile)}")
+  }
+  let basic_compile = lane_compile(
+    basic_source,
+    [abi_interface],
+    basic_interface,
+    basic_object,
+    false,
+  )
+  guard basic_compile is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected basic compile to succeed: \{Repr(basic_compile)}")
   }
   guard lane_compile(
       main_source,
@@ -408,7 +455,7 @@ async test "exec executes explicit Basic Io linked input" {
     abort("expected main compile to succeed")
   }
   guard lane_link(
-      [main_object, basic_object],
+      [main_object, basic_object, abi_object],
       main_entry_name(),
       program_path,
       false,
@@ -688,7 +735,7 @@ test "run accepts built-in Io through an explicit Basic extern" {
       #|  println(message)
       #|}
     ),
-    [basic_io],
+    [basic_io, wasi_basic_abi_source()],
   )
   debug_inspect(result.diagnostics(), content="[]")
   let program = successful_compilation(result)
@@ -698,13 +745,13 @@ test "run accepts built-in Io through an explicit Basic extern" {
     abort("expected Io entry admission to succeed")
   }
   let output : Array[Byte] = []
-  guard execute_entry_with_output(
-      program,
-      entry,
-      write_stdout=Some(bytes => output.append(bytes.to_array())),
-    )
-    is Succeeded else {
-    abort("expected run entry to succeed through WebAssembly")
+  let outcome = execute_entry_with_output(
+    program,
+    entry,
+    write_stdout=Some(bytes => output.append(bytes.to_array())),
+  )
+  guard outcome is Succeeded else {
+    abort("expected run entry to succeed through WebAssembly: \{Repr(outcome)}")
   }
   assert_eq(Bytes::from_array(output), b"hello\n")
 }
@@ -731,7 +778,7 @@ test "run lowers lexical handlers before runtime effects" {
       #|  println("handled")
       #|}
     ),
-    [basic_io],
+    [basic_io, wasi_basic_abi_source()],
   )
   debug_inspect(result.diagnostics(), content="[]")
   let program = successful_compilation(result)

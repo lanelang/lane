@@ -54,6 +54,8 @@ fn find_single_use_inline_candidate(
         match instruction {
           ConstFunction(_, target) | MakeClosure(_, target, _) =>
             mark_first_class_function_use(uses, target)
+          CallPackedDirect(target, _, _, _, _) =>
+            mark_first_class_function_use(uses, target)
           CallDirect(target, _, _, _, _) =>
             record_direct_function_use(uses, target, {
               caller,
@@ -63,12 +65,16 @@ fn find_single_use_inline_candidate(
           _ => ()
         }
       }
-      if block.terminator is TailCallDirect(target, _, _, _) {
-        record_direct_function_use(uses, target, {
-          caller,
-          block: block_index,
-          instruction: None,
-        })
+      match block.terminator {
+        TailCallDirect(target, _, _, _) =>
+          record_direct_function_use(uses, target, {
+            caller,
+            block: block_index,
+            instruction: None,
+          })
+        TailCallPackedDirect(target, _, _, _) =>
+          mark_first_class_function_use(uses, target)
+        _ => ()
       }
     }
   }

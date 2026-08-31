@@ -123,7 +123,8 @@ fn runtime_types_alpha_equal(
   right_bound : Array[RuntimeEvidenceId],
 ) -> Bool {
   match (left, right) {
-    (Unit, Unit) | (ByteSequence, ByteSequence) => true
+    (Unit, Unit) | (ByteSequence, ByteSequence) | (ByteBuffer, ByteBuffer) =>
+      true
     (Scalar(left), Scalar(right)) => left == right
     (Data(left_owner, left_arguments), Data(right_owner, right_arguments)) =>
       left_owner == right_owner &&
@@ -198,7 +199,8 @@ fn RuntimeMetadata::runtime_types_equal(
   right_bound : Array[RuntimeEvidenceId],
 ) -> Bool {
   match (left, right) {
-    (Unit, Unit) | (ByteSequence, ByteSequence) => true
+    (Unit, Unit) | (ByteSequence, ByteSequence) | (ByteBuffer, ByteBuffer) =>
+      true
     (Scalar(left), Scalar(right)) => left == right
     // Runtime data values carry their own erased-field witnesses. Nominal
     // arguments select those witnesses when constructing or projecting the

@@ -10,11 +10,13 @@ shapes, and certifies their persisted runtime projection.
 ## Glossary
 
 **Canonical Basic ABI**:
-The certified module-input catalog for Tuple, List, Void, and structural-
-derivation providers. It is constructed once from a Canonical Basic ABI Identity
-Catalog, imported Module Interfaces, and the current Module Interface Declaration
-Surface; later consumers receive only its resolved identities and semantic
-results. This package certifies interface descriptors but never constructs them.
+The certified module-input catalog for Tuple, List, Void, WasmAddress, and
+structural-derivation providers. It is constructed once from a Canonical Basic
+ABI Identity Catalog, imported Module Interfaces, and the current Module
+Interface Declaration Surface; later consumers receive only its resolved
+identities and semantic results. This package certifies interface descriptors
+but never constructs them. `WasmAddress` is certified as the exact public
+`{ storage : Bytes; offset : I32 }` carrier used at raw Wasm extern boundaries.
 _Avoid_: provider symbol directory, consumer name lookup, repeated shape validation, implicit Basic import
 
 **Canonical Basic ABI Identity Catalog**:

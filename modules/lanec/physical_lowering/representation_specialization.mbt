@@ -41,10 +41,11 @@ fn FunctionLowerer::representation_worker(
     RuntimeSubstitution::new(),
     [],
   )
-  let contract = self.image.representation_worker_contracts.intern(
-    { source, callable, arguments, },
-    self.image.runtime_types,
-  )
+  let contract = self.image.intern_representation_worker_contract({
+    source,
+    callable,
+    arguments,
+  })
   for worker in self.image.representation_workers {
     if worker.contract == contract {
       return Some((worker.function, worker.type_))
@@ -91,24 +92,28 @@ fn FunctionLowerer::representation_worker(
 }
 
 ///|
-fn RepresentationWorkerContractCatalog::intern(
-  self : RepresentationWorkerContractCatalog,
+fn ImageLowerer::intern_representation_worker_contract(
+  self : ImageLowerer,
   contract : RepresentationWorkerContract,
-  runtime_types : RuntimeTypeArena,
 ) -> RepresentationWorkerContractId {
-  for index, existing in self.entries {
+  for index, existing in self.representation_worker_contracts.entries {
     if existing.source == contract.source &&
-      existing.callable == contract.callable &&
+      self.physical_callable_contracts_equivalent(
+        existing.callable,
+        contract.callable,
+      ) &&
       @anf.runtime_arguments_alpha_equivalent(
         existing.arguments,
         contract.arguments,
-        expression => runtime_types.type_expression(expression),
+        expression => self.runtime_types.type_expression(expression),
       ) {
       return { value: index, }
     }
   }
-  let id : RepresentationWorkerContractId = { value: self.entries.length(), }
-  self.entries.push(contract)
+  let id : RepresentationWorkerContractId = {
+    value: self.representation_worker_contracts.entries.length(),
+  }
+  self.representation_worker_contracts.entries.push(contract)
   id
 }
 
@@ -301,7 +306,7 @@ fn runtime_type_is_closed(
   bound : Array[@anf.RuntimeEvidenceId],
 ) -> Bool {
   match type_ {
-    Unit | Scalar(_) | ByteSequence => true
+    Unit | Scalar(_) | ByteSequence | ByteBuffer => true
     Data(_, arguments) =>
       arguments.all(argument => {
         runtime_evidence_is_closed(argument.evidence, bound)

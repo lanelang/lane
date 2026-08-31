@@ -65,12 +65,6 @@ test "compiler erases representation-identical Char conversion" {
       #|      {
       #|        slots: [
       #|          {
-      #|            representation: I32,
-      #|            cleanup: Trivial,
-      #|            kind: ScalarValue,
-      #|            erased_companion: None,
-      #|          },
-      #|          {
       #|            representation: I64,
       #|            cleanup: Trivial,
       #|            kind: ScalarValue,
@@ -82,11 +76,8 @@ test "compiler erases representation-identical Char conversion" {
       #|        blocks: [
       #|          {
       #|            parameters: [],
-      #|            instructions: [
-      #|              ConstChar({ value: 0 }, 128512),
-      #|              I32ToI64({ value: 1 }, { value: 0 }),
-      #|            ],
-      #|            terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 1 }]),
+      #|            instructions: [ConstI64({ value: 0 }, 128512)],
+      #|            terminator: TailCallDirect({ value: 2 }, None, [], [{ value: 0 }]),
       #|          },
       #|        ],
       #|      },

@@ -43,7 +43,6 @@ pub fn InternalRuntimeFunction::type_(
 ///|
 pub(all) enum RuntimeControlGlobal {
   MaxLiveHeapBytes
-  MaxCallDepth
   FailureCode
 } derive(Debug, Eq)
 
@@ -51,12 +50,34 @@ pub(all) enum RuntimeControlGlobal {
 pub fn RuntimeControlGlobal::name(self : RuntimeControlGlobal) -> String {
   match self {
     MaxLiveHeapBytes => "lane.runtime.control.max_live_heap_bytes"
-    MaxCallDepth => "lane.runtime.control.max_call_depth"
     FailureCode => "lane.runtime.control.failure_code"
   }
 }
 
 ///|
 pub fn runtime_control_globals() -> Array[RuntimeControlGlobal] {
-  [MaxLiveHeapBytes, MaxCallDepth, FailureCode]
+  [MaxLiveHeapBytes, FailureCode]
+}
+
+///|
+pub(all) enum RuntimeFailureCode {
+  LiveHeapBytes
+  AllocationOrArc
+} derive(Debug, Eq)
+
+///|
+pub fn RuntimeFailureCode::code(self : RuntimeFailureCode) -> Int {
+  match self {
+    LiveHeapBytes => 2
+    AllocationOrArc => 3
+  }
+}
+
+///|
+pub fn RuntimeFailureCode::from_code(code : Int) -> RuntimeFailureCode? {
+  match code {
+    2 => Some(LiveHeapBytes)
+    3 => Some(AllocationOrArc)
+    _ => None
+  }
 }

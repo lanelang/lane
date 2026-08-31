@@ -203,10 +203,13 @@ Physical slot equality alone is insufficient. Equal-width values with
 different ownership, object shape, callable ABI, or semantic adaptation
 requirements are not interchangeable.
 
-Recursive callable ABIs may be interned by nominal identity in the physical
-ABI owner. That graph describes call compatibility only. It does not own
-semantic callable flow, source binder scope, specialization demand, or worker
-selection.
+Recursive callable contracts form one finite nominal graph owned by
+representation elaboration. A node is reserved before nested callable
+positions are elaborated, and coinductive graph equivalence owns invocation
+compatibility, structural adaptation, and worker sharing. A second ABI-only
+graph would duplicate the same recursive fact. Semantic callable flow, source
+binder scope, specialization demand, and worker selection remain outside this
+graph.
 
 ## Optional representation specialization
 

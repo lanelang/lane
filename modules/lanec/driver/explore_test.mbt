@@ -101,7 +101,6 @@ test "Explore preserves source-written nested and CPS-introduced function origin
       #|[
       #|  [SourceFunction(value=3, name=Some("main")), RuntimeAnfTopLevelRoot],
       #|  [SelectiveCpsFunction, RuntimeAnfEscapingClosure],
-      #|  [SelectiveCpsFunction, RuntimeAnfJoinPoint],
       #|  [
       #|    SourceFunction(value=13, name=Some("function_literal")),
       #|    RuntimeAnfEscapingClosure,
@@ -258,6 +257,156 @@ test "explore protocol v11 exposes all eighteen ordered completed stages" {
       #|      Some("function f1 abi=abi0("),
       #|    ),
       #|    ("wasm", "completed", Some("backend"), Some("wat"), Some("(module")),
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
+test "Explore records selective byte-buffer Wasm support" {
+  let scale_keys = [
+    "functionCount", "importCount", "instructionCount", "slotCount", "layoutCount",
+    "localCount", "unreachableWasmSupportRoleCount",
+  ]
+  let pure = explore(
+    explore_test_request(
+      (
+        #|module Pure
+        #|
+        #|pub fn main() -> Unit {
+        #|  ()
+        #|}
+      ),
+    ),
+  )
+  let pure_scales = pure.stages
+    .ordered()
+    .filter_map(stage => {
+      if stage.id != "physical" && stage.id != "wasm" {
+        return None
+      }
+      explore_stage_scale(stage).map(scale => {
+        (scale.0, scale.1.filter(metric => scale_keys.contains(metric.0)))
+      })
+    })
+  let pure_wasm_roles = pure.functions.nodes.filter_map(node => {
+    if node.function.stage == Wasm {
+      Some(node.roles)
+    } else {
+      None
+    }
+  })
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|let make : (I64) -> ByteBuffer ! Io = builtin("%byte_buffer_make")
+        #|let write : (ByteBuffer, I64, I32) -> Unit ! Io =
+        #|  builtin("%byte_buffer_write_i32")
+        #|let read : (ByteBuffer, I64) -> I32 ! Io =
+        #|  builtin("%byte_buffer_read_i32")
+        #|
+        #|pub fn main() -> Unit ! Io {
+        #|  let buffer = make(4)
+        #|  write(buffer, 0, 42i32)
+        #|  let _value = read(buffer, 0)
+        #|  ()
+        #|}
+      ),
+    ),
+  )
+  let scales = report.stages
+    .ordered()
+    .filter_map(stage => {
+      if stage.id != "physical" && stage.id != "wasm" {
+        return None
+      }
+      explore_stage_scale(stage).map(scale => {
+        (scale.0, scale.1.filter(metric => scale_keys.contains(metric.0)))
+      })
+    })
+  let wasm_roles = report.functions.nodes.filter_map(node => {
+    if node.function.stage == Wasm {
+      Some(node.roles)
+    } else {
+      None
+    }
+  })
+  debug_inspect(
+    (
+      pure.status,
+      pure_scales,
+      pure_wasm_roles,
+      report.status,
+      scales,
+      wasm_roles,
+    ),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [
+      #|    (
+      #|      "physical",
+      #|      [
+      #|        ("functionCount", 1),
+      #|        ("importCount", 0),
+      #|        ("instructionCount", 0),
+      #|        ("slotCount", 0),
+      #|        ("layoutCount", 0),
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "wasm",
+      #|      [
+      #|        ("functionCount", 2),
+      #|        ("importCount", 0),
+      #|        ("instructionCount", 4),
+      #|        ("localCount", 0),
+      #|        ("unreachableWasmSupportRoleCount", 0),
+      #|      ],
+      #|    ),
+      #|  ],
+      #|  [[WasmPhysicalFunction], [EntryWrapper]],
+      #|  Succeeded,
+      #|  [
+      #|    (
+      #|      "physical",
+      #|      [
+      #|        ("functionCount", 1),
+      #|        ("importCount", 0),
+      #|        ("instructionCount", 7),
+      #|        ("slotCount", 3),
+      #|        ("layoutCount", 1),
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "wasm",
+      #|      [
+      #|        ("functionCount", 14),
+      #|        ("importCount", 0),
+      #|        ("instructionCount", 344),
+      #|        ("localCount", 17),
+      #|        ("unreachableWasmSupportRoleCount", 0),
+      #|      ],
+      #|    ),
+      #|  ],
+      #|  [
+      #|    [WasmPhysicalFunction],
+      #|    [WasmRuntimeFunction(name="allocate")],
+      #|    [WasmRuntimeFunction(name="free")],
+      #|    [WasmRuntimeFunction(name="retain reference")],
+      #|    [WasmRuntimeFunction(name="release reference")],
+      #|    [WasmRuntimeFunction(name="byte buffer make")],
+      #|    [WasmRuntimeFunction(name="require byte buffer layout")],
+      #|    [WasmRuntimeFunction(name="byte buffer write i32")],
+      #|    [WasmRuntimeFunction(name="byte buffer read i32")],
+      #|    [WasmHelperFunction(name="retain reference erased", ordinal=None)],
+      #|    [WasmHelperFunction(name="release reference erased", ordinal=None)],
+      #|    [WasmHelperFunction(name="destroy noop", ordinal=None)],
+      #|    [WasmHelperFunction(name="byte storage sizer", ordinal=None)],
+      #|    [EntryWrapper],
       #|  ],
       #|)
     ),
@@ -536,17 +685,16 @@ test "explore reports deterministic typed scale metrics" {
       #|    [
       #|      ("functionCount", 4),
       #|      ("importCount", 1),
-      #|      ("instructionCount", 51),
+      #|      ("instructionCount", 21),
       #|      ("localCount", 3),
       #|      ("tableEntryCount", 0),
-      #|      ("wasmIfCount", 3),
+      #|      ("wasmIfCount", 1),
       #|      ("wasmUnreachableCount", 0),
       #|      ("unreachableWasmSupportRoleCount", 0),
       #|      ("wasmExpansion.physicalStorage.localCount", 3),
-      #|      ("wasmExpansion.runtimeGuard.instructionCount", 22),
       #|      ("wasmExpansion.physicalOpcode.scalar.instructionCount", 2),
       #|      ("wasmExpansion.physicalOpcode.callable.instructionCount", 4),
-      #|      ("wasmExpansion.physicalOpcode.controlTransfer.instructionCount", 13),
+      #|      ("wasmExpansion.physicalOpcode.controlTransfer.instructionCount", 5),
       #|      ("wasmExpansion.functionAbi.instructionCount", 2),
       #|      ("wasmExpansion.runtimeImportAdapter.instructionCount", 5),
       #|      ("wasmExpansion.entryLifecycle.instructionCount", 3),
@@ -585,6 +733,125 @@ test "explore reports deterministic typed scale metrics" {
       #|    [
       #|      { index: 1, block_count: 1, operation_count: 2, value_count: 2 },
       #|      { index: 2, block_count: 1, operation_count: 0, value_count: 1 },
+      #|    ],
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
+test "explore lowers nested handlers through a finite recursive callable contract graph" {
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|effect Ask {
+        #|  read() -> I64
+        #|}
+        #|
+        #|effect Log {
+        #|  write(I64) -> Unit
+        #|}
+        #|
+        #|fn task() -> I64 ! { Ask, Log } {
+        #|  let value = Ask::read!()
+        #|  let _written = Log::write!(value)
+        #|  value
+        #|}
+        #|
+        #|fn run() -> I64 {
+        #|  handle {
+        #|    handle task() with {
+        #|      Ask::read(resume) => resume(40)
+        #|    } final value {
+        #|      value
+        #|    }
+        #|  } with {
+        #|    Log::write(_value, resume) => resume(())
+        #|  } final value {
+        #|    value
+        #|  }
+        #|}
+        #|
+        #|pub extern type Host : Effect
+        #|let observe : (I64) -> Unit ! Host = extern("lane.test", "observe")
+        #|
+        #|pub fn main() -> Unit ! Host {
+        #|  observe(run())
+        #|}
+      ),
+    ),
+  )
+  assert_true(report.status is Succeeded)
+  let selected = report.stages
+    .ordered()
+    .filter_map(stage => {
+      if [
+          "buslane.cps-core-optimized", "anf", "vmcfg.initial", "physical", "wasm",
+        ].contains(stage.id) {
+        explore_stage_scale(stage).map(scale => {
+          (
+            scale.0,
+            scale.1.filter(metric => {
+              [
+                "functionCount", "callCount", "instructionCount", "directCallCount",
+                "indirectCallCount", "closureCount", "environmentCount", "genericAbiEraseCount",
+                "genericAbiUneraseCount", "callableAbiCount", "duplicateRuntimeAbiWorkerCount",
+                "tableEntryCount",
+              ].contains(metric.0)
+            }),
+          )
+        })
+      } else {
+        None
+      }
+    })
+  debug_inspect(
+    selected,
+    content=(
+      #|[
+      #|  (
+      #|    "buslane.cps-core-optimized",
+      #|    [("functionCount", 10), ("callCount", 10)],
+      #|  ),
+      #|  ("anf", [("functionCount", 10), ("callCount", 10)]),
+      #|  (
+      #|    "vmcfg.initial",
+      #|    [
+      #|      ("functionCount", 21),
+      #|      ("instructionCount", 109),
+      #|      ("directCallCount", 12),
+      #|      ("indirectCallCount", 9),
+      #|      ("closureCount", 16),
+      #|      ("environmentCount", 18),
+      #|      ("genericAbiEraseCount", 8),
+      #|      ("genericAbiUneraseCount", 8),
+      #|      ("duplicateRuntimeAbiWorkerCount", 0),
+      #|    ],
+      #|  ),
+      #|  (
+      #|    "physical",
+      #|    [
+      #|      ("functionCount", 21),
+      #|      ("instructionCount", 118),
+      #|      ("directCallCount", 12),
+      #|      ("indirectCallCount", 9),
+      #|      ("closureCount", 16),
+      #|      ("environmentCount", 18),
+      #|      ("genericAbiEraseCount", 8),
+      #|      ("genericAbiUneraseCount", 8),
+      #|      ("callableAbiCount", 14),
+      #|      ("duplicateRuntimeAbiWorkerCount", 0),
+      #|    ],
+      #|  ),
+      #|  (
+      #|    "wasm",
+      #|    [
+      #|      ("functionCount", 41),
+      #|      ("instructionCount", 1237),
+      #|      ("tableEntryCount", 32),
       #|    ],
       #|  ),
       #|]
@@ -809,14 +1076,14 @@ test "explore records elimination of concrete-answer callback representation cos
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 3),
+      #|        ("functionCount", 1),
       #|        ("importCount", 1),
-      #|        ("blockCount", 4),
-      #|        ("instructionCount", 3),
-      #|        ("valueCount", 8),
-      #|        ("directCallCount", 3),
+      #|        ("blockCount", 1),
+      #|        ("instructionCount", 1),
+      #|        ("valueCount", 1),
+      #|        ("directCallCount", 1),
       #|        ("indirectCallCount", 0),
-      #|        ("functionReferenceCount", 1),
+      #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
       #|        ("genericAbiEraseCount", 0),
@@ -828,11 +1095,7 @@ test "explore records elimination of concrete-answer callback representation cos
       #|        ("objectShapeCount", 0),
       #|        ("constantCount", 0),
       #|      ],
-      #|      [
-      #|        { index: 1, block_count: 1, operation_count: 2, value_count: 2 },
-      #|        { index: 2, block_count: 2, operation_count: 1, value_count: 5 },
-      #|        { index: 3, block_count: 1, operation_count: 0, value_count: 1 },
-      #|      ],
+      #|      [{ index: 1, block_count: 1, operation_count: 1, value_count: 1 }],
       #|    ),
       #|  ],
       #|)
@@ -939,6 +1202,8 @@ test "explore attributes a closed effect worker nominal ABI crossing" {
     if stage.id == "vmcfg.initial" && stage.state is Completed(snapshot) {
       metrics = snapshot.scale.metrics
         .filter(metric => {
+          metric.id.key() == "directCallCount" ||
+          metric.id.key() == "indirectCallCount" ||
           metric.id.key() == "genericAbiEraseCount" ||
           metric.id.key() == "genericAbiUneraseCount"
         })
@@ -969,8 +1234,13 @@ test "explore attributes a closed effect worker nominal ABI crossing" {
       #|  [],
       #|  1,
       #|  3,
-      #|  [("genericAbiEraseCount", 2), ("genericAbiUneraseCount", 2)],
-      #|  [([RepresentationWorker], true, [AggregateStorage, FunctionParameter])],
+      #|  [
+      #|    ("directCallCount", 8),
+      #|    ("indirectCallCount", 2),
+      #|    ("genericAbiEraseCount", 2),
+      #|    ("genericAbiUneraseCount", 2),
+      #|  ],
+      #|  [],
       #|)
     ),
   )
@@ -1049,17 +1319,17 @@ test "explore records concrete-answer CPS cleanup after scalar replacement" {
       #|      "buslane.cps-core-optimized",
       #|      [
       #|        ("topTermCount", 3),
-      #|        ("functionCount", 4),
-      #|        ("nodeCount", 27),
-      #|        ("callCount", 5),
+      #|        ("functionCount", 1),
+      #|        ("nodeCount", 13),
+      #|        ("callCount", 2),
       #|      ],
       #|    ),
       #|    (
       #|      "vmcfg.initial",
       #|      [
-      #|        ("functionCount", 3),
-      #|        ("instructionCount", 5),
-      #|        ("directCallCount", 4),
+      #|        ("functionCount", 1),
+      #|        ("instructionCount", 3),
+      #|        ("directCallCount", 2),
       #|        ("indirectCallCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
@@ -1070,9 +1340,9 @@ test "explore records concrete-answer CPS cleanup after scalar replacement" {
       #|    (
       #|      "physical",
       #|      [
-      #|        ("functionCount", 3),
-      #|        ("instructionCount", 6),
-      #|        ("directCallCount", 4),
+      #|        ("functionCount", 1),
+      #|        ("instructionCount", 3),
+      #|        ("directCallCount", 2),
       #|        ("indirectCallCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),

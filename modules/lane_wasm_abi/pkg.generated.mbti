@@ -35,6 +35,7 @@ pub(all) struct ImportContract {
   result : ImportResult
 } derive(Compare, Eq, @debug.Debug)
 pub fn ImportContract::compare(Self, Self) -> Int
+pub fn ImportContract::core_contract(Self) -> Self
 pub fn ImportContract::core_parameters(Self) -> Array[CoreValueType]
 pub fn ImportContract::core_results(Self) -> Array[CoreValueType]
 pub fn ImportContract::equal(Self, Self) -> Bool
@@ -49,6 +50,7 @@ pub fn ImportContract::to_repr(Self) -> @debug.Repr
 pub(all) enum ImportParameter {
   ErasedUnit
   Direct(CoreValueType)
+  GuestAddress
 } derive(Compare, Eq, @debug.Debug)
 pub fn ImportParameter::compare(Self, Self) -> Int
 pub fn ImportParameter::core_types(Self) -> Array[CoreValueType]

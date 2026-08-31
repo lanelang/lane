@@ -136,6 +136,10 @@ fn render_instruction(instruction : Instruction) -> String {
       "const_string \{render_value(destination)}, \{render_constant(constant)}"
     CallDirect(function, environment, witnesses, arguments, destination) =>
       "call_direct \{render_optional_destination(destination)}\{render_function(function)} env=\{render_optional_value(environment)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
+    CallRuntimeImport(function, arguments, destination) =>
+      "call_runtime_import \{render_optional_destination(destination)}\{render_function(function)} arguments=[\{arguments.map(render_runtime_import_argument).join(", ")}]"
+    CallPackedDirect(function, callable, witnesses, arguments, destination) =>
+      "call_packed_direct \{render_optional_destination(destination)}\{render_function(function)} callable=\{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     CallValue(callable, witnesses, arguments, destination) =>
       "call_value \{render_optional_destination(destination)}\{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     MakeData(destination, shape, layout, witnesses, fields) =>
@@ -176,8 +180,16 @@ fn render_instruction(instruction : Instruction) -> String {
       "byte_sequence_slice \{render_value(destination)}, \{render_value(source)}, \{render_value(start)}, \{render_value(length)}"
     ByteSequenceIsValidUtf8(destination, source) =>
       unary_instruction("byte_sequence_is_valid_utf8", destination, source)
-    WasiFdWrite(destination, fd, bytes) =>
-      binary_instruction("wasi_fd_write", destination, fd, bytes)
+    ByteBufferMake(destination, length) =>
+      unary_instruction("byte_buffer_make", destination, length)
+    ByteBufferWriteBytes(buffer, index, source) =>
+      "byte_buffer_write_bytes \{render_value(buffer)}, \{render_value(index)}, \{render_value(source)}"
+    ByteBufferWriteI32(buffer, index, value) =>
+      "byte_buffer_write_i32 \{render_value(buffer)}, \{render_value(index)}, \{render_value(value)}"
+    ByteBufferWriteAddress(buffer, index, target, offset) =>
+      "byte_buffer_write_address \{render_value(buffer)}, \{render_value(index)}, \{render_value(target)}, \{render_value(offset)}"
+    ByteBufferReadI32(destination, buffer, index) =>
+      binary_instruction("byte_buffer_read_i32", destination, buffer, index)
     I32Add(destination, left, right) =>
       binary_instruction("i32_add", destination, left, right)
     I32Sub(destination, left, right) =>
@@ -326,6 +338,15 @@ fn render_instruction(instruction : Instruction) -> String {
 }
 
 ///|
+fn render_runtime_import_argument(argument : RuntimeImportArgument) -> String {
+  match argument {
+    Direct(value) => render_value(value)
+    GuestAddress(buffer, offset) =>
+      "guest_address(\{render_value(buffer)}, \{render_value(offset)})"
+  }
+}
+
+///|
 fn render_terminator(terminator : Terminator) -> String {
   match terminator {
     Jump(edge) => "jump \{render_edge(edge)}"
@@ -336,6 +357,8 @@ fn render_terminator(terminator : Terminator) -> String {
     Return(value) => "return \{render_optional_value(value)}"
     TailCallDirect(function, environment, witnesses, arguments) =>
       "tail_call_direct \{render_function(function)} env=\{render_optional_value(environment)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
+    TailCallPackedDirect(function, callable, witnesses, arguments) =>
+      "tail_call_packed_direct \{render_function(function)} callable=\{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     TailCallValue(callable, witnesses, arguments) =>
       "tail_call_value \{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     Fatal(message) => "fatal \{render_value(message)}"
@@ -520,6 +543,7 @@ fn render_layout_recipe(recipe : @physical.LayoutRecipe) -> String {
     F64 => "f64"
     Callable => "callable"
     ByteSequence => "byte_sequence"
+    ByteBuffer => "byte_buffer"
     Data(shape) => "data(\{render_shape(shape)})"
     Environment(shape) => "environment(\{render_shape(shape)})"
     Reference => "reference"

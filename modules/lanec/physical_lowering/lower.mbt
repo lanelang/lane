@@ -17,7 +17,6 @@ priv struct ImageLowerer {
   callable_adapters : Array[CallableAdapterPlan]
   callable_adapter_worker_contracts : CallableAdapterWorkerContractCatalog
   physical_callable_contracts : PhysicalCallableContractCatalog
-  callable_abi_graph : @physical.CallableAbiGraph
   synthetic_parameters : Array[@anf.RuntimeEvidenceParameter]
   active_specialization_ancestry : Array[@physical.FunctionId]
   representation_specialization_enabled : Bool
@@ -127,8 +126,7 @@ fn lower_executable_program_to_physical_or_raise(
     representation_worker_candidates,
     callable_adapters: [],
     callable_adapter_worker_contracts: { entries: [], },
-    physical_callable_contracts: { entries: [], },
-    callable_abi_graph: @physical.CallableAbiGraph::new(),
+    physical_callable_contracts: { requests: [], entries: [], },
     synthetic_parameters: [],
     active_specialization_ancestry: [],
     representation_specialization_enabled,
@@ -160,6 +158,8 @@ fn lower_executable_program_to_physical_or_raise(
       LayoutConstructor(plan) =>
         functions.push(Body(lowerer.lower_layout_constructor(plan)))
       RuntimeImport(import_) => functions.push(RuntimeImport(import_))
+      RuntimeImportAdapter(plan) =>
+        functions.push(Body(lowerer.lower_runtime_import_adapter(plan)))
     }
     plan_index += 1
   }
@@ -313,8 +313,10 @@ fn PhysicalFunctionOrigin::indirect_call_origin(
     CallableAdapter(..) => CallableAdapter
     RepresentationWorker(..) => RepresentationWorker
     Initializer(..) | InitializerOrchestrator => Initialization
-    IntrinsicWrapper(..) | LayoutConstructor | RuntimeImport(..) =>
-      RuntimeSupport
+    IntrinsicWrapper(..)
+    | LayoutConstructor
+    | RuntimeImport(..)
+    | RuntimeImportAdapter(..) => RuntimeSupport
   }
 }
 

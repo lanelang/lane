@@ -437,7 +437,6 @@ test "ByteSequence concat and slice resource failures agree across backends" {
   let i64 = wasm_bytes_trivial_slot(I64)
   let owned = wasm_bytes_owned_slot()
   let config : @lane_runtime.ExecutionConfig = {
-    max_call_depth: None,
     max_live_heap_bytes: Some(15),
   }
   assert_bytes_backends(
@@ -751,7 +750,7 @@ test "Bytes unique update reuses its allocation across backends" {
       Release({ value: 4, }),
     ]),
     Completed,
-    config={ max_call_depth: None, max_live_heap_bytes: Some(16), },
+    config={ max_live_heap_bytes: Some(16), },
   )
 }
 
@@ -770,7 +769,7 @@ test "Bytes shared update needs a second allocation across backends" {
       ByteSequenceSet({ value: 5, }, { value: 2, }, { value: 4, }, { value: 1, }),
     ]),
     LiveHeapLimit,
-    config={ max_call_depth: None, max_live_heap_bytes: Some(16), },
+    config={ max_live_heap_bytes: Some(16), },
   )
 }
 
@@ -786,7 +785,7 @@ test "Bytes allocation exhaustion agrees across interpreter and Wasm backends" {
       ByteSequenceMake({ value: 2, }, { value: 0, }, { value: 1, }),
     ]),
     LiveHeapLimit,
-    config={ max_call_depth: None, max_live_heap_bytes: Some(15), },
+    config={ max_live_heap_bytes: Some(15), },
   )
 }
 
@@ -804,7 +803,6 @@ test "Bytes allocation accounting follows the aligned object size" {
     ])
   }
   let config : @lane_runtime.ExecutionConfig = {
-    max_call_depth: None,
     max_live_heap_bytes: Some(16),
   }
   assert_bytes_backends(body(4L), Completed, config~)
@@ -823,7 +821,7 @@ test "large Bytes allocation is rejected before materialization across backends"
       ByteSequenceMake({ value: 2, }, { value: 0, }, { value: 1, }),
     ]),
     LiveHeapLimit,
-    config={ max_call_depth: None, max_live_heap_bytes: Some(15), },
+    config={ max_live_heap_bytes: Some(15), },
   )
 }
 
@@ -838,7 +836,7 @@ test "unaddressable Bytes allocation is safely rejected across backends" {
       I64ToByte({ value: 1, }, { value: 0, }),
       ByteSequenceMake({ value: 2, }, { value: 0, }, { value: 1, }),
     ]),
-    config={ max_call_depth: None, max_live_heap_bytes: Some(15), },
+    config={ max_live_heap_bytes: Some(15), },
   )
   assert_eq(outcomes, { wasm_interpreter: Fatal, wasm_jit: Fatal, })
 }

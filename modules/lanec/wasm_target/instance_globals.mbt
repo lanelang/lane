@@ -19,8 +19,7 @@ fn compile_entry_lifecycle(
     Some(cleanup_function) => {
       guarded.push(cleanup_function.call())
       guarded.push(Return)
-      [Block(Empty, [TryTable(Empty, [Catch(0, 0)], guarded), Unreachable])] +
-      [cleanup_function.call(), Throw(0)]
+      guarded
     }
   }
 }
@@ -57,7 +56,6 @@ fn compile_global_initialization(
       GlobalSet(initialized_owned_root_count_global_index),
     ])
   }
-  instructions.append(locals.mark_slot_dead(source))
   instructions
 }
 

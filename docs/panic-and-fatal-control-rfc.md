@@ -104,8 +104,8 @@ residual effects it can interpret.
   effect, and fatal implementation.
 - Make the selected execution profile the sole owner of executable-entry
   effect admission.
-- Preserve identical fatal behavior, cleanup, messages, and typed outcomes in
-  the interpreter and Wasm/JIT backends.
+- Preserve identical fatal classification, messages, and typed outcomes across
+  Wasmoon execution modes.
 - Reject stale persisted contracts rather than interpreting them under the new
   source ABI.
 
@@ -383,9 +383,9 @@ not introduce a root effect dictionary.
 
 `Fatal(message)` remains a terminator in VM CFG and the Physical Program. It:
 
-1. consumes one owned String;
+1. reads one owned String from the terminal instance;
 2. has no CFG successor;
-3. initiates the specified fatal cleanup;
+3. abandons the remaining owners with that single-shot instance;
 4. produces a typed panic outcome.
 
 The execution interface distinguishes intentional Lane panic from other

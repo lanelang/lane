@@ -401,14 +401,14 @@ test "canonical text preserves metadata allocator exhaustion" {
 }
 
 ///|
-test "buslane text roundtrips Byte and Bytes primitives" {
+test "buslane text roundtrips byte storage primitives" {
   let type_ : @buslane.Type = Function(
-    [Primitive(Byte)],
+    [Primitive(Byte), Primitive(ByteBuffer)],
     Primitive(Bytes),
     Empty,
   )
   let text = CanonicalTextWriter::CanonicalTextWriter().write_type(type_)
-  assert_eq(text, "(Byte) -> Bytes")
+  assert_eq(text, "(Byte, ByteBuffer) -> Bytes")
   let decoded = match parse_type_text(text) {
     Ok(decoded) => decoded
     Err(message) => abort(message + "\n" + text)

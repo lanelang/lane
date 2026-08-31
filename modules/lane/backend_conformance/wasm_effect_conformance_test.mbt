@@ -3,15 +3,44 @@ fn effect_conformance_basic_io() -> String {
   (
     #|module Basic.Io
     #|import Basic.Data.Void.{ Void }
+    #|import Basic.Wasm.Abi.{ WasmAddress, address, allocate, write_address, write_bytes, write_i32 }
     #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
     #|let bytes_concat : (Bytes, Bytes) -> Bytes = builtin("%bytes_concat")
-    #|let wasi_fd_write : (I32, Bytes) -> I32 ! Io = builtin("%wasi_fd_write")
+    #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
+    #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
+    #|let i64_to_i32 : (I64) -> I32 = builtin("%i64_to_i32")
+    #|let wasi_fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
     #|pub fn println(value : String) -> Unit ! Io {
     #|  let bytes = bytes_concat(string_to_bytes(value), string_to_bytes("\n"))
-    #|  let _errno = wasi_fd_write(1i32, bytes)
+    #|  let length = bytes_length(bytes)
+    #|  let frame = allocate(i64_add(12, length))
+    #|  write_bytes(frame, 12, bytes)
+    #|  write_address(frame, 0, frame, 12i32)
+    #|  write_i32(frame, 4, i64_to_i32(length))
+    #|  write_i32(frame, 8, 0i32)
+    #|  let _errno = wasi_fd_write(1i32, address(frame, 0i32), 1i32, address(frame, 8i32))
     #|  ()
     #|}
     #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+  )
+}
+
+///|
+fn effect_conformance_basic_wasm_abi() -> String {
+  (
+    #|module Basic.Wasm.Abi
+    #|let make : (I64) -> ByteBuffer ! Io = builtin("%byte_buffer_make")
+    #|let write_bytes_builtin : (ByteBuffer, I64, Bytes) -> Unit ! Io = builtin("%byte_buffer_write_bytes")
+    #|let write_i32_builtin : (ByteBuffer, I64, I32) -> Unit ! Io = builtin("%byte_buffer_write_i32")
+    #|let write_address_builtin : (ByteBuffer, I64, ByteBuffer, I32) -> Unit ! Io = builtin("%byte_buffer_write_address")
+    #|let read_i32_builtin : (ByteBuffer, I64) -> I32 ! Io = builtin("%byte_buffer_read_i32")
+    #|pub struct WasmAddress { storage : ByteBuffer; offset : I32 }
+    #|pub fn allocate(size : I64) -> ByteBuffer ! Io { make(size) }
+    #|pub fn address(storage : ByteBuffer, offset : I32) -> WasmAddress { WasmAddress::{ storage, offset } }
+    #|pub fn write_bytes(storage : ByteBuffer, index : I64, source : Bytes) -> Unit ! Io { write_bytes_builtin(storage, index, source) }
+    #|pub fn write_i32(storage : ByteBuffer, index : I64, value : I32) -> Unit ! Io { write_i32_builtin(storage, index, value) }
+    #|pub fn write_address(storage : ByteBuffer, index : I64, target : ByteBuffer, offset : I32) -> Unit ! Io { write_address_builtin(storage, index, target, offset) }
+    #|pub fn read_i32(storage : ByteBuffer, index : I64) -> I32 ! Io { read_i32_builtin(storage, index) }
   )
 }
 
@@ -31,6 +60,7 @@ fn compile_effect_conformance_image(
   let result = compile_program_for_test(source, [
     effect_conformance_basic_io(),
     effect_conformance_basic_void(),
+    effect_conformance_basic_wasm_abi(),
   ])
   if !result.diagnostics().is_empty() {
     fail("effect conformance compilation failed: \{Repr(result.diagnostics())}")
@@ -117,17 +147,20 @@ fn assert_effect_erased_host_boundary(
       imports.push(import_)
     }
   }
-  assert_eq(imports, [])
-  assert_true(
-    image.functions.any(function => {
-      function is PhysicalBody(body) &&
+  assert_eq(imports, [@wasm_abi.WasiPreview1Import::FdWrite.contract()])
+  let adapter_bodies = image.functions.filter_map(function => {
+    if function is PhysicalBody(body) &&
       body.blocks.any(block => {
         block.instructions.any(instruction => {
-          instruction is WasiFdWrite(_, _, _)
+          instruction is CallRuntimeImport(_, _, _)
         })
-      })
-    }),
-  )
+      }) {
+      Some(body)
+    } else {
+      None
+    }
+  })
+  assert_eq(adapter_bodies.length(), 1)
 }
 
 ///|
@@ -142,6 +175,81 @@ fn assert_effect_conformance(
   assert_eq(interpreter_output, expected)
   assert_eq(wasm_output, expected)
   assert_eq(interpreter_output, wasm_output)
+}
+
+///|
+fn assert_effect_conformance_traps(source : String) -> Unit raise {
+  let image = compile_effect_conformance_image(source)
+  let (interpreter, interpreter_output) = execute_effect_conformance(
+    image,
+    Interpreter,
+  )
+  let (jit, jit_output) = execute_effect_conformance(image, Jit)
+  assert_true(interpreter is Err(EngineTrap(detail=_)))
+  assert_true(jit is Err(EngineTrap(detail=_)))
+  assert_eq(interpreter_output, [])
+  assert_eq(jit_output, [])
+}
+
+///|
+test "guest addresses reject offsets outside their buffer" {
+  assert_effect_conformance_traps(
+    (
+      #|module Main
+      #|import Basic.Wasm.Abi.{ WasmAddress, address, allocate }
+      #|let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
+      #|pub fn main() -> Unit ! Io {
+      #|  let frame = allocate(12)
+      #|  let _errno = fd_write(1i32, address(frame, 13i32), 0i32, address(frame, 8i32))
+      #|  ()
+      #|}
+    ),
+  )
+}
+
+///|
+test "buffer address writes reject out-of-bounds destinations" {
+  assert_effect_conformance_traps(
+    (
+      #|module Main
+      #|import Basic.Wasm.Abi.{ WasmAddress, address, allocate, write_address }
+      #|let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
+      #|pub fn main() -> Unit ! Io {
+      #|  let frame = allocate(12)
+      #|  write_address(frame, 10, frame, 0i32)
+      #|  let _errno = fd_write(1i32, address(frame, 0i32), 0i32, address(frame, 8i32))
+      #|  ()
+      #|}
+    ),
+  )
+}
+
+///|
+test "host writes remain visible through the effectful ByteBuffer API" {
+  assert_effect_conformance(
+    (
+      #|module Main
+      #|import Basic.Io.{ println }
+      #|import Basic.Wasm.Abi.{ WasmAddress, address, allocate, read_i32, write_address, write_bytes, write_i32 }
+      #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
+      #|let i32_equal : (I32, I32) -> Bool = builtin("%i32_equal")
+      #|let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
+      #|pub fn main() -> Unit ! Io {
+      #|  let frame = allocate(14)
+      #|  write_bytes(frame, 12, string_to_bytes("x\n"))
+      #|  write_address(frame, 0, frame, 12i32)
+      #|  write_i32(frame, 4, 2i32)
+      #|  write_i32(frame, 8, 0i32)
+      #|  let _errno = fd_write(1i32, address(frame, 0i32), 1i32, address(frame, 8i32))
+      #|  if i32_equal(read_i32(frame, 8), 2i32) {
+      #|    println("count-ok")
+      #|  } else {
+      #|    println("count-bad")
+      #|  }
+      #|}
+    ),
+    ["x", "count-ok"],
+  )
 }
 
 ///|

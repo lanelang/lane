@@ -165,6 +165,17 @@ fn PhysicalProgramVerifier::verify_terminator(
         None,
         tail_result=Some(body.result),
       )
+    TailCallPackedDirect(target, callable, witnesses, arguments) =>
+      self.verify_packed_direct_call(
+        site,
+        body,
+        target,
+        callable,
+        witnesses,
+        arguments,
+        None,
+        tail_result=Some(body.result),
+      )
     TailCallValue(callable, abi_id, witnesses, arguments) => {
       self.expect_slot(site, body, callable, I64, OwnedCallable)
       let abi = self.callable_abi(site, abi_id)

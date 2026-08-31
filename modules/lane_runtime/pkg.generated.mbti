@@ -22,7 +22,6 @@ pub fn ExecutionError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) struct ExecutionConfig {
-  max_call_depth : Int?
   max_live_heap_bytes : Int?
 } derive(Eq, @debug.Debug)
 pub fn ExecutionConfig::defaults() -> Self
@@ -31,7 +30,6 @@ pub fn ExecutionConfig::not_equal(Self, Self) -> Bool
 pub fn ExecutionConfig::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ResourceLimitKind {
-  CallDepth
   LiveHeapBytes
 } derive(Eq, @debug.Debug)
 pub fn ResourceLimitKind::equal(Self, Self) -> Bool

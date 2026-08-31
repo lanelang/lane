@@ -66,6 +66,28 @@ fn contains_return_call_indirect(
 }
 
 ///|
+fn contains_call_indirect(
+  instructions : Array[@wasm_types.Instruction],
+) -> Bool {
+  for instruction in instructions {
+    match instruction {
+      CallIndirect(_, _) | ReturnCallIndirect(_, _) => return true
+      Block(_, body) | Loop(_, body) | TryTable(_, _, body) =>
+        if contains_call_indirect(body) {
+          return true
+        }
+      If(_, consequent, alternate) =>
+        if contains_call_indirect(consequent) ||
+          contains_call_indirect(alternate) {
+          return true
+        }
+      _ => ()
+    }
+  }
+  false
+}
+
+///|
 fn contains_br_table(instructions : Array[@wasm_types.Instruction]) -> Bool {
   for instruction in instructions {
     match instruction {
@@ -287,6 +309,30 @@ test "invalid Physical Program is rejected at certification" {
       image([PhysicalBody(invalid_entry), PhysicalBody(target)]),
     )
     is Err(_),
+  )
+}
+
+///|
+test "Physical certification rejects packed direct target without environment" {
+  let entry = body(slots=[owned_slot(I64, OwnedCallable)], instructions=[
+    ConstFunction({ value: 0, }, { value: 2, }),
+    CallPackedDirect({ value: 2, }, { value: 0, }, [], [], None),
+  ])
+  let error = match
+    @physical.verify_physical_program(
+      image([PhysicalBody(entry), PhysicalBody(body())]),
+    ) {
+    Ok(_) => None
+    Err(error) => Some(error)
+  }
+  assert_eq(
+    error,
+    Some(
+      InvalidPhysicalProgram(
+        site=Instruction({ value: 1, }, { value: 0, }, 1),
+        detail="packed direct-call target requires an environment",
+      ),
+    ),
   )
 }
 
@@ -601,43 +647,68 @@ test "packed callables execute through the canonical function table" {
   }
   debug_inspect(
     guard_scale.expansions,
-    content="[{ category: RuntimeGuard, instruction_count: 24, local_count: 0 }]",
+    content="[{ category: RuntimeGuard, instruction_count: 23, local_count: 0 }]",
   )
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
 }
 
 ///|
-test "trivial frames propagate fatal exceptions without a cleanup wrapper" {
-  let observed = compile_test_image_observed(image([PhysicalBody(body())])).unwrap()
-  assert_false(contains_try_table(observed.module_.codes[0].body))
+test "callable target metadata stores one canonical ABI identity per table slot" {
+  let entry = body(
+    slots=[owned_slot(I64, OwnedCallable), owned_slot(I64, OwnedCallable)],
+    instructions=[
+      ConstFunction({ value: 0, }, { value: 2, }),
+      ConstFunction({ value: 1, }, { value: 3, }),
+      Release({ value: 0, }),
+      Release({ value: 1, }),
+    ],
+  )
+  let scalar = body(slots=[trivial_slot(I32)], parameters=[{ value: 0, }])
+  let wasm_module = compile_test_image(
+    image([PhysicalBody(entry), PhysicalBody(body()), PhysicalBody(scalar)]),
+  ).unwrap()
+  guard wasm_module.datas is [static_image] else {
+    fail("expected one static image")
+  }
+  assert_eq(static_image.init.length(), 56)
 }
 
 ///|
-test "observed expansion separates frame state unwind and shared cleanup" {
+test "fatal propagation installs no per-frame ownership cleanup" {
   let reference = owned_slot(I32, OwnedRef)
   let owning_body = body(slots=[reference], instructions=[
     ConstString({ value: 0, }, { value: 0, }),
     Release({ value: 0, }),
   ])
   let observed = compile_test_image_observed({
-    ..image([PhysicalBody(owning_body), PhysicalBody(owning_body)]),
+    ..image([PhysicalBody(owning_body)]),
     layouts: [ByteSequence],
     constants: [b"owned"],
   }).unwrap()
-  debug_inspect(
-    observed.scale.expansions.filter(expansion => {
-      expansion.category is ArcFrameState ||
-      expansion.category is ArcUnwind ||
-      expansion.category is ArcCleanupSupport
-    }),
-    content=(
-      #|[
-      #|  { category: ArcFrameState, instruction_count: 4, local_count: 0 },
-      #|  { category: ArcUnwind, instruction_count: 20, local_count: 0 },
-      #|  { category: ArcCleanupSupport, instruction_count: 4, local_count: 0 },
-      #|]
-    ),
+  assert_false(
+    observed.module_.codes.any(code => contains_try_table(code.body)),
+  )
+}
+
+///|
+test "ordinary functions emit no execution-policy runtime guard" {
+  let observed = compile_test_image_observed(image([PhysicalBody(body())])).unwrap()
+  guard observed.functions.filter(function => {
+      function.origin is PhysicalFunction(function={ value: 1, })
+    })
+    is [entry_provenance] else {
+    fail("expected one emitted Physical function")
+  }
+  guard observed.scale.functions.filter(function => {
+      function.index == entry_provenance.index
+    })
+    is [entry] else {
+    fail("expected scale facts for the emitted Physical function")
+  }
+  assert_eq(
+    entry.expansions.filter(expansion => expansion.category is RuntimeGuard),
+    [],
   )
 }
 
@@ -727,6 +798,205 @@ test "packed closure environment and indirect tail call execute" {
   assert_true(contains_return_call_indirect(wasm_module.codes[0].body))
   let (store, instance) = @executor.instantiate_module_with_init(wasm_module)
   assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
+}
+
+///|
+test "packed direct call transfers its environment without an ABI guard" {
+  let entry = body(
+    slots=[
+      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, })),
+      owned_slot(I64, OwnedCallable),
+    ],
+    instructions=[
+      MakeEnv({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+      MakeClosure({ value: 1, }, { value: 2, }, { value: 0, }),
+      CallPackedDirect({ value: 2, }, { value: 1, }, [], [], None),
+    ],
+  )
+  let target : @physical.FunctionBody = {
+    slots: [owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, }))],
+    inputs: {
+      environment: Some({ value: 0, }),
+      witnesses: [],
+      user_parameters: [],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [Release({ value: 0, })],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let observed = compile_test_image_observed({
+    ..image([PhysicalBody(entry), PhysicalBody(target)]),
+    layouts: [Environment({ value: 0, })],
+    object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
+  }).unwrap()
+  assert_false(contains_call_indirect(observed.module_.codes[0].body))
+  assert_false(
+    observed.functions.any(function => {
+      function.origin is HelperFunction(CallableAbiGuard)
+    }),
+  )
+  assert_eq(
+    observed.functions
+    .filter(function => {
+      function.origin is HelperFunction(PackedCallableTargetGuard)
+    })
+    .length(),
+    1,
+  )
+  let (store, instance) = @executor.instantiate_module_with_init(
+    observed.module_,
+  )
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
+}
+
+///|
+test "packed direct tail call uses the authenticated direct target" {
+  let entry = body(
+    slots=[
+      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, })),
+      owned_slot(I64, OwnedCallable),
+    ],
+    instructions=[
+      MakeEnv({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+      MakeClosure({ value: 1, }, { value: 2, }, { value: 0, }),
+    ],
+    terminator=TailCallPackedDirect({ value: 2, }, { value: 1, }, [], []),
+  )
+  let target : @physical.FunctionBody = {
+    slots: [owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, }))],
+    inputs: {
+      environment: Some({ value: 0, }),
+      witnesses: [],
+      user_parameters: [],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [Release({ value: 0, })],
+        terminator: Return(None),
+      },
+    ],
+  }
+  let observed = compile_test_image_observed({
+    ..image([PhysicalBody(entry), PhysicalBody(target)]),
+    layouts: [Environment({ value: 0, })],
+    object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
+  }).unwrap()
+  guard observed.functions.filter(function => {
+      function.origin is PhysicalFunction(function={ value: 2, })
+    })
+    is [target_function] else {
+    fail("expected direct target function")
+  }
+  assert_true(
+    contains_return_call(observed.module_.codes[0].body, target_function.index),
+  )
+  assert_false(contains_call_indirect(observed.module_.codes[0].body))
+  let (store, instance) = @executor.instantiate_module_with_init(
+    observed.module_,
+  )
+  assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
+}
+
+///|
+test "packed direct call traps when the carrier belongs to another target" {
+  let entry = body(
+    slots=[
+      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, })),
+      owned_slot(I64, OwnedCallable),
+    ],
+    instructions=[
+      MakeEnv({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+      MakeClosure({ value: 1, }, { value: 2, }, { value: 0, }),
+      CallPackedDirect({ value: 3, }, { value: 1, }, [], [], None),
+    ],
+  )
+  let make_target = fn() -> @physical.FunctionBody {
+    {
+      slots: [owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, }))],
+      inputs: {
+        environment: Some({ value: 0, }),
+        witnesses: [],
+        user_parameters: [],
+      },
+      result: Unit,
+      blocks: [
+        {
+          parameters: [],
+          instructions: [Release({ value: 0, })],
+          terminator: Return(None),
+        },
+      ],
+    }
+  }
+  let physical_program = {
+    ..image([
+      PhysicalBody(entry),
+      PhysicalBody(make_target()),
+      PhysicalBody(make_target()),
+    ]),
+    layouts: [Environment({ value: 0, })],
+    object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
+  }
+  for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
+    let loaded = load(physical_program, mode~).unwrap()
+    let instance = loaded.new_instance().unwrap()
+    assert_true(instance.execute() is Err(EngineTrap(detail=_)))
+  }
+}
+
+///|
+test "packed direct call transfers environment ownership into fatal control" {
+  let entry = body(
+    slots=[
+      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, })),
+      owned_slot(I64, OwnedCallable),
+    ],
+    instructions=[
+      MakeEnv({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
+      MakeClosure({ value: 1, }, { value: 2, }, { value: 0, }),
+      CallPackedDirect({ value: 2, }, { value: 1, }, [], [], None),
+    ],
+  )
+  let target : @physical.FunctionBody = {
+    slots: [
+      owned_slot(I32, OwnedRef, kind=EnvironmentValue({ value: 0, })),
+      owned_slot(I32, OwnedRef),
+    ],
+    inputs: {
+      environment: Some({ value: 0, }),
+      witnesses: [],
+      user_parameters: [],
+    },
+    result: Unit,
+    blocks: [
+      {
+        parameters: [],
+        instructions: [
+          Release({ value: 0, }),
+          ConstString({ value: 1, }, { value: 0, }),
+        ],
+        terminator: Fatal({ value: 1, }),
+      },
+    ],
+  }
+  let physical_program = {
+    ..image([PhysicalBody(entry), PhysicalBody(target)]),
+    layouts: [Environment({ value: 0, }), ByteSequence],
+    object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
+    constants: [b"packed fatal"],
+  }
+  for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
+    let loaded = load(physical_program, mode~).unwrap()
+    let instance = loaded.new_instance().unwrap()
+    assert_eq(instance.execute(), Err(Fatal(message="packed fatal")))
+  }
 }
 
 ///|
@@ -1225,46 +1495,6 @@ test "OwnedErased ARC dispatches through its layout witness" {
 }
 
 ///|
-test "Wasm returning calls enforce logical depth while tail calls preserve it" {
-  let returning_entry = body(instructions=[
-    CallDirect({ value: 2, }, None, [], [], None),
-  ])
-  let target = body()
-  let returning_loaded = match
-    load(image([PhysicalBody(returning_entry), PhysicalBody(target)])) {
-    Ok(value) => value
-    Err(error) => fail("load failed: \{Repr(error)}")
-  }
-  let returning_instance = match
-    returning_loaded.new_instance(config={
-      max_call_depth: Some(1),
-      max_live_heap_bytes: None,
-    }) {
-    Ok(value) => value
-    Err(error) => fail("instantiate failed: \{Repr(error)}")
-  }
-  assert_eq(
-    returning_instance.execute(),
-    Err(ExecutionResourceLimit(kind=CallDepth)),
-  )
-  let tail_entry = body(terminator=TailCallDirect({ value: 2, }, None, [], []))
-  let tail_loaded = match
-    load(image([PhysicalBody(tail_entry), PhysicalBody(target)])) {
-    Ok(value) => value
-    Err(error) => fail("load failed: \{Repr(error)}")
-  }
-  let tail_instance = match
-    tail_loaded.new_instance(config={
-      max_call_depth: Some(1),
-      max_live_heap_bytes: None,
-    }) {
-    Ok(value) => value
-    Err(error) => fail("instantiate failed: \{Repr(error)}")
-  }
-  assert_eq(tail_instance.execute(), Ok(()))
-}
-
-///|
 test "Wasmoon execution can be interrupted at a Wasm safepoint" {
   let entry = body(terminator=TailCallDirect({ value: 1, }, None, [], []))
   let loaded = match load(image([PhysicalBody(entry)])) {
@@ -1286,157 +1516,6 @@ test "Wasmoon execution can be interrupted at a Wasm safepoint" {
     Err(Interrupted),
   )
   assert_eq(instance.execute(), Err(InstanceNotReady))
-}
-
-///|
-test "call depth exhaustion releases arguments transferred into the callee" {
-  let ref_slot = owned_slot(I32, OwnedRef)
-  let entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
-    ConstString({ value: 0, }, { value: 0, }),
-    ConstString({ value: 1, }, { value: 1, }),
-    ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
-    CallDirect({ value: 2, }, None, [], [{ value: 2, }], None),
-  ])
-  let target = body(slots=[ref_slot], parameters=[{ value: 0, }], instructions=[
-    Release({ value: 0, }),
-  ])
-  let physical_program : @physical.PhysicalProgram = {
-    entry: { value: 1, },
-    initializer: None,
-    data_family_count: 0,
-    callable_abis: [
-      { witnesses: [], parameters: [], result: Unit, },
-      {
-        witnesses: [],
-        parameters: [
-          { representation: I32, cleanup: OwnedRef, kind: ByteSequenceValue, },
-        ],
-        result: Unit,
-      },
-    ],
-    globals: [],
-    functions: [PhysicalBody(entry), PhysicalBody(target)],
-    layouts: [ByteSequence],
-    object_shapes: [],
-    constants: [b"a", b"b"],
-  }
-  let loaded = match load(physical_program) {
-    Ok(value) => value
-    Err(error) => fail("load failed: \{Repr(error)}")
-  }
-  let instance = match
-    loaded.new_instance(config={
-      max_call_depth: Some(1),
-      max_live_heap_bytes: None,
-    }) {
-    Ok(value) => value
-    Err(error) => fail("instantiate failed: \{Repr(error)}")
-  }
-  assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
-  assert_eq(
-    instance.store.get_global(instance.instance.global_addrs[4]).get(),
-    I32(0),
-  )
-}
-
-///|
-test "shared unwind helpers release callable and erased arguments" {
-  let environment = owned_slot(
-    I32,
-    OwnedRef,
-    kind=EnvironmentValue({ value: 0, }),
-  )
-  let callable = owned_slot(I64, OwnedCallable)
-  let callable_entry = body(slots=[environment, callable], instructions=[
-    MakeEnv({ value: 0, }, { value: 0, }, Immediate({ value: 1, }), [], []),
-    MakeClosure({ value: 1, }, { value: 3, }, { value: 0, }),
-    CallDirect({ value: 2, }, None, [], [{ value: 1, }], None),
-  ])
-  let callable_target = body(slots=[callable], parameters=[{ value: 0, }], instructions=[
-    Release({ value: 0, }),
-  ])
-  let callable_body : @physical.FunctionBody = {
-    slots: [environment],
-    inputs: {
-      environment: Some({ value: 0, }),
-      witnesses: [],
-      user_parameters: [],
-    },
-    result: Unit,
-    blocks: [
-      {
-        parameters: [],
-        instructions: [Release({ value: 0, })],
-        terminator: Return(None),
-      },
-    ],
-  }
-  let callable_image = {
-    ..image([
-      PhysicalBody(callable_entry),
-      PhysicalBody(callable_target),
-      PhysicalBody(callable_body),
-    ]),
-    layouts: [Environment({ value: 0, })],
-    object_shapes: [Environment({ stored_witness_count: 0, members: [], })],
-  }
-  let layout = trivial_slot(I32, kind=LayoutValue)
-  let erased : @physical.SlotMetadata = {
-    representation: I64,
-    cleanup: OwnedErased,
-    kind: ErasedValue,
-    erased_companion: Some({ value: 0, }),
-  }
-  let reference = owned_slot(I32, OwnedRef)
-  let erased_entry = body(slots=[layout, reference, erased], instructions=[
-    ConstLayout({ value: 0, }, { value: 1, }),
-    ConstString({ value: 1, }, { value: 0, }),
-    EraseI32({ value: 2, }, { value: 1, }),
-    CallDirect({ value: 2, }, None, [{ value: 0, }], [{ value: 2, }], None),
-  ])
-  let erased_target : @physical.FunctionBody = {
-    slots: [layout, erased],
-    inputs: {
-      environment: None,
-      witnesses: [{ value: 0, }],
-      user_parameters: [{ value: 1, }],
-    },
-    result: Unit,
-    blocks: [
-      {
-        parameters: [],
-        instructions: [Release({ value: 1, })],
-        terminator: Return(None),
-      },
-    ],
-  }
-  let erased_image = {
-    ..image([PhysicalBody(erased_entry), PhysicalBody(erased_target)]),
-    layouts: [ByteSequence],
-    constants: [b"owned"],
-  }
-  for case in [("callable", callable_image), ("erased", erased_image)] {
-    let (name, physical_program) = case
-    for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
-      let loaded = match load(physical_program, mode~) {
-        Ok(value) => value
-        Err(error) => fail("\{name} load failed: \{Repr(error)}")
-      }
-      let instance = match
-        loaded.new_instance(config={
-          max_call_depth: Some(1),
-          max_live_heap_bytes: None,
-        }) {
-        Ok(value) => value
-        Err(error) => fail("instantiate failed: \{Repr(error)}")
-      }
-      assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
-      assert_eq(
-        instance.store.get_global(instance.instance.global_addrs[4]).get(),
-        I32(0),
-      )
-    }
-  }
 }
 
 ///|
@@ -1464,19 +1543,13 @@ test "Wasm allocator enforces canonical live heap bytes" {
     Err(error) => fail("load failed: \{Repr(error)}")
   }
   let limited = match
-    loaded.new_instance(config={
-      max_call_depth: None,
-      max_live_heap_bytes: Some(8),
-    }) {
+    loaded.new_instance(config={ max_live_heap_bytes: Some(8), }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(limited.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))
   let exact = match
-    loaded.new_instance(config={
-      max_call_depth: None,
-      max_live_heap_bytes: Some(16),
-    }) {
+    loaded.new_instance(config={ max_live_heap_bytes: Some(16), }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
@@ -1484,7 +1557,7 @@ test "Wasm allocator enforces canonical live heap bytes" {
 }
 
 ///|
-test "live heap exhaustion unwinds owners from the current frame" {
+test "live heap exhaustion terminates the single-shot instance" {
   let ref_slot = owned_slot(I32, OwnedRef)
   let entry = body(slots=[ref_slot, ref_slot, ref_slot, ref_slot], instructions=[
     ConstString({ value: 0, }, { value: 0, }),
@@ -1512,37 +1585,16 @@ test "live heap exhaustion unwinds owners from the current frame" {
     Err(error) => fail("load failed: \{Repr(error)}")
   }
   let instance = match
-    loaded.new_instance(config={
-      max_call_depth: None,
-      max_live_heap_bytes: Some(16),
-    }) {
+    loaded.new_instance(config={ max_live_heap_bytes: Some(16), }) {
     Ok(value) => value
     Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
   assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))
-  assert_eq(
-    instance.store.get_global(instance.instance.global_addrs[4]).get(),
-    I32(0),
-  )
+  assert_eq(instance.execute(), Err(InstanceNotReady))
 }
 
 ///|
-test "non-positive execution limits provide zero budget" {
-  let empty_loaded = match load(image([PhysicalBody(body())])) {
-    Ok(value) => value
-    Err(error) => fail("load failed: \{Repr(error)}")
-  }
-  for limit in [0, -1] {
-    let instance = match
-      empty_loaded.new_instance(config={
-        max_call_depth: Some(limit),
-        max_live_heap_bytes: None,
-      }) {
-      Ok(value) => value
-      Err(error) => fail("instantiate failed: \{Repr(error)}")
-    }
-    assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=CallDepth)))
-  }
+test "non-positive live heap limits provide zero budget" {
   let ref_slot = owned_slot(I32, OwnedRef)
   let allocating_entry = body(slots=[ref_slot, ref_slot, ref_slot], instructions=[
     ConstString({ value: 0, }, { value: 0, }),
@@ -1568,7 +1620,6 @@ test "non-positive execution limits provide zero budget" {
   for limit in [0, -1] {
     let instance = match
       allocating_loaded.new_instance(config={
-        max_call_depth: None,
         max_live_heap_bytes: Some(limit),
       }) {
       Ok(value) => value

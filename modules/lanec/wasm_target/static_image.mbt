@@ -8,21 +8,22 @@ priv struct StaticImage {
   singleton_refs : Array[Int]
   singleton_layout_ids : Array[Int]
   byte_sequence_layout_id : Int
+  byte_buffer_layout_id : Int
   shape_layouts : Array[ShapeLayout]
   shape_layout_ids : Array[Int]
   object_shapes : Array[@physical.ObjectShape]
   globals : Array[@physical.GlobalMetadata]
   callable_abis : Array[@physical.CallableAbi]
-  callable_abi_table_base : Int
+  callable_target_abi_table_base : Int
   callable_table_size : Int
   global_lifecycle : @physical.GlobalLifecyclePlan
   global_cleanup_table_base : Int
-  wasi_iovec_base : Int
 }
 
 ///|
 priv struct WasmRuntimeLayoutIds {
   byte_sequence : Int
+  byte_buffer : Int
   reference : Int
 }
 
@@ -31,16 +32,20 @@ fn wasm_runtime_layout_ids(
   image : @physical.PhysicalProgram,
 ) -> WasmRuntimeLayoutIds {
   let mut byte_sequence = 0
+  let mut byte_buffer = 0
   let mut reference = 0
   for index, layout in image.layouts {
     if layout is ByteSequence {
       byte_sequence = index + 1
     }
+    if layout is ByteBuffer {
+      byte_buffer = index + 1
+    }
     if layout is Reference {
       reference = index + 1
     }
   }
-  { byte_sequence, reference, }
+  { byte_sequence, byte_buffer, reference, }
 }
 
 ///|
@@ -97,6 +102,7 @@ fn layout_rep_kind(layout : @physical.LayoutRecipe) -> Int {
     F64 => 4
     Callable => 5
     ByteSequence => 6
+    ByteBuffer => 15
     Data(_) => 7
     Environment(_) => 8
     Reference => 9
@@ -116,7 +122,7 @@ fn layout_fixed_size(
   match layout {
     Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => Some(0)
     Reference => Some(0)
-    ByteSequence => None
+    ByteSequence | ByteBuffer => None
     Data(shape) | Environment(shape) => {
       ignore(image)
       Some(shape_layouts[shape.value].size)
@@ -150,9 +156,39 @@ fn instruction_requires_byte_sequence_layout(
     | ByteSequenceConcat(_, _, _)
     | ByteSequenceSlice(_, _, _, _)
     | ByteSequenceIsValidUtf8(_, _)
-    | WasiFdWrite(_, _, _) => true
+    | ByteBufferWriteBytes(_, _, _) => true
     _ => false
   }
+}
+
+///|
+fn instruction_requires_byte_buffer_layout(
+  instruction : @physical.Instruction,
+) -> Bool {
+  match instruction {
+    ByteBufferMake(_, _)
+    | ByteBufferWriteBytes(_, _, _)
+    | ByteBufferWriteI32(_, _, _)
+    | ByteBufferWriteAddress(_, _, _, _)
+    | ByteBufferReadI32(_, _, _) => true
+    _ => false
+  }
+}
+
+///|
+fn image_requires_byte_buffer_layout(image : @physical.PhysicalProgram) -> Bool {
+  for function in image.functions {
+    match function {
+      RuntimeImport(_) => ()
+      PhysicalBody(body) =>
+        for block in body.blocks {
+          if block.instructions.any(instruction_requires_byte_buffer_layout) {
+            return true
+          }
+        }
+    }
+  }
+  false
 }
 
 ///|
@@ -189,6 +225,7 @@ fn build_static_image(
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
   let byte_sequence_layout_id = function_catalog.runtime_layouts.byte_sequence
+  let byte_buffer_layout_id = function_catalog.runtime_layouts.byte_buffer
   for index, layout in image.layouts {
     match layout {
       Data(shape) | Environment(shape) =>
@@ -204,16 +241,14 @@ fn build_static_image(
       None => {
         writer.write_u32_le_int(2)
         writer.write_u32_le_int(
-          function_catalog.table_slot(
-            function_catalog.helper(ByteSequenceSizer),
-          ).index,
+          function_catalog.table_slot(function_catalog.helper(ByteStorageSizer)).index,
         )
       }
     }
     writer.write_u32_le_int(
       match layout {
         Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => 1
-        ByteSequence | Data(_) | Environment(_) | Reference => 8
+        ByteSequence | ByteBuffer | Data(_) | Environment(_) | Reference => 8
       },
     )
     writer.write_u32_le_int(
@@ -222,7 +257,7 @@ fn build_static_image(
           function_catalog.table_slot(function_catalog.helper(NoopErased)).index
         Callable =>
           function_catalog.table_slot(function_catalog.helper(RetainCallable)).index
-        ByteSequence | Data(_) | Environment(_) | Reference =>
+        ByteSequence | ByteBuffer | Data(_) | Environment(_) | Reference =>
           function_catalog.table_slot(
             function_catalog.helper(RetainReferenceErased),
           ).index
@@ -234,7 +269,7 @@ fn build_static_image(
           function_catalog.table_slot(function_catalog.helper(NoopErased)).index
         Callable =>
           function_catalog.table_slot(function_catalog.helper(ReleaseCallable)).index
-        ByteSequence | Data(_) | Environment(_) | Reference =>
+        ByteSequence | ByteBuffer | Data(_) | Environment(_) | Reference =>
           function_catalog.table_slot(
             function_catalog.helper(ReleaseReferenceErased),
           ).index
@@ -255,6 +290,7 @@ fn build_static_image(
         | F32
         | Callable
         | ByteSequence
+        | ByteBuffer
         | Byte
         | Reference =>
           function_catalog.table_slot(function_catalog.helper(DestroyNoop)).index
@@ -264,6 +300,9 @@ fn build_static_image(
   }
   if image_requires_byte_sequence_layout(image) && byte_sequence_layout_id == 0 {
     raise MissingByteSequenceLayout
+  }
+  if image_requires_byte_buffer_layout(image) && byte_buffer_layout_id == 0 {
+    raise MissingByteBufferLayout
   }
   let constant_refs : Array[Int] = []
   for constant in image.constants {
@@ -299,37 +338,26 @@ fn build_static_image(
     }
   }
   let callable_table_size = function_catalog.callable_value_table_size()
-  let mut callable_abi_table_base = 0
+  let mut callable_target_abi_table_base = 0
   if callable_table_size > 1 {
     pad_to(writer, 4)
-    callable_abi_table_base = writer.length()
-    let callable_table_abis : Array[@physical.CallableAbi?] = Array::make(
-      callable_table_size,
-      None,
-    )
+    callable_target_abi_table_base = writer.length()
+    let callable_target_abis = Array::make(callable_table_size, 0)
     for function_index, _ in image.functions {
       let function : @physical.FunctionId = { value: function_index + 1, }
       if function_catalog.image_table_slot(function) is Some(table_slot) {
-        let abi = match image.function_callable_abi(function) {
+        let abi = match image.function_callable_abi_id(function) {
           Some(abi) => abi
           None =>
             raise ValidationFailure(
               detail="callable table target has no canonical ABI",
             )
         }
-        callable_table_abis[table_slot.index] = Some(abi)
+        callable_target_abis[table_slot.index] = abi.value + 1
       }
     }
-    for actual in callable_table_abis {
-      for expected in image.callable_abis {
-        writer.write_i32_le(
-          if actual is Some(actual) && actual.accepts_callsite(expected) {
-            1
-          } else {
-            0
-          },
-        )
-      }
+    for abi in callable_target_abis {
+      writer.write_i32_le(abi)
     }
   }
   pad_to(writer, 8)
@@ -346,16 +374,6 @@ fn build_static_image(
     writer.write_i32_le((root.global.value << 2) | cleanup_tag)
   }
   pad_to(writer, 8)
-  let wasi_iovec_base = if function_catalog.requires(
-      WasiPreview1Import(FdWrite),
-    ) {
-    let base = writer.length()
-    write_zeroes(writer, 12)
-    base
-  } else {
-    0
-  }
-  pad_to(writer, 8)
   let heap_base = writer.length()
   {
     bytes: writer.to_bytes(),
@@ -366,16 +384,16 @@ fn build_static_image(
     singleton_refs,
     singleton_layout_ids,
     byte_sequence_layout_id,
+    byte_buffer_layout_id,
     shape_layouts,
     shape_layout_ids,
     object_shapes: image.object_shapes,
     globals: image.globals,
     callable_abis: image.callable_abis,
-    callable_abi_table_base,
+    callable_target_abi_table_base,
     callable_table_size,
     global_lifecycle,
     global_cleanup_table_base,
-    wasi_iovec_base,
   }
 }
 

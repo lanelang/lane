@@ -292,6 +292,79 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
 }
 
 ///|
+test "core optimizer beta-reduces a single-use local generic callable" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let i64_type = @buslane.Type::Primitive(I64)
+  let parameter_type = metadata.define_type_parameter("T", Type)
+  let generic_type = @buslane.Type::Forall(
+    [parameter_type],
+    Function([Parameter(parameter_type)], Parameter(parameter_type), Empty),
+  )
+  let parameter = metadata.define_value(
+    "value",
+    Parameter,
+    Parameter(parameter_type),
+  )
+  let identity = metadata.define_value("identity", Local, generic_type)
+  let main = metadata.define_value(
+    "main",
+    Function,
+    Function([], i64_type, Empty),
+  )
+  let program : @buslane.Program = {
+    metadata,
+    terms: [
+      Let(
+        main,
+        Function({
+          parameters: [],
+          result_type: i64_type,
+          body: Let(
+            identity,
+            TypeLambda(
+              [parameter_type],
+              Function({
+                parameters: [parameter],
+                result_type: Parameter(parameter_type),
+                body: Ref(parameter),
+              }),
+            ),
+            Call(TypeApply(Ref(identity), [TypeArgument(i64_type)]), [
+              Literal(I64(42L)),
+            ]),
+          ),
+        }),
+      ),
+    ],
+  }
+  guard optimize({
+      program: program.certify().unwrap(),
+      entry: main,
+      roots: [],
+    })
+    is Ok(optimized) else {
+    fail("expected core optimization to succeed")
+  }
+  debug_inspect(
+    optimized.program().terms,
+    content=(
+      #|[
+      #|  Let(
+      #|    { index: 2 },
+      #|    Function(
+      #|      {
+      #|        parameters: [],
+      #|        result_type: Primitive(I64),
+      #|        body: Literal(I64(42)),
+      #|      },
+      #|    ),
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "core optimizer reduces a constructor match through a pure binding spine" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let i64_type = @buslane.Type::Primitive(I64)

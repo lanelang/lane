@@ -7,6 +7,7 @@ fn terminator_transfers_control(terminator : @physical.Terminator) -> Bool {
     Jump(_) | BranchBool(_, _, _) | SwitchTag(_, _, _) => true
     Return(_)
     | TailCallDirect(_, _, _, _)
+    | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _, _)
     | Fatal(_)
     | Unreachable => false
@@ -54,16 +55,15 @@ fn compile_balanced_dispatcher(
   context : FunctionCompilationContext,
 ) -> @wasm_types.Instruction raise WasmCompileError {
   let state_local = context.dispatcher_state_local()
-  Loop(
-    Empty,
-    compile_balanced_dispatch_range(
-      context,
-      state_local,
-      start=0,
-      end=context.body.blocks.length(),
-      loop_depth=0,
-    ),
+  let body = compile_balanced_dispatch_range(
+    context,
+    state_local,
+    start=0,
+    end=context.body.blocks.length(),
+    loop_depth=0,
   )
+  body.push(Unreachable)
+  Loop(Empty, body)
 }
 
 ///|
@@ -208,13 +208,9 @@ fn compile_edge(
     instructions.push(LocalGet(context.slot_local(edge.arguments[index])))
     instructions.push(LocalSet(context.transfer_local(edge.target, index)))
   }
-  for source in edge.arguments {
-    instructions.append(context.mark_slot_dead(source))
-  }
   for index, destination in target_parameters {
     instructions.push(LocalGet(context.transfer_local(edge.target, index)))
     instructions.push(LocalSet(context.slot_local(destination)))
-    instructions.append(context.mark_slot_live(destination))
   }
   instructions.push(I32Const(edge.target.value))
   instructions.push(LocalSet(state_local))

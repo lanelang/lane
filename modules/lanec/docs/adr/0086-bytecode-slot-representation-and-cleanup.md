@@ -27,7 +27,9 @@ The serialized slot table permits exactly `I32 + Trivial`, `I64 + Trivial`, `F64
 
 There is no serialized `Borrowed` cleanup category and no bytecode borrow region. Compiler-private block-local non-owning reference values may be allocated to `Trivial` slots because they require no cleanup. Trusted lowering ensures such values never become block arguments, call arguments, return values, captures, or stored fields without first being promoted to an owned value.
 
-The interpreter may still store tagged `VMValue` values internally. Slot representation and cleanup metadata exists to make the execution image sufficient for typed Wasm locals and precise fatal-exception cleanup without recovering source types or compiler ownership analysis.
+Slot representation and cleanup metadata makes the Physical Program sufficient
+for typed Wasm locals and explicit ownership operations without recovering
+source types or compiler ownership analysis. It is not fatal-unwind liveness.
 
 Consequences:
 

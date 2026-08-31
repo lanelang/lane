@@ -163,15 +163,29 @@ fn ImageLowerer::plan_runtime_import(
   value : @buslane.ValueId,
   import_ : @buslane_lowering.BuslaneRuntimeImport,
 ) -> Unit {
-  self.add_plan(
-    value,
-    RuntimeImport(import_.contract),
-    RuntimeImport(
-      source=value,
-      module_name=import_.contract.module_name,
-      field_name=import_.contract.field_name,
-    ),
+  let origin = PhysicalFunctionOrigin::RuntimeImport(
+    source=value,
+    module_name=import_.contract.module_name,
+    field_name=import_.contract.field_name,
   )
+  guard import_.contract.parameters.any(parameter => parameter is GuestAddress) else {
+    self.add_plan(value, RuntimeImport(import_.contract), origin)
+    return
+  }
+  let raw = self.plans.append(origin, _ => RuntimeImport(import_.contract))
+  let source_type = self.metadata.verified_value_info(value).type_
+  let adapter_origin = PhysicalFunctionOrigin::RuntimeImportAdapter(
+    module_name=import_.contract.module_name,
+    field_name=import_.contract.field_name,
+  )
+  let adapter = self.plans.append(adapter_origin, _ => {
+    RuntimeImportAdapter({
+      import_function: raw.function,
+      contract: import_.contract,
+      source_type,
+    })
+  })
+  self.globals.push({ value, lowered: Function(adapter.function, source_type), })
 }
 
 ///|

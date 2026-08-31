@@ -437,13 +437,30 @@ fn simplify_expr(
           program, facts, analysis, substitutions, body, function_origins, observe,
         ),
       )
-    TypeApply(callee, arguments) =>
-      TypeApply(
-        simplify_expr(
-          program, facts, analysis, substitutions, callee, function_origins, observe,
-        ),
-        arguments,
+    TypeApply(callee, arguments) => {
+      let callee = simplify_expr(
+        program, facts, analysis, substitutions, callee, function_origins, observe,
       )
+      guard callee is TypeLambda(parameters, body) &&
+        InlineCloneContext::from_application(
+          program.metadata,
+          parameters,
+          arguments,
+        )
+        is Some(clone_context) else {
+        return TypeApply(callee, arguments)
+      }
+      let clone_context = { ..clone_context, function_origins, }
+      simplify_expr(
+        program,
+        facts,
+        analysis,
+        substitutions,
+        clone_context.clone_expr(body),
+        function_origins,
+        observe,
+      )
+    }
     Construct(construct) =>
       Construct({
         ..construct,
@@ -458,6 +475,13 @@ fn simplify_expr(
       let initializer = simplify_expr(
         program, facts, analysis, substitutions, initializer, function_origins, observe,
       )
+      if local_callable_has_one_call_head_use(initializer, body, value) {
+        let nested = substitutions.copy()
+        nested.push({ value, replacement: initializer, })
+        return simplify_expr(
+          program, facts, analysis, nested, body, function_origins, observe,
+        )
+      }
       let can_substitute = match initializer {
         Ref(target) => compatible_alias(program, value, target)
         Literal(_) => true
@@ -590,6 +614,70 @@ fn simplify_expr(
 }
 
 ///|
+/// A local callable can disappear before closure conversion only when moving
+/// its pure literal creates exactly one beta-redex and never duplicates the
+/// callable. This is an exact lexical property, not an inlining heuristic.
+fn local_callable_has_one_call_head_use(
+  initializer : @buslane.Expr,
+  body : @buslane.Expr,
+  value : @buslane.ValueId,
+) -> Bool {
+  guard initializer is Function(_) || initializer is TypeLambda(_, _) else {
+    return false
+  }
+  count_value_uses(body, value) == 1 && contains_call_head_use(body, value)
+}
+
+///|
+fn contains_call_head_use(
+  expression : @buslane.Expr,
+  value : @buslane.ValueId,
+) -> Bool {
+  match expression {
+    Ref(_) | Literal(_) | Resume(_) => false
+    Function(function) => contains_call_head_use(function.body, value)
+    Call(callee, arguments) =>
+      call_head_value(callee) == Some(value) ||
+      contains_call_head_use(callee, value) ||
+      arguments.any(argument => contains_call_head_use(argument, value))
+    TypeLambda(_, body) | TypeApply(body, _) =>
+      contains_call_head_use(body, value)
+    Construct(construct) =>
+      construct.payloads.any(payload => contains_call_head_use(payload, value))
+    Let(_, initializer, body) =>
+      contains_call_head_use(initializer, value) ||
+      contains_call_head_use(body, value)
+    LetRec(bindings, body) =>
+      bindings.any(binding => contains_call_head_use(binding.rhs, value)) ||
+      contains_call_head_use(body, value)
+    Match(match_) =>
+      contains_call_head_use(match_.scrutinee, value) ||
+      match_.alternatives.any(alternative => {
+        contains_call_head_use(alternative.body, value)
+      })
+    Perform(perform) =>
+      perform.payloads.any(payload => contains_call_head_use(payload, value))
+    Handle(handle) =>
+      contains_call_head_use(handle.body, value) ||
+      contains_call_head_use(handle.final_body, value) ||
+      handle.handlers.any(table => {
+        table.operations.any(operation => {
+          contains_call_head_use(operation.body, value)
+        })
+      })
+  }
+}
+
+///|
+fn call_head_value(expression : @buslane.Expr) -> @buslane.ValueId? {
+  match expression {
+    Ref(value) => Some(value)
+    TypeApply(callee, _) => call_head_value(callee)
+    _ => None
+  }
+}
+
+///|
 fn simplify_call(
   program : @buslane.Program,
   facts : @buslane.ExpressionFactsQuery,
@@ -603,7 +691,6 @@ fn simplify_call(
   guard callee is Function(function) else { return Call(callee, arguments) }
   let site = ApplicationReductionSite::DirectFunction
   observe(ApplicationConsidered(site))
-  let original = @buslane.Expr::Call(callee, arguments)
   let nested_observations : Array[CoreOptimizationObservation] = []
   let reduced = reduce_application(
     program,
@@ -616,22 +703,17 @@ fn simplify_call(
     function_origins,
     observation => nested_observations.push(observation),
   )
-  if application_reduction_is_profitable(original, reduced.expression, analysis) {
-    for observation in nested_observations {
-      observe(observation)
-    }
-    observe(
-      ApplicationAccepted(
-        site~,
-        empty_arguments=reduced.empty_argument_count,
-        materialized_arguments=reduced.materialized_argument_count,
-      ),
-    )
-    reduced.expression
-  } else {
-    observe(ApplicationRejected(site, Profitability))
-    original
+  for observation in nested_observations {
+    observe(observation)
   }
+  observe(
+    ApplicationAccepted(
+      site~,
+      empty_arguments=reduced.empty_argument_count,
+      materialized_arguments=reduced.materialized_argument_count,
+    ),
+  )
+  reduced.expression
 }
 
 ///|

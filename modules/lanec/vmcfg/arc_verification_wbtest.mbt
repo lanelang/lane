@@ -218,6 +218,26 @@ test "ARC-final boundary rejects an owner that reaches return" {
 }
 
 ///|
+test "fatal termination abandons current-instance owners" {
+  let owned = arc_test_value(Owned, OwnedRef)
+  let arc_final = insert_arc({
+    values: [owned, owned],
+    inputs: {
+      environment: None,
+      witnesses: [],
+      user_parameters: [{ value: 0, }, { value: 1, }],
+    },
+    result: Unit,
+    blocks: [
+      { parameters: [], instructions: [], terminator: Fatal({ value: 0, }), },
+    ],
+  })
+  assert_eq(arc_final.body.blocks, [
+    { parameters: [], instructions: [], terminator: Fatal({ value: 0, }), },
+  ])
+}
+
+///|
 test "ARC-final boundary rejects a borrow after its local owner is released" {
   let owned = arc_test_value(Owned, OwnedRef)
   let borrowed = arc_test_value(Borrowed, OwnedRef)

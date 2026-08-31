@@ -17,7 +17,7 @@ prepended with canonical `env:i32`. The bytecode verifier checks that its
 result ABI equals the current function result, and Wasm validation independently
 enforces the dynamic target's physical compatibility.
 
-Runtime-import entries may also be tail targets. Their arguments and any callable environment transfer under the same callee-owned rule. If a runtime-import adapter fails, it consumes or releases its transferred arguments and throws the private fatal exception. The replaced Lane frame has no remaining ownership and requires no cleanup handler after the tail transfer.
+Runtime-import entries may also be tail targets. Their arguments and any callable environment transfer under the same callee-owned rule. If a runtime-import adapter fails, it records and throws the private fatal result. ADR 0140 makes the instance terminal, so no generated frame cleanup follows the failed transfer.
 
 Consequences:
 
@@ -30,4 +30,4 @@ Consequences:
 - Tail target results match the current function result descriptor.
 - Direct and value tail calls lower to standard Wasm tail-call instructions.
 - Indirect-tail result types come from the enclosing function descriptor.
-- Runtime-import tail failure begins cleanup in the adapter, not the replaced frame.
+- Runtime-import tail failure terminates the single-shot instance without generated cleanup.

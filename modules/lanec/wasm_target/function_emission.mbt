@@ -14,23 +14,27 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteSequenceGet
   ByteSequenceSet
   ByteSequenceIsValidUtf8
+  ByteBufferMake
+  RequireByteBufferLayout
+  ByteBufferWriteBytes
+  ByteBufferWriteI32
+  ByteBufferWriteAddress
+  ByteBufferReadI32
   InstanceGlobalCleanup
 } derive(Debug, Eq)
 
 ///|
 pub(all) enum WasmHelperFunctionRole {
   CallableAbiGuard
+  PackedCallableTargetGuard
   NoopErased
   RetainReferenceErased
   ReleaseReferenceErased
   RetainCallable
   ReleaseCallable
-  CleanupLiveReference
-  CleanupLiveCallable
-  CleanupLiveErased
   DestroyNoop
   DestroyShape(shape~ : Int)
-  ByteSequenceSizer
+  ByteStorageSizer
 } derive(Debug, Eq)
 
 ///|

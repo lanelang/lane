@@ -391,7 +391,8 @@ fn observe_vmcfg_instruction(
   accumulator : LoweredScaleAccumulator,
 ) -> Unit {
   match instruction {
-    CallDirect(_, _, _, _, _) => accumulator.direct_calls += 1
+    CallDirect(_, _, _, _, _) | CallPackedDirect(_, _, _, _, _) =>
+      accumulator.direct_calls += 1
     CallValue(_, _, _, _) => accumulator.indirect_calls += 1
     ConstFunction(_, _) => accumulator.function_references += 1
     MakeClosure(_, _, _) => {
@@ -421,7 +422,8 @@ fn observe_vmcfg_terminator(
   accumulator : LoweredScaleAccumulator,
 ) -> Unit {
   match terminator {
-    TailCallDirect(_, _, _, _) => accumulator.direct_calls += 1
+    TailCallDirect(_, _, _, _) | TailCallPackedDirect(_, _, _, _) =>
+      accumulator.direct_calls += 1
     TailCallValue(_, _, _) => accumulator.indirect_calls += 1
     _ => ()
   }
@@ -494,7 +496,8 @@ fn observe_physical_instruction(
   accumulator : LoweredScaleAccumulator,
 ) -> Unit {
   match instruction {
-    CallDirect(_, _, _, _, _) => accumulator.direct_calls += 1
+    CallDirect(_, _, _, _, _) | CallPackedDirect(_, _, _, _, _) =>
+      accumulator.direct_calls += 1
     CallValue(_, _, _, _, _) => accumulator.indirect_calls += 1
     ConstFunction(_, _) => accumulator.function_references += 1
     MakeClosure(_, _, _) => {
@@ -524,7 +527,8 @@ fn observe_physical_terminator(
   accumulator : LoweredScaleAccumulator,
 ) -> Unit {
   match terminator {
-    TailCallDirect(_, _, _, _) => accumulator.direct_calls += 1
+    TailCallDirect(_, _, _, _) | TailCallPackedDirect(_, _, _, _) =>
+      accumulator.direct_calls += 1
     TailCallValue(_, _, _, _) => accumulator.indirect_calls += 1
     _ => ()
   }

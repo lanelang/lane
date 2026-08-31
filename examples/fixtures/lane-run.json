@@ -2462,6 +2462,29 @@
       "expect": {
         "equals": "left\nright\nsum=3"
       }
+    },
+    {
+      "name": "invalid 118 ByteBuffer mutation requires Io",
+      "file": "examples/invalid/118_byte_buffer_mutation_requires_io.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "error[E3007]",
+          "effect mismatch",
+          "expected effect `{}`, found `Io`",
+          "Lane functions without an effect annotation are pure"
+        ]
+      }
+    },
+    {
+      "name": "119 ByteBuffer roundtrip",
+      "file": "examples/valid/119_byte_buffer_roundtrip.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "buffer roundtrip"
+      }
     }
   ]
 }

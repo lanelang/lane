@@ -17,25 +17,14 @@ let live_heap_bytes_global_index = 4
 let max_live_heap_bytes_global_index = 5
 
 ///|
-let call_depth_global_index = 6
+let failure_code_global_index = 6
 
 ///|
-let max_call_depth_global_index = 7
-
-///|
-let failure_code_global_index = 8
-
-///|
-let initialized_owned_root_count_global_index = 9
+let initialized_owned_root_count_global_index = 7
 
 ///|
 pub fn max_live_heap_bytes_global() -> Int {
   max_live_heap_bytes_global_index
-}
-
-///|
-pub fn max_call_depth_global() -> Int {
-  max_call_depth_global_index
 }
 
 ///|
@@ -86,18 +75,6 @@ fn append_runtime_globals(
   )
   append_i32_global(
     wasm_module,
-    index=call_depth_global_index,
-    is_mutable=true,
-    initial=0,
-  )
-  append_i32_global(
-    wasm_module,
-    index=max_call_depth_global_index,
-    is_mutable=true,
-    initial=-1,
-  )
-  append_i32_global(
-    wasm_module,
     index=failure_code_global_index,
     is_mutable=true,
     initial=0,
@@ -111,10 +88,6 @@ fn append_runtime_globals(
   wasm_module.exports.push({
     name: @internal_abi.RuntimeControlGlobal::MaxLiveHeapBytes.name(),
     desc: Global(max_live_heap_bytes_global_index),
-  })
-  wasm_module.exports.push({
-    name: @internal_abi.RuntimeControlGlobal::MaxCallDepth.name(),
-    desc: Global(max_call_depth_global_index),
   })
   wasm_module.exports.push({
     name: @internal_abi.RuntimeControlGlobal::FailureCode.name(),

@@ -31,9 +31,6 @@ pub(all) enum WasmExpansionCategory {
   PhysicalOpcode(WasmPhysicalOpcodeFamily)
   ControlFlow
   RuntimeGuard
-  ArcFrameState
-  ArcUnwind
-  ArcCleanupSupport
   RuntimeImportAdapter
   RuntimeSupport
   HelperSupport
@@ -48,9 +45,6 @@ pub fn WasmExpansionCategory::key(self : WasmExpansionCategory) -> String {
     PhysicalOpcode(family) => "physicalOpcode.\{family.key()}"
     ControlFlow => "controlFlow"
     RuntimeGuard => "runtimeGuard"
-    ArcFrameState => "arcFrameState"
-    ArcUnwind => "arcUnwind"
-    ArcCleanupSupport => "arcCleanupSupport"
     RuntimeImportAdapter => "runtimeImportAdapter"
     RuntimeSupport => "runtimeSupport"
     HelperSupport => "helperSupport"

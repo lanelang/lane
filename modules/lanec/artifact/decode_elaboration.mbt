@@ -271,9 +271,25 @@ fn @bytecodec.ByteReader::read_intrinsic(
       self.update_view(rest)
       F64ToString
     }
-    [u8be(61), .. rest] => {
+    [u8be(62), .. rest] => {
       self.update_view(rest)
-      WasiFdWrite
+      ByteBufferMake
+    }
+    [u8be(63), .. rest] => {
+      self.update_view(rest)
+      ByteBufferWriteBytes
+    }
+    [u8be(64), .. rest] => {
+      self.update_view(rest)
+      ByteBufferWriteI32
+    }
+    [u8be(65), .. rest] => {
+      self.update_view(rest)
+      ByteBufferWriteAddress
+    }
+    [u8be(66), .. rest] => {
+      self.update_view(rest)
+      ByteBufferReadI32
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
@@ -330,6 +346,10 @@ fn @bytecodec.ByteReader::read_wasm_import_parameter(
     [u8be(4), .. rest] => {
       self.update_view(rest)
       Direct(F64)
+    }
+    [u8be(5), .. rest] => {
+      self.update_view(rest)
+      GuestAddress
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

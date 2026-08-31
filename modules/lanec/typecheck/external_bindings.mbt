@@ -102,6 +102,7 @@ fn SemanticChecker::intrinsic_value_type(
     String => Some(Primitive(String))
     Byte => Some(Primitive(Byte))
     Bytes => Some(Primitive(Bytes))
+    ByteBuffer => Some(Primitive(ByteBuffer))
     CanonicalBasicVoid => self.canonical_basic_void_type(loc)
   }
 }
@@ -205,6 +206,19 @@ fn SemanticChecker::extern_parameter_contract(
     Primitive(I64) => Some(Direct(I64))
     Primitive(F32) => Some(Direct(F32))
     Primitive(F64) => Some(Direct(F64))
+    Constructor(symbol) => {
+      guard self.resolved_source.canonical_basic_abi.type_symbol(WasmAddress) ==
+        Some(symbol) else {
+        return None
+      }
+      match self.canonical_basic_abi.validate_provider(WasmAddress) {
+        Ok(_) => Some(GuestAddress)
+        Err(error) => {
+          self.report_canonical_basic_abi_diagnostic(error.at(loc))
+          None
+        }
+      }
+    }
     _ => None
   }
 }

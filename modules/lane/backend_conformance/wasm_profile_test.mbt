@@ -12,7 +12,7 @@ fn encode_profile_probe(source : String) -> Bytes raise {
   for control in @internal_abi.runtime_control_globals() {
     let index = module_.globals.length()
     let initial = match control {
-      MaxLiveHeapBytes | MaxCallDepth => -1
+      MaxLiveHeapBytes => -1
       FailureCode => 0
     }
     let global : @wasm_types.Global = {
@@ -198,7 +198,6 @@ test "linked executable is a raw WASI command module" {
       #|  [("wasi_snapshot_preview1", "fd_write")],
       #|  [
       #|    ("lane.runtime.control.max_live_heap_bytes", "global"),
-      #|    ("lane.runtime.control.max_call_depth", "global"),
       #|    ("lane.runtime.control.failure_code", "global"),
       #|    ("_start", "function"),
       #|    ("memory", "memory"),

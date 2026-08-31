@@ -1,6 +1,5 @@
 ///|
 pub(all) enum ResourceLimitKind {
-  CallDepth
   LiveHeapBytes
 } derive(Debug, Eq)
 
@@ -16,11 +15,10 @@ pub(all) suberror ExecutionError {
 
 ///|
 pub(all) struct ExecutionConfig {
-  max_call_depth : Int?
   max_live_heap_bytes : Int?
 } derive(Debug, Eq)
 
 ///|
 pub fn ExecutionConfig::defaults() -> ExecutionConfig {
-  { max_call_depth: None, max_live_heap_bytes: None, }
+  { max_live_heap_bytes: None, }
 }

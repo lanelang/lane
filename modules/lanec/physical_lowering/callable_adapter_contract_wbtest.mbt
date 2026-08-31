@@ -8,6 +8,51 @@ fn runtime_adapter_argument(
 }
 
 ///|
+test "recursive callable contracts are finite and compare coinductively" {
+  let image = test_image_lowerer(MetadataRegistry())
+  let empty = RuntimeSubstitution::new()
+  let (left, left_reserved) = image.physical_callable_contracts.reserve({
+    type_: Callable([], Unit),
+    substitutions: empty,
+    evidence: [],
+  })
+  let (same_left, same_left_reserved) = image.physical_callable_contracts.reserve({
+      type_: Callable([], Unit),
+      substitutions: empty,
+      evidence: [],
+    },
+  )
+  let (right, right_reserved) = image.physical_callable_contracts.reserve({
+    type_: Callable([Unit], Unit),
+    substitutions: empty,
+    evidence: [],
+  })
+  let unit_boundary : PhysicalValueBoundary = { abi: Unit, shape: Unit, }
+  image.physical_callable_contracts.complete(left, {
+    witnesses: [],
+    evidence_arguments: [],
+    parameters: [{ abi: Callable(left), shape: Callable(left), }],
+    result: unit_boundary,
+  })
+  image.physical_callable_contracts.complete(right, {
+    witnesses: [],
+    evidence_arguments: [],
+    parameters: [{ abi: Callable(right), shape: Callable(right), }],
+    result: unit_boundary,
+  })
+  assert_eq(
+    (
+      left_reserved,
+      same_left,
+      same_left_reserved,
+      right_reserved,
+      image.physical_callable_contracts_equivalent(left, right),
+    ),
+    (true, left, false, true, true),
+  )
+}
+
+///|
 test "alpha-renamed evidence captures share one callable adapter worker" {
   let image = test_image_lowerer(MetadataRegistry())
   let left = image.fresh_synthetic_parameter()
@@ -82,6 +127,29 @@ test "omitting a Unit callable parameter needs no adapter" {
       Callable([Unit, Scalar(I64)], Scalar(I64)),
       RuntimeSubstitution::new(),
     )
+    is None,
+  )
+}
+
+///|
+test "an alpha-identical generic callable needs no identity substitution" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let source_parameter = metadata.define_type_parameter("T", Type)
+  let image = test_image_lowerer(metadata)
+  let parameter : @anf.RuntimeEvidenceParameter = {
+    id: Projected(source_parameter.index),
+    arity: 0,
+  }
+  let expression = image.runtime_types.intern(Parameter(parameter.id))
+  let type_ : @anf.RuntimeType = Forall(
+    [parameter],
+    Callable(
+      [Erased(expression, Parameter(parameter.id))],
+      Erased(expression, Parameter(parameter.id)),
+    ),
+  )
+  assert_true(
+    image.plan_callable_adaptation(type_, type_, RuntimeSubstitution::new())
     is None,
   )
 }

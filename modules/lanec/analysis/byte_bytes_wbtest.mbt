@@ -65,6 +65,7 @@ test "type-space completion includes every primitive type" {
       ("Unit", Type, Some("primitive type Unit")),
       ("Bytes", Type, Some("primitive type Bytes")),
       ("String", Type, Some("primitive type String")),
+      ("ByteBuffer", Type, Some("primitive type ByteBuffer")),
     ],
   )
 }

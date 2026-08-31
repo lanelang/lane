@@ -1,0 +1,9 @@
+module Examples.Invalid118
+
+// Mutable guest memory cannot be used from a pure function.
+let make : (I64) -> ByteBuffer ! Io = builtin("%byte_buffer_make")
+
+pub fn pure() -> Unit {
+  let _buffer = make(4)
+  ()
+}

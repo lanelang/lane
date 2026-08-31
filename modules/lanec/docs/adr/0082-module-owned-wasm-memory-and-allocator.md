@@ -21,7 +21,7 @@ resource-limit failure.
 
 Free may overwrite an already destroyed object's payload with allocator metadata. Reused blocks are not guaranteed to contain zero bytes. Data constructors and closure-environment construction must write every observable field before publishing the new reference; uninitialized object state is never visible to ordinary execution.
 
-If allocation or `memory.grow` fails, the allocator leaves its metadata consistent and throws the private fatal Wasm exception. Generated frame handlers release remaining owners while unwinding. Deallocation, layout destruction, reference release, and cleanup are non-throwing. The allocator is thread-confined and non-reentrant, matching the Lane instance and non-atomic ARC contract. A restricted RuntimeContext service invocation is not recursive allocator entry: it enters the allocator once while the suspended Lane import adapter does not hold an active allocator operation.
+If allocation or `memory.grow` fails, the allocator records the resource failure and throws the private fatal Wasm exception. The single-shot instance is discarded without generated frame cleanup. Deallocation, layout destruction, and reference release on normal paths are non-throwing. The allocator is thread-confined and non-reentrant, matching the Lane instance and non-atomic ARC contract. A restricted RuntimeContext service invocation is not recursive allocator entry: it enters the allocator once while the suspended Lane import adapter does not hold an active allocator operation.
 
 Consequences:
 
@@ -36,5 +36,6 @@ Consequences:
 - Allocator organization is not part of the Lane object ABI.
 - Reused blocks are not implicitly zeroed.
 - Constructors fully initialize objects before publication.
-- OOM and `memory.grow` failure use private fatal exception unwinding.
+- OOM and `memory.grow` failure terminate the single-shot instance through the
+  private fatal exception.
 - Free, destruction, release, and cleanup cannot throw.

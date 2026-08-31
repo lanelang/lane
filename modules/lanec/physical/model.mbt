@@ -66,6 +66,7 @@ pub(all) enum SemanticValueKind {
   LayoutConstructorValue(Int)
   CallableValue
   ByteSequenceValue
+  ByteBufferValue
   DataValue(DataFamilyId)
   EnvironmentValue(ObjectShapeId)
   ErasedValue
@@ -125,6 +126,7 @@ pub(all) enum LayoutRecipe {
   F32
   Callable
   ByteSequence
+  ByteBuffer
   Byte
   Data(ObjectShapeId)
   Environment(ObjectShapeId)
@@ -178,6 +180,12 @@ pub(all) struct ProjectionSelection {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum RuntimeImportArgument {
+  Direct(SlotId)
+  GuestAddress(SlotId, SlotId)
+} derive(Debug, Eq)
+
+///|
 pub(all) enum Instruction {
   Copy(SlotId, SlotId)
   Move(SlotId, SlotId)
@@ -193,6 +201,8 @@ pub(all) enum Instruction {
   ConstFunction(SlotId, FunctionId)
   ConstString(SlotId, ConstantId)
   CallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId], SlotId?)
+  CallRuntimeImport(FunctionId, Array[RuntimeImportArgument], SlotId?)
+  CallPackedDirect(FunctionId, SlotId, Array[SlotId], Array[SlotId], SlotId?)
   CallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId], SlotId?)
   MakeData(SlotId, ObjectShapeId, LayoutOperand, Array[SlotId], Array[SlotId])
   LoadTag(SlotId, SlotId)
@@ -213,7 +223,11 @@ pub(all) enum Instruction {
   ByteSequenceConcat(SlotId, SlotId, SlotId)
   ByteSequenceSlice(SlotId, SlotId, SlotId, SlotId)
   ByteSequenceIsValidUtf8(SlotId, SlotId)
-  WasiFdWrite(SlotId, SlotId, SlotId)
+  ByteBufferMake(SlotId, SlotId)
+  ByteBufferWriteBytes(SlotId, SlotId, SlotId)
+  ByteBufferWriteI32(SlotId, SlotId, SlotId)
+  ByteBufferWriteAddress(SlotId, SlotId, SlotId, SlotId)
+  ByteBufferReadI32(SlotId, SlotId, SlotId)
   I32Add(SlotId, SlotId, SlotId)
   I32Sub(SlotId, SlotId, SlotId)
   I32Mul(SlotId, SlotId, SlotId)
@@ -302,6 +316,7 @@ pub(all) enum Terminator {
   SwitchTag(SlotId, Array[Edge], Edge)
   Return(SlotId?)
   TailCallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId])
+  TailCallPackedDirect(FunctionId, SlotId, Array[SlotId], Array[SlotId])
   TailCallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId])
   Fatal(SlotId)
   Unreachable

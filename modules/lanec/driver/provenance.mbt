@@ -166,6 +166,8 @@ fn ExploreFunctionGraphBuilder::physical_roles(
           field_name~,
         ),
       ]
+    RuntimeImportAdapter(module_name~, field_name~) =>
+      [RuntimeImportAdapter(module_name~, field_name~)]
   }
 }
 
@@ -238,6 +240,12 @@ fn wasm_runtime_name(role : @wasm_compiler.WasmRuntimeFunctionRole) -> String {
     ByteSequenceGet => "byte sequence get"
     ByteSequenceSet => "byte sequence set"
     ByteSequenceIsValidUtf8 => "byte sequence is valid UTF-8"
+    ByteBufferMake => "byte buffer make"
+    RequireByteBufferLayout => "require byte buffer layout"
+    ByteBufferWriteBytes => "byte buffer write bytes"
+    ByteBufferWriteI32 => "byte buffer write i32"
+    ByteBufferWriteAddress => "byte buffer write address"
+    ByteBufferReadI32 => "byte buffer read i32"
     InstanceGlobalCleanup => "instance global cleanup"
   }
 }
@@ -249,6 +257,8 @@ fn wasm_helper_role(
   match role {
     CallableAbiGuard =>
       WasmHelperFunction(name="callable ABI guard", ordinal=None)
+    PackedCallableTargetGuard =>
+      WasmHelperFunction(name="packed callable target guard", ordinal=None)
     NoopErased => WasmHelperFunction(name="noop erased", ordinal=None)
     RetainReferenceErased =>
       WasmHelperFunction(name="retain reference erased", ordinal=None)
@@ -256,16 +266,10 @@ fn wasm_helper_role(
       WasmHelperFunction(name="release reference erased", ordinal=None)
     RetainCallable => WasmHelperFunction(name="retain callable", ordinal=None)
     ReleaseCallable => WasmHelperFunction(name="release callable", ordinal=None)
-    CleanupLiveReference =>
-      WasmHelperFunction(name="cleanup live reference", ordinal=None)
-    CleanupLiveCallable =>
-      WasmHelperFunction(name="cleanup live callable", ordinal=None)
-    CleanupLiveErased =>
-      WasmHelperFunction(name="cleanup live erased", ordinal=None)
     DestroyNoop => WasmHelperFunction(name="destroy noop", ordinal=None)
     DestroyShape(shape~) =>
       WasmHelperFunction(name="destroy shape", ordinal=Some(shape))
-    ByteSequenceSizer =>
-      WasmHelperFunction(name="byte sequence sizer", ordinal=None)
+    ByteStorageSizer =>
+      WasmHelperFunction(name="byte storage sizer", ordinal=None)
   }
 }

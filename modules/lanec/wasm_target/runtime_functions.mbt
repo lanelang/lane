@@ -1,4 +1,11 @@
 ///|
+fn runtime_failure(
+  failure : @internal_abi.RuntimeFailureCode,
+) -> Array[@wasm_types.Instruction] {
+  [I32Const(failure.code()), GlobalSet(failure_code_global_index), Throw(0)]
+}
+
+///|
 fn compile_runtime_function(
   role : WasmRuntimeFunctionRole,
   catalog : WasmFunctionCatalog,
@@ -94,6 +101,50 @@ fn compile_runtime_function(
           catalog.runtime(RequireByteSequenceLayout),
         ),
       }
+    ByteBufferMake =>
+      {
+        locals: [I32, I32],
+        body: byte_buffer_make_body(
+          catalog.runtime(Allocate),
+          static_image.byte_buffer_layout_id,
+        ),
+      }
+    RequireByteBufferLayout =>
+      {
+        locals: [],
+        body: require_byte_buffer_layout_body(
+          static_image.byte_buffer_layout_id,
+        ),
+      }
+    ByteBufferWriteBytes =>
+      {
+        locals: [I32, I32],
+        body: byte_buffer_write_bytes_body(
+          catalog.runtime(RequireByteBufferLayout),
+          catalog.runtime(RequireByteSequenceLayout),
+        ),
+      }
+    ByteBufferWriteI32 =>
+      {
+        locals: [I32],
+        body: byte_buffer_write_i32_body(
+          catalog.runtime(RequireByteBufferLayout),
+        ),
+      }
+    ByteBufferWriteAddress =>
+      {
+        locals: [I32],
+        body: byte_buffer_write_address_body(
+          catalog.runtime(RequireByteBufferLayout),
+        ),
+      }
+    ByteBufferReadI32 =>
+      {
+        locals: [I32],
+        body: byte_buffer_read_i32_body(
+          catalog.runtime(RequireByteBufferLayout),
+        ),
+      }
     InstanceGlobalCleanup =>
       compile_global_cleanup_function(static_image, catalog, wasm_module)
   }
@@ -119,7 +170,7 @@ fn allocator_body() -> Array[@wasm_types.Instruction] {
     GlobalGet(max_live_heap_bytes_global_index),
     I32GtU,
     I32Or,
-    If(Empty, [I32Const(2), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(LiveHeapBytes), []),
     I32Const(0),
     LocalSet(2),
     GlobalGet(free_list_head_global_index),
@@ -189,7 +240,7 @@ fn allocator_body() -> Array[@wasm_types.Instruction] {
     LocalGet(7),
     LocalGet(6),
     I32LtU,
-    If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(AllocationOrArc), []),
     LocalGet(7),
     MemorySize(0),
     I32Const(16),
@@ -210,11 +261,7 @@ fn allocator_body() -> Array[@wasm_types.Instruction] {
         MemoryGrow(0),
         I32Const(-1),
         I32Eq,
-        If(
-          Empty,
-          [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)],
-          [],
-        ),
+        If(Empty, runtime_failure(AllocationOrArc), []),
       ],
       [],
     ),
@@ -282,7 +329,7 @@ fn retain_ref_body() -> Array[@wasm_types.Instruction] {
     LocalGet(1),
     I32Const(-2),
     I32Eq,
-    If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(AllocationOrArc), []),
     LocalGet(0),
     LocalGet(1),
     I32Const(1),
@@ -351,7 +398,7 @@ fn byte_sequence_new_body(
     LocalGet(1),
     LocalGet(0),
     I32LtU,
-    If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(AllocationOrArc), []),
     LocalGet(1),
     allocate_function.call(),
     LocalSet(1),
@@ -518,6 +565,217 @@ fn byte_sequence_set_body(
 }
 
 ///|
+fn byte_buffer_make_body(
+  allocate_function : WasmFunctionHandle,
+  layout_id : Int,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    I64Const(0L),
+    I64LtS,
+    If(Empty, [Unreachable], []),
+    LocalGet(0),
+    I32WrapI64,
+    LocalSet(1),
+    LocalGet(1),
+    I64ExtendI32U,
+    LocalGet(0),
+    I64Ne,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I32Const(19),
+    I32Add,
+    I32Const(-8),
+    I32And,
+    LocalTee(2),
+    LocalGet(1),
+    I32LtU,
+    If(Empty, runtime_failure(AllocationOrArc), []),
+    LocalGet(2),
+    allocate_function.call(),
+    LocalSet(2),
+    LocalGet(2),
+    I32Const(1),
+    I32Store(0, 2, 0L),
+    LocalGet(2),
+    I32Const(layout_id),
+    I32Store(0, 2, 4L),
+    LocalGet(2),
+    LocalGet(1),
+    I32Store(0, 2, 8L),
+    LocalGet(2),
+    I32Const(12),
+    I32Add,
+    I32Const(0),
+    LocalGet(1),
+    MemoryFill(0),
+    LocalGet(2),
+  ]
+}
+
+///|
+fn require_byte_buffer_layout_body(
+  byte_buffer_layout_id : Int,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    I32Eqz,
+    If(Empty, [Unreachable], []),
+    LocalGet(0),
+    I32Load(0, 2, 4L),
+    I32Const(byte_buffer_layout_id),
+    I32Ne,
+    If(Empty, [Unreachable], []),
+  ]
+}
+
+///|
+fn byte_buffer_write_bytes_body(
+  require_buffer : WasmFunctionHandle,
+  require_bytes : WasmFunctionHandle,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    require_buffer.call(),
+    LocalGet(2),
+    require_bytes.call(),
+    LocalGet(1),
+    I64Const(0L),
+    I64LtS,
+    If(Empty, [Unreachable], []),
+    LocalGet(2),
+    I32Load(0, 2, 8L),
+    LocalSet(3),
+    LocalGet(3),
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    I32GtU,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    LocalGet(3),
+    I32Sub,
+    I64ExtendI32U,
+    I64GtU,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I32WrapI64,
+    LocalSet(4),
+    LocalGet(0),
+    I32Const(12),
+    I32Add,
+    LocalGet(4),
+    I32Add,
+    LocalGet(2),
+    I32Const(12),
+    I32Add,
+    LocalGet(3),
+    MemoryCopy(0, 0),
+  ]
+}
+
+///|
+fn byte_buffer_write_i32_body(
+  require_buffer : WasmFunctionHandle,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    require_buffer.call(),
+    LocalGet(1),
+    I64Const(0L),
+    I64LtS,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I64Const(4L),
+    I64Add,
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    I64ExtendI32U,
+    I64GtU,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I32WrapI64,
+    LocalSet(3),
+    LocalGet(0),
+    LocalGet(3),
+    I32Add,
+    LocalGet(2),
+    I32Store(0, 2, 12L),
+  ]
+}
+
+///|
+fn byte_buffer_write_address_body(
+  require_buffer : WasmFunctionHandle,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    require_buffer.call(),
+    LocalGet(2),
+    require_buffer.call(),
+    LocalGet(1),
+    I64Const(0L),
+    I64LtS,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I64Const(4L),
+    I64Add,
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    I64ExtendI32U,
+    I64GtU,
+    If(Empty, [Unreachable], []),
+    LocalGet(3),
+    LocalGet(2),
+    I32Load(0, 2, 8L),
+    I32GtU,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I32WrapI64,
+    LocalSet(4),
+    LocalGet(0),
+    LocalGet(4),
+    I32Add,
+    LocalGet(2),
+    I32Const(12),
+    I32Add,
+    LocalGet(3),
+    I32Add,
+    I32Store(0, 2, 12L),
+  ]
+}
+
+///|
+fn byte_buffer_read_i32_body(
+  require_buffer : WasmFunctionHandle,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    require_buffer.call(),
+    LocalGet(1),
+    I64Const(0L),
+    I64LtS,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I64Const(4L),
+    I64Add,
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    I64ExtendI32U,
+    I64GtU,
+    If(Empty, [Unreachable], []),
+    LocalGet(1),
+    I32WrapI64,
+    LocalSet(2),
+    LocalGet(0),
+    LocalGet(2),
+    I32Add,
+    I32Load(0, 2, 12L),
+  ]
+}
+
+///|
 fn byte_sequence_equal_body(
   require_byte_sequence_layout_function : WasmFunctionHandle,
 ) -> Array[@wasm_types.Instruction] {
@@ -591,7 +849,7 @@ fn byte_sequence_concat_body(
     LocalGet(4),
     LocalGet(2),
     I32LtU,
-    If(Empty, [I32Const(3), GlobalSet(failure_code_global_index), Throw(0)], []),
+    If(Empty, runtime_failure(AllocationOrArc), []),
     LocalGet(4),
     byte_sequence_new_function.call(),
     LocalSet(5),
