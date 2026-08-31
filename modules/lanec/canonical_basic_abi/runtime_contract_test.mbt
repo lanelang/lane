@@ -36,8 +36,8 @@ test "runtime contract certifies the exact WasmAddress object shape" {
   let type_id = metadata.define_type("WasmAddress", [])
   ignore(
     metadata.define_data_constructor("WasmAddress", type_id, [], [
-      @buslane.Type::Primitive(Bytes),
-      @buslane.Type::Primitive(I32),
+      Primitive(ByteBuffer),
+      Primitive(I32),
     ]),
   )
   let contract = CanonicalBasicAbiRuntimeContract::from_types(
@@ -60,8 +60,8 @@ test "runtime contract rejects a forged WasmAddress object shape" {
   let type_id = metadata.define_type("WasmAddress", [])
   ignore(
     metadata.define_data_constructor("WasmAddress", type_id, [], [
-      @buslane.Type::Primitive(Bytes),
-      @buslane.Type::Primitive(I64),
+      Primitive(ByteBuffer),
+      Primitive(I64),
     ]),
   )
   let contract = CanonicalBasicAbiRuntimeContract::from_types(

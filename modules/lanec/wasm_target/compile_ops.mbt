@@ -75,7 +75,6 @@ fn compile_instruction(
       }
       result
     }
-    KeepAlive(_) => []
     ConstI64(destination, value) =>
       [I64Const(value), LocalSet(locals.slot_local(destination))]
     ConstI32(destination, value) =>
@@ -126,6 +125,34 @@ fn compile_instruction(
       }
       for slot in arguments {
         result.push(LocalGet(locals.slot_local(slot)))
+      }
+      result.push(function_catalog.image_function(target).call())
+      if destination is Some(slot) {
+        result.push(LocalSet(locals.slot_local(slot)))
+      }
+      result
+    }
+    CallRuntimeImport(target, arguments, destination) => {
+      let result : Array[@wasm_types.Instruction] = [I32Const(0)]
+      for argument in arguments {
+        match argument {
+          Direct(slot) => result.push(LocalGet(locals.slot_local(slot)))
+          GuestAddress(buffer, offset) =>
+            result.append([
+              LocalGet(locals.slot_local(buffer)),
+              function_catalog.runtime(RequireByteBufferLayout).call(),
+              LocalGet(locals.slot_local(offset)),
+              LocalGet(locals.slot_local(buffer)),
+              I32Load(0, 2, 8L),
+              I32GtU,
+              If(Empty, [Unreachable], []),
+              LocalGet(locals.slot_local(buffer)),
+              I32Const(12),
+              I32Add,
+              LocalGet(locals.slot_local(offset)),
+              I32Add,
+            ])
+        }
       }
       result.push(function_catalog.image_function(target).call())
       if destination is Some(slot) {
@@ -291,22 +318,6 @@ fn compile_instruction(
         I64ExtendI32U,
         LocalSet(locals.slot_local(destination)),
       ]
-    ByteSequenceAddress(destination, source, offset) =>
-      [
-        LocalGet(locals.slot_local(source)),
-        function_catalog.runtime(RequireByteSequenceLayout).call(),
-        LocalGet(locals.slot_local(offset)),
-        LocalGet(locals.slot_local(source)),
-        I32Load(0, 2, 8L),
-        I32GtU,
-        If(Empty, [Unreachable], []),
-        LocalGet(locals.slot_local(source)),
-        I32Const(12),
-        I32Add,
-        LocalGet(locals.slot_local(offset)),
-        I32Add,
-        LocalSet(locals.slot_local(destination)),
-      ]
     ByteSequenceGet(destination, source, index) =>
       [
         LocalGet(locals.slot_local(source)),
@@ -324,12 +335,39 @@ fn compile_instruction(
       ]
       result
     }
-    ByteSequenceStoreAddress(destination, source, index, offset) =>
+    ByteBufferMake(destination, length) =>
       [
-        LocalGet(locals.slot_local(source)),
+        LocalGet(locals.slot_local(length)),
+        function_catalog.runtime(ByteBufferMake).call(),
+        LocalSet(locals.slot_local(destination)),
+      ]
+    ByteBufferWriteBytes(buffer, index, source) =>
+      [
+        LocalGet(locals.slot_local(buffer)),
         LocalGet(locals.slot_local(index)),
+        LocalGet(locals.slot_local(source)),
+        function_catalog.runtime(ByteBufferWriteBytes).call(),
+      ]
+    ByteBufferWriteI32(buffer, index, value) =>
+      [
+        LocalGet(locals.slot_local(buffer)),
+        LocalGet(locals.slot_local(index)),
+        LocalGet(locals.slot_local(value)),
+        function_catalog.runtime(ByteBufferWriteI32).call(),
+      ]
+    ByteBufferWriteAddress(buffer, index, target, offset) =>
+      [
+        LocalGet(locals.slot_local(buffer)),
+        LocalGet(locals.slot_local(index)),
+        LocalGet(locals.slot_local(target)),
         LocalGet(locals.slot_local(offset)),
-        function_catalog.runtime(ByteSequenceStoreAddress).call(),
+        function_catalog.runtime(ByteBufferWriteAddress).call(),
+      ]
+    ByteBufferReadI32(destination, buffer, index) =>
+      [
+        LocalGet(locals.slot_local(buffer)),
+        LocalGet(locals.slot_local(index)),
+        function_catalog.runtime(ByteBufferReadI32).call(),
         LocalSet(locals.slot_local(destination)),
       ]
     ByteSequenceConcat(destination, left, right) => {

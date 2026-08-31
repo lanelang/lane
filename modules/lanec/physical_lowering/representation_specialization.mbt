@@ -306,7 +306,7 @@ fn runtime_type_is_closed(
   bound : Array[@anf.RuntimeEvidenceId],
 ) -> Bool {
   match type_ {
-    Unit | Scalar(_) | ByteSequence => true
+    Unit | Scalar(_) | ByteSequence | ByteBuffer => true
     Data(_, arguments) =>
       arguments.all(argument => {
         runtime_evidence_is_closed(argument.evidence, bound)

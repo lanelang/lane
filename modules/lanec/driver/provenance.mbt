@@ -239,8 +239,13 @@ fn wasm_runtime_name(role : @wasm_compiler.WasmRuntimeFunctionRole) -> String {
     ByteSequenceIndex => "byte sequence index"
     ByteSequenceGet => "byte sequence get"
     ByteSequenceSet => "byte sequence set"
-    ByteSequenceStoreAddress => "byte sequence store address"
     ByteSequenceIsValidUtf8 => "byte sequence is valid UTF-8"
+    ByteBufferMake => "byte buffer make"
+    RequireByteBufferLayout => "require byte buffer layout"
+    ByteBufferWriteBytes => "byte buffer write bytes"
+    ByteBufferWriteI32 => "byte buffer write i32"
+    ByteBufferWriteAddress => "byte buffer write address"
+    ByteBufferReadI32 => "byte buffer read i32"
     InstanceGlobalCleanup => "instance global cleanup"
   }
 }
@@ -264,7 +269,7 @@ fn wasm_helper_role(
     DestroyNoop => WasmHelperFunction(name="destroy noop", ordinal=None)
     DestroyShape(shape~) =>
       WasmHelperFunction(name="destroy shape", ordinal=Some(shape))
-    ByteSequenceSizer =>
-      WasmHelperFunction(name="byte sequence sizer", ordinal=None)
+    ByteStorageSizer =>
+      WasmHelperFunction(name="byte storage sizer", ordinal=None)
   }
 }

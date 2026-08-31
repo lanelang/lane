@@ -174,17 +174,61 @@ test "floating-point string intrinsics have exact names and signatures" {
 }
 
 ///|
-test "Wasm ABI address storage is a pure representation intrinsic" {
+test "ByteBuffer operations own effectful Wasm ABI memory contracts" {
   assert_eq(
-    (
-      Intrinsic::from_name("%wasm_abi_store_address"),
-      WasmAbiStoreAddress.name(),
-      WasmAbiStoreAddress.signature(),
-    ),
-    (
-      Some(WasmAbiStoreAddress),
-      "%wasm_abi_store_address",
-      expected_direct_intrinsic(parameters=[Bytes, I64, I32], result=Bytes),
-    ),
+    [
+      (ByteBufferMake.name(), ByteBufferMake.signature()),
+      (ByteBufferWriteBytes.name(), ByteBufferWriteBytes.signature()),
+      (ByteBufferWriteI32.name(), ByteBufferWriteI32.signature()),
+      (ByteBufferWriteAddress.name(), ByteBufferWriteAddress.signature()),
+      (ByteBufferReadI32.name(), ByteBufferReadI32.signature()),
+    ],
+    [
+      (
+        "%byte_buffer_make",
+        Function(
+          parameters=[I64],
+          result=ByteBuffer,
+          effect=BuiltinIo,
+          implementation=Direct,
+        ),
+      ),
+      (
+        "%byte_buffer_write_bytes",
+        Function(
+          parameters=[ByteBuffer, I64, Bytes],
+          result=Unit,
+          effect=BuiltinIo,
+          implementation=Direct,
+        ),
+      ),
+      (
+        "%byte_buffer_write_i32",
+        Function(
+          parameters=[ByteBuffer, I64, I32],
+          result=Unit,
+          effect=BuiltinIo,
+          implementation=Direct,
+        ),
+      ),
+      (
+        "%byte_buffer_write_address",
+        Function(
+          parameters=[ByteBuffer, I64, ByteBuffer, I32],
+          result=Unit,
+          effect=BuiltinIo,
+          implementation=Direct,
+        ),
+      ),
+      (
+        "%byte_buffer_read_i32",
+        Function(
+          parameters=[ByteBuffer, I64],
+          result=I32,
+          effect=BuiltinIo,
+          implementation=Direct,
+        ),
+      ),
+    ],
   )
 }

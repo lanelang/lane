@@ -1183,7 +1183,8 @@ fn complete_constructor_signatures(
     | Primitive(F32)
     | Primitive(String)
     | Primitive(Byte)
-    | Primitive(Bytes) => None
+    | Primitive(Bytes)
+    | Primitive(ByteBuffer) => None
     Parameter(_)
     | Constructor(_)
     | Apply(_, _)

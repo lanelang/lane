@@ -129,6 +129,14 @@ fn ImageLowerer::elaborate_runtime_representation(
         ownership: Owned,
         erased_companion: None,
       }
+    ByteBuffer =>
+      {
+        representation: I32,
+        cleanup: OwnedRef,
+        kind: ByteBufferValue,
+        ownership: Owned,
+        erased_companion: None,
+      }
     Callable(_, _) | Forall(_, _) =>
       {
         representation: I64,

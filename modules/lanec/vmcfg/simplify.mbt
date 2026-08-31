@@ -435,7 +435,6 @@ fn map_instruction_values(
     RetainCopy(destination, source) =>
       RetainCopy(transform(destination), transform(source))
     Release(value) => Release(transform(value))
-    KeepAlive(value) => KeepAlive(transform(value))
     ConstI64(destination, value) => ConstI64(transform(destination), value)
     ConstI32(destination, value) => ConstI32(transform(destination), value)
     ConstF32(destination, bits) => ConstF32(transform(destination), bits)
@@ -454,6 +453,18 @@ fn map_instruction_values(
         environment.map(transform),
         witnesses.map(transform),
         arguments.map(transform),
+        destination.map(transform),
+      )
+    CallRuntimeImport(target, arguments, destination) =>
+      CallRuntimeImport(
+        target,
+        arguments.map(fn(argument) {
+          match argument {
+            Direct(value) => Direct(transform(value))
+            GuestAddress(buffer, offset) =>
+              GuestAddress(transform(buffer), transform(offset))
+          }
+        }),
         destination.map(transform),
       )
     CallPackedDirect(target, callable, witnesses, arguments, destination) =>
@@ -569,18 +580,28 @@ fn map_instruction_values(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(transform(destination), transform(source))
-    ByteSequenceAddress(destination, source, offset) =>
-      ByteSequenceAddress(
-        transform(destination),
+    ByteBufferMake(destination, length) =>
+      ByteBufferMake(transform(destination), transform(length))
+    ByteBufferWriteBytes(buffer, index, source) =>
+      ByteBufferWriteBytes(
+        transform(buffer),
+        transform(index),
         transform(source),
+      )
+    ByteBufferWriteI32(buffer, index, value) =>
+      ByteBufferWriteI32(transform(buffer), transform(index), transform(value))
+    ByteBufferWriteAddress(buffer, index, target, offset) =>
+      ByteBufferWriteAddress(
+        transform(buffer),
+        transform(index),
+        transform(target),
         transform(offset),
       )
-    ByteSequenceStoreAddress(destination, source, index, offset) =>
-      ByteSequenceStoreAddress(
+    ByteBufferReadI32(destination, buffer, index) =>
+      ByteBufferReadI32(
         transform(destination),
-        transform(source),
+        transform(buffer),
         transform(index),
-        transform(offset),
       )
     I32Add(destination, left, right) =>
       I32Add(transform(destination), transform(left), transform(right))

@@ -3,10 +3,10 @@ fn physical_opcode_family(
   instruction : @physical.Instruction,
 ) -> WasmPhysicalOpcodeFamily {
   match instruction {
-    Copy(_, _) | Move(_, _) | RetainCopy(_, _) | Release(_) | KeepAlive(_) =>
-      Ownership
+    Copy(_, _) | Move(_, _) | RetainCopy(_, _) | Release(_) => Ownership
     ConstFunction(_, _)
     | CallDirect(_, _, _, _, _)
+    | CallRuntimeImport(_, _, _)
     | CallPackedDirect(_, _, _, _, _)
     | CallValue(_, _, _, _, _)
     | MakeClosure(_, _, _) => Callable
@@ -27,8 +27,11 @@ fn physical_opcode_family(
     | ByteSequenceConcat(_, _, _)
     | ByteSequenceSlice(_, _, _, _)
     | ByteSequenceIsValidUtf8(_, _)
-    | ByteSequenceAddress(_, _, _)
-    | ByteSequenceStoreAddress(_, _, _, _)
+    | ByteBufferMake(_, _)
+    | ByteBufferWriteBytes(_, _, _)
+    | ByteBufferWriteI32(_, _, _)
+    | ByteBufferWriteAddress(_, _, _, _)
+    | ByteBufferReadI32(_, _, _)
     | F32ToString(_, _)
     | F64ToString(_, _) => ByteSequence
     EraseI32(_, _)

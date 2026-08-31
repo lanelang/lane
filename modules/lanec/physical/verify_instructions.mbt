@@ -35,8 +35,7 @@ fn PhysicalProgramVerifier::verify_instruction(
         )
       }
     }
-    Release(source) | KeepAlive(source) =>
-      ignore(self.slot_metadata(site, body, source))
+    Release(source) => ignore(self.slot_metadata(site, body, source))
     ConstI64(destination, _) =>
       self.expect_value_shape(
         site,
@@ -127,6 +126,10 @@ fn PhysicalProgramVerifier::verify_instruction(
         arguments,
         destination,
         tail_result=None,
+      )
+    CallRuntimeImport(target, arguments, destination) =>
+      self.verify_runtime_import_call(
+        site, body, target, arguments, destination,
       )
     CallPackedDirect(target, callable, witnesses, arguments, destination) =>
       self.verify_packed_direct_call(
@@ -371,22 +374,44 @@ fn PhysicalProgramVerifier::verify_instruction(
       self.expect_kind(site, body, destination, ScalarValue)
       self.expect_kind(site, body, source, ByteSequenceValue)
     }
-    ByteSequenceAddress(destination, source, offset) => {
-      self.expect_slot(site, body, destination, I32, Trivial)
-      self.expect_kind(site, body, destination, ScalarValue)
+    ByteBufferMake(destination, length) => {
+      self.expect_slot(site, body, destination, I32, OwnedRef)
+      self.expect_kind(site, body, destination, ByteBufferValue)
+      self.expect_slot(site, body, length, I64, Trivial)
+      self.expect_kind(site, body, length, ScalarValue)
+    }
+    ByteBufferWriteBytes(buffer, index, source) => {
+      self.expect_slot(site, body, buffer, I32, OwnedRef)
+      self.expect_kind(site, body, buffer, ByteBufferValue)
+      self.expect_slot(site, body, index, I64, Trivial)
+      self.expect_kind(site, body, index, ScalarValue)
       self.expect_kind(site, body, source, ByteSequenceValue)
+    }
+    ByteBufferWriteI32(buffer, index, value) => {
+      self.expect_slot(site, body, buffer, I32, OwnedRef)
+      self.expect_kind(site, body, buffer, ByteBufferValue)
+      self.expect_slot(site, body, index, I64, Trivial)
+      self.expect_kind(site, body, index, ScalarValue)
+      self.expect_slot(site, body, value, I32, Trivial)
+      self.expect_kind(site, body, value, ScalarValue)
+    }
+    ByteBufferWriteAddress(buffer, index, target, offset) => {
+      self.expect_slot(site, body, buffer, I32, OwnedRef)
+      self.expect_kind(site, body, buffer, ByteBufferValue)
+      self.expect_slot(site, body, index, I64, Trivial)
+      self.expect_kind(site, body, index, ScalarValue)
+      self.expect_slot(site, body, target, I32, OwnedRef)
+      self.expect_kind(site, body, target, ByteBufferValue)
       self.expect_slot(site, body, offset, I32, Trivial)
       self.expect_kind(site, body, offset, ScalarValue)
     }
-    ByteSequenceStoreAddress(destination, source, index, offset) => {
-      self.expect_slot(site, body, destination, I32, OwnedRef)
-      self.expect_slot(site, body, source, I32, OwnedRef)
-      self.expect_kind(site, body, destination, ByteSequenceValue)
-      self.expect_kind(site, body, source, ByteSequenceValue)
+    ByteBufferReadI32(destination, buffer, index) => {
+      self.expect_slot(site, body, destination, I32, Trivial)
+      self.expect_kind(site, body, destination, ScalarValue)
+      self.expect_slot(site, body, buffer, I32, OwnedRef)
+      self.expect_kind(site, body, buffer, ByteBufferValue)
       self.expect_slot(site, body, index, I64, Trivial)
-      self.expect_slot(site, body, offset, I32, Trivial)
       self.expect_kind(site, body, index, ScalarValue)
-      self.expect_kind(site, body, offset, ScalarValue)
     }
     I32Add(destination, left, right)
     | I32Sub(destination, left, right)
@@ -507,6 +532,74 @@ fn PhysicalProgramVerifier::verify_instruction(
       self.verify_init_global(site, body, global, source)
     BorrowGlobal(destination, global) =>
       self.verify_borrow_global(site, body, destination, global)
+  }
+}
+
+///|
+fn PhysicalProgramVerifier::verify_runtime_import_call(
+  self : PhysicalProgramVerifier,
+  site : PhysicalVerificationSite,
+  body : FunctionBody,
+  target : FunctionId,
+  arguments : Array[RuntimeImportArgument],
+  destination : SlotId?,
+) -> Unit raise PhysicalProgramVerificationError {
+  guard self.function_entry(site, target) is RuntimeImport(import_) else {
+    self.fail(site, "structured runtime-import call targets a physical body")
+  }
+  let mut cursor = 0
+  for parameter in import_.parameters {
+    match parameter {
+      ErasedUnit => ()
+      Direct(type_) => {
+        guard arguments.get(cursor) is Some(Direct(argument)) else {
+          self.fail(
+            site, "runtime-import direct argument shape does not match its contract",
+          )
+        }
+        let abi = core_value_abi(type_)
+        self.expect_value_shape(
+          site,
+          body,
+          argument,
+          abi.representation,
+          abi.cleanup,
+          abi.kind,
+        )
+        cursor += 1
+      }
+      GuestAddress => {
+        guard arguments.get(cursor) is Some(GuestAddress(buffer, offset)) else {
+          self.fail(
+            site, "runtime-import guest address shape does not match its contract",
+          )
+        }
+        ignore(self.expect_representation(site, body, buffer, I32))
+        self.expect_kind(site, body, buffer, ByteBufferValue)
+        self.expect_slot(site, body, offset, I32, Trivial)
+        self.expect_kind(site, body, offset, ScalarValue)
+        cursor += 1
+      }
+    }
+  }
+  if cursor != arguments.length() {
+    self.fail(site, "runtime-import call has extra physical arguments")
+  }
+  match (import_.result, destination) {
+    (Unit, None) => ()
+    (Direct(type_), Some(destination)) => {
+      let abi = core_value_abi(type_)
+      self.expect_value_shape(
+        site,
+        body,
+        destination,
+        abi.representation,
+        abi.cleanup,
+        abi.kind,
+      )
+    }
+    _ =>
+      self.fail(site, "runtime-import result shape does not match its contract")
   }
 }
 

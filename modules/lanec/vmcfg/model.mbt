@@ -79,12 +79,17 @@ pub(all) struct ProjectionSelection {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum RuntimeImportArgument {
+  Direct(ValueId)
+  GuestAddress(ValueId, ValueId)
+} derive(Debug, Eq)
+
+///|
 pub(all) enum Instruction {
   Copy(ValueId, ValueId)
   Move(ValueId, ValueId)
   RetainCopy(ValueId, ValueId)
   Release(ValueId)
-  KeepAlive(ValueId)
   ConstI64(ValueId, Int64)
   ConstI32(ValueId, Int)
   ConstChar(ValueId, Int)
@@ -99,6 +104,11 @@ pub(all) enum Instruction {
     ValueId?,
     Array[ValueId],
     Array[ValueId],
+    ValueId?
+  )
+  CallRuntimeImport(
+    @physical.FunctionId,
+    Array[RuntimeImportArgument],
     ValueId?
   )
   CallPackedDirect(
@@ -140,8 +150,11 @@ pub(all) enum Instruction {
   ByteSequenceConcat(ValueId, ValueId, ValueId)
   ByteSequenceSlice(ValueId, ValueId, ValueId, ValueId)
   ByteSequenceIsValidUtf8(ValueId, ValueId)
-  ByteSequenceAddress(ValueId, ValueId, ValueId)
-  ByteSequenceStoreAddress(ValueId, ValueId, ValueId, ValueId)
+  ByteBufferMake(ValueId, ValueId)
+  ByteBufferWriteBytes(ValueId, ValueId, ValueId)
+  ByteBufferWriteI32(ValueId, ValueId, ValueId)
+  ByteBufferWriteAddress(ValueId, ValueId, ValueId, ValueId)
+  ByteBufferReadI32(ValueId, ValueId, ValueId)
   I32Add(ValueId, ValueId, ValueId)
   I32Sub(ValueId, ValueId, ValueId)
   I32Mul(ValueId, ValueId, ValueId)

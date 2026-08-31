@@ -21,8 +21,7 @@ fn ImageLowerer::lower_runtime_import_adapter(
     substitutions: RuntimeSubstitution::new(),
   }
   let input_slots = []
-  let import_arguments = []
-  let address_storage = []
+  let import_arguments : Array[@vmcfg.RuntimeImportArgument] = []
   for index, parameter_type in parameter_types {
     match plan.contract.parameters[index] {
       ErasedUnit =>
@@ -34,7 +33,7 @@ fn ImageLowerer::lower_runtime_import_adapter(
       Direct(_) => {
         let parameter = lowerer.fresh_slot(parameter_type)
         input_slots.push(parameter)
-        import_arguments.push(parameter)
+        import_arguments.push(Direct(parameter))
       }
       GuestAddress => {
         let parameter = lowerer.fresh_slot(parameter_type)
@@ -42,23 +41,17 @@ fn ImageLowerer::lower_runtime_import_adapter(
         let (storage, offset) = lowerer.project_wasm_address(
           parameter, parameter_type,
         )
-        let pointer = lowerer.fresh_slot(Scalar(I32))
-        lowerer.emit(ByteSequenceAddress(pointer, storage, offset))
-        import_arguments.push(pointer)
-        address_storage.push(storage)
+        import_arguments.push(GuestAddress(storage, offset))
       }
     }
   }
   let destination = lowerer.fresh_optional_slot(result_type)
   lowerer.emit(
-    CallDirect(plan.import_function, None, [], import_arguments, destination.0),
+    CallRuntimeImport(plan.import_function, import_arguments, destination.0),
   )
-  for storage in address_storage {
-    lowerer.emit(KeepAlive(storage))
-  }
-  let terminator = match destination.1 {
-    Unit => @vmcfg.Terminator::Return(None)
-    Slot(result, _) => @vmcfg.Terminator::Return(Some(result))
+  let terminator : @vmcfg.Terminator = match destination.1 {
+    Unit => Return(None)
+    Slot(result, _) => Return(Some(result))
     _ =>
       raise RepresentationElaborationInvariant(
         detail="runtime import adapter produced an invalid result",
@@ -99,13 +92,13 @@ fn FunctionLowerer::project_wasm_address(
   let constructor_info = self.image.metadata.verified_data_constructor_info(
     data_constructor,
   )
-  guard constructor_info.payload_types == [ByteSequence, Scalar(I32)] else {
+  guard constructor_info.payload_types == [ByteBuffer, Scalar(I32)] else {
     raise RepresentationElaborationInvariant(
       detail="verified guest address object has the wrong runtime fields",
     )
   }
   let shape = self.image.data_shape(data_constructor, constructor_info)
-  let storage = self.fresh_borrowed_slot(ByteSequence)
+  let storage = self.fresh_borrowed_slot(ByteBuffer)
   self.emit(
     BorrowField(shape, address, 0, {
       value_destination: storage,

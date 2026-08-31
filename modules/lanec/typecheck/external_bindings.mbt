@@ -102,6 +102,7 @@ fn SemanticChecker::intrinsic_value_type(
     String => Some(Primitive(String))
     Byte => Some(Primitive(Byte))
     Bytes => Some(Primitive(Bytes))
+    ByteBuffer => Some(Primitive(ByteBuffer))
     CanonicalBasicVoid => self.canonical_basic_void_type(loc)
   }
 }

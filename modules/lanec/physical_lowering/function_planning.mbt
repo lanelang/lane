@@ -172,9 +172,7 @@ fn ImageLowerer::plan_runtime_import(
     self.add_plan(value, RuntimeImport(import_.contract), origin)
     return
   }
-  let raw = self.plans.append(origin, _ => {
-    RuntimeImport(import_.contract.core_contract())
-  })
+  let raw = self.plans.append(origin, _ => RuntimeImport(import_.contract))
   let source_type = self.metadata.verified_value_info(value).type_
   let adapter_origin = PhysicalFunctionOrigin::RuntimeImportAdapter(
     module_name=import_.contract.module_name,

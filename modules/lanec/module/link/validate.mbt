@@ -245,6 +245,7 @@ fn intrinsic_value_type_matches(
     String => type_ == Primitive(String)
     Byte => type_ == Primitive(Byte)
     Bytes => type_ == Primitive(Bytes)
+    ByteBuffer => type_ == Primitive(ByteBuffer)
     CanonicalBasicVoid =>
       match canonical_basic_abi.void_type() {
         Some(type_id) => type_ == Constructor(type_id)

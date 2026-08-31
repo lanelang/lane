@@ -9,6 +9,7 @@ pub(all) suberror WasmCompileError {
     actual~ : Int
   )
   MissingByteSequenceLayout
+  MissingByteBufferLayout
   InvalidFunctionCatalog(detail~ : String)
   ValidationFailure(detail~ : String)
 } derive(Debug, Eq)

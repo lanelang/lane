@@ -8,6 +8,7 @@ priv struct StaticImage {
   singleton_refs : Array[Int]
   singleton_layout_ids : Array[Int]
   byte_sequence_layout_id : Int
+  byte_buffer_layout_id : Int
   shape_layouts : Array[ShapeLayout]
   shape_layout_ids : Array[Int]
   object_shapes : Array[@physical.ObjectShape]
@@ -22,6 +23,7 @@ priv struct StaticImage {
 ///|
 priv struct WasmRuntimeLayoutIds {
   byte_sequence : Int
+  byte_buffer : Int
   reference : Int
 }
 
@@ -30,16 +32,20 @@ fn wasm_runtime_layout_ids(
   image : @physical.PhysicalProgram,
 ) -> WasmRuntimeLayoutIds {
   let mut byte_sequence = 0
+  let mut byte_buffer = 0
   let mut reference = 0
   for index, layout in image.layouts {
     if layout is ByteSequence {
       byte_sequence = index + 1
     }
+    if layout is ByteBuffer {
+      byte_buffer = index + 1
+    }
     if layout is Reference {
       reference = index + 1
     }
   }
-  { byte_sequence, reference, }
+  { byte_sequence, byte_buffer, reference, }
 }
 
 ///|
@@ -96,6 +102,7 @@ fn layout_rep_kind(layout : @physical.LayoutRecipe) -> Int {
     F64 => 4
     Callable => 5
     ByteSequence => 6
+    ByteBuffer => 15
     Data(_) => 7
     Environment(_) => 8
     Reference => 9
@@ -115,7 +122,7 @@ fn layout_fixed_size(
   match layout {
     Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => Some(0)
     Reference => Some(0)
-    ByteSequence => None
+    ByteSequence | ByteBuffer => None
     Data(shape) | Environment(shape) => {
       ignore(image)
       Some(shape_layouts[shape.value].size)
@@ -149,10 +156,39 @@ fn instruction_requires_byte_sequence_layout(
     | ByteSequenceConcat(_, _, _)
     | ByteSequenceSlice(_, _, _, _)
     | ByteSequenceIsValidUtf8(_, _)
-    | ByteSequenceAddress(_, _, _)
-    | ByteSequenceStoreAddress(_, _, _, _) => true
+    | ByteBufferWriteBytes(_, _, _) => true
     _ => false
   }
+}
+
+///|
+fn instruction_requires_byte_buffer_layout(
+  instruction : @physical.Instruction,
+) -> Bool {
+  match instruction {
+    ByteBufferMake(_, _)
+    | ByteBufferWriteBytes(_, _, _)
+    | ByteBufferWriteI32(_, _, _)
+    | ByteBufferWriteAddress(_, _, _, _)
+    | ByteBufferReadI32(_, _, _) => true
+    _ => false
+  }
+}
+
+///|
+fn image_requires_byte_buffer_layout(image : @physical.PhysicalProgram) -> Bool {
+  for function in image.functions {
+    match function {
+      RuntimeImport(_) => ()
+      PhysicalBody(body) =>
+        for block in body.blocks {
+          if block.instructions.any(instruction_requires_byte_buffer_layout) {
+            return true
+          }
+        }
+    }
+  }
+  false
 }
 
 ///|
@@ -189,6 +225,7 @@ fn build_static_image(
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
   let byte_sequence_layout_id = function_catalog.runtime_layouts.byte_sequence
+  let byte_buffer_layout_id = function_catalog.runtime_layouts.byte_buffer
   for index, layout in image.layouts {
     match layout {
       Data(shape) | Environment(shape) =>
@@ -204,16 +241,14 @@ fn build_static_image(
       None => {
         writer.write_u32_le_int(2)
         writer.write_u32_le_int(
-          function_catalog.table_slot(
-            function_catalog.helper(ByteSequenceSizer),
-          ).index,
+          function_catalog.table_slot(function_catalog.helper(ByteStorageSizer)).index,
         )
       }
     }
     writer.write_u32_le_int(
       match layout {
         Unit | Bool | I64 | I32 | Char | F64 | F32 | Callable | Byte => 1
-        ByteSequence | Data(_) | Environment(_) | Reference => 8
+        ByteSequence | ByteBuffer | Data(_) | Environment(_) | Reference => 8
       },
     )
     writer.write_u32_le_int(
@@ -222,7 +257,7 @@ fn build_static_image(
           function_catalog.table_slot(function_catalog.helper(NoopErased)).index
         Callable =>
           function_catalog.table_slot(function_catalog.helper(RetainCallable)).index
-        ByteSequence | Data(_) | Environment(_) | Reference =>
+        ByteSequence | ByteBuffer | Data(_) | Environment(_) | Reference =>
           function_catalog.table_slot(
             function_catalog.helper(RetainReferenceErased),
           ).index
@@ -234,7 +269,7 @@ fn build_static_image(
           function_catalog.table_slot(function_catalog.helper(NoopErased)).index
         Callable =>
           function_catalog.table_slot(function_catalog.helper(ReleaseCallable)).index
-        ByteSequence | Data(_) | Environment(_) | Reference =>
+        ByteSequence | ByteBuffer | Data(_) | Environment(_) | Reference =>
           function_catalog.table_slot(
             function_catalog.helper(ReleaseReferenceErased),
           ).index
@@ -255,6 +290,7 @@ fn build_static_image(
         | F32
         | Callable
         | ByteSequence
+        | ByteBuffer
         | Byte
         | Reference =>
           function_catalog.table_slot(function_catalog.helper(DestroyNoop)).index
@@ -264,6 +300,9 @@ fn build_static_image(
   }
   if image_requires_byte_sequence_layout(image) && byte_sequence_layout_id == 0 {
     raise MissingByteSequenceLayout
+  }
+  if image_requires_byte_buffer_layout(image) && byte_buffer_layout_id == 0 {
+    raise MissingByteBufferLayout
   }
   let constant_refs : Array[Int] = []
   for constant in image.constants {
@@ -345,6 +384,7 @@ fn build_static_image(
     singleton_refs,
     singleton_layout_ids,
     byte_sequence_layout_id,
+    byte_buffer_layout_id,
     shape_layouts,
     shape_layout_ids,
     object_shapes: image.object_shapes,

@@ -42,6 +42,7 @@
 %token STRING_TYPE "String"
 %token BYTE_TYPE "Byte"
 %token BYTES_TYPE "Bytes"
+%token BYTE_BUFFER_TYPE "ByteBuffer"
 %token IO "Io"
 %token PANIC "Panic"
 %token FORALL "forall"
@@ -371,6 +372,7 @@ primitive_type -> PrimitiveType
   | "String" { String }
   | "Byte" { Byte }
   | "Bytes" { Bytes }
+  | "ByteBuffer" { ByteBuffer }
   ;
 
 value_kind -> ValueKind

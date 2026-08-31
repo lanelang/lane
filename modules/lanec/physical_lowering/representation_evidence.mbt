@@ -314,6 +314,7 @@ fn runtime_layout_recipe(layout : @anf.RuntimeLayout) -> @physical.LayoutRecipe 
     F32 => F32
     Byte => Byte
     ByteSequence => ByteSequence
+    ByteBuffer => ByteBuffer
     Reference => Reference
     Callable => Callable
   }

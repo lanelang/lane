@@ -90,14 +90,14 @@ fn validate_canonical_wasm_address(
     declaration.fields is [storage, offset] &&
     storage.name == "storage" &&
     storage.index == 0 &&
-    storage.type_ == Primitive(Bytes) &&
+    storage.type_ == Primitive(ByteBuffer) &&
     offset.name == "offset" &&
     offset.index == 1 &&
     offset.type_ == Primitive(I32) else {
     return Err(
       InvalidProvider(
         provider~,
-        reason="the declaration must be `struct WasmAddress { storage : Bytes; offset : I32 }`",
+        reason="the declaration must be `struct WasmAddress { storage : ByteBuffer; offset : I32 }`",
       ),
     )
   }

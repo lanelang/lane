@@ -218,6 +218,12 @@ pub extend ResultAbi with Debug::{to_repr}
 pub extend ResultAbi with Eq::{not_equal, equal}
 
 ///|
+pub extend RuntimeImportArgument with Debug::{to_repr}
+
+///|
+pub extend RuntimeImportArgument with Eq::{not_equal, equal}
+
+///|
 pub extend SemanticValueKind with Debug::{to_repr}
 
 ///|

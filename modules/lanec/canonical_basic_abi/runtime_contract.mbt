@@ -112,7 +112,7 @@ pub fn CanonicalBasicAbiRuntimeContract::certify(
       metadata.data_constructor_info(data_constructor) is Some(constructor_info) &&
       constructor_info.owner == type_id &&
       constructor_info.hidden_type_parameters.is_empty() &&
-      constructor_info.payload_types == [Primitive(Bytes), Primitive(I32)] else {
+      constructor_info.payload_types == [Primitive(ByteBuffer), Primitive(I32)] else {
       return Err(
         InvalidDeclaration(
           provider~,

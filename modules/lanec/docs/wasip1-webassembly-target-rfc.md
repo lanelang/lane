@@ -114,27 +114,24 @@ the narrow WASI primitives they need. For example, `println` is implemented
 above `wasi_snapshot_preview1.fd_write`; it is not a host import taking a Lane
 `String` and is not registered in a Lane runtime registry.
 
-WASI Preview 1 operates on guest memory. The compiler and Basic therefore need
-one deliberately narrow guest-memory interface. Basic builds one contiguous
-`Bytes` allocation containing every record and byte range for a synchronous
-host call. A `WasmAbiFrameBuilder` records in-frame address relocations as
-relative offsets; `seal` materializes them only after all scalar and byte
-updates and returns an immutable `WasmAbiFrame`. This build/seal distinction
-prevents copy-on-write after pointer materialization from staling an embedded
-address. The canonical `WasmAddress` value is
-`{ storage : Bytes; offset : I32 }`, and an address may point only into its own
-sealed frame. Physical Lowering projects that carrier to the frame's wasm32
-payload address immediately before the import call and keeps the storage owner
-alive until the call returns. Neither Basic nor user source can extract the raw
-`i32` pointer.
+WASI Preview 1 operates on guest memory. The compiler and Basic therefore own
+one deliberately narrow guest-memory interface. `ByteBuffer` is a fixed-size,
+non-moving mutable byte allocation whose creation, reads, and writes carry
+`Io`. It never resizes and never uses `Bytes` copy-on-write semantics. Basic
+constructs every record and byte range needed by a synchronous host call in
+one or more `ByteBuffer` values. The canonical `WasmAddress` value is
+`{ storage : ByteBuffer; offset : I32 }`. Neither Basic nor user source can
+extract its raw `i32` pointer.
 
 The source-facing import contract records a `GuestAddress` parameter; the WASI
-catalog also owns its deterministic core-contract projection to `i32`. Thus the
-actual WebAssembly import remains the exact Preview 1 signature while source
-code cannot manufacture an unowned pointer. Frame construction uses ordinary
-`Bytes` operations plus one target-generic address relocation primitive that
-writes an in-frame payload address. There is no operation-specific
-`fd_write` compiler intrinsic.
+catalog also owns its deterministic core-contract projection to `i32`. Physical
+Lowering carries the buffer and offset together as one structured import-call
+operand; the WebAssembly emitter checks the buffer layout and bounds, computes
+the payload address, and immediately performs the synchronous import call.
+The call operand itself is the use that keeps the buffer live. There is no
+standalone address-producing opcode, lifetime marker, relocation pass, or
+operation-specific `fd_write` compiler intrinsic. A host import must not retain
+the address after it returns.
 
 ### Source `extern`
 
@@ -223,6 +220,8 @@ The target architecture has the following single owners:
 - the WASI catalog owns standardized import identities and function types;
 - the Canonical Basic ABI owns the exact `WasmAddress` source identity and
   shape;
+- the Runtime ANF and Physical Program own `ByteBuffer` as a distinct mutable
+  runtime value shape rather than an alias of immutable `Bytes`;
 - raw `extern` type lowering owns the mechanically representable core-Wasm
   import shape, while Physical Lowering alone materializes guest addresses and
   their lifetime;

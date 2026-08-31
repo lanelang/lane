@@ -54,8 +54,11 @@ fn wasm_function_type(
 fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
   match role {
     Allocate => wasm_function_type([I32], [I32])
-    Free | RetainReference | ReleaseReference | RequireByteSequenceLayout =>
-      wasm_function_type([I32], [])
+    Free
+    | RetainReference
+    | ReleaseReference
+    | RequireByteSequenceLayout
+    | RequireByteBufferLayout => wasm_function_type([I32], [])
     ByteSequenceNew => wasm_function_type([I32], [I32])
     ByteSequenceEqual | ByteSequenceConcat =>
       wasm_function_type([I32, I32], [I32])
@@ -63,8 +66,12 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
     ByteSequenceMake => wasm_function_type([I64, I32], [I32])
     ByteSequenceIndex | ByteSequenceGet => wasm_function_type([I32, I64], [I32])
     ByteSequenceSet => wasm_function_type([I32, I64, I32], [I32])
-    ByteSequenceStoreAddress => wasm_function_type([I32, I64, I32], [I32])
     ByteSequenceIsValidUtf8 => wasm_function_type([I32], [I32])
+    ByteBufferMake => wasm_function_type([I64], [I32])
+    ByteBufferWriteBytes => wasm_function_type([I32, I64, I32], [])
+    ByteBufferWriteI32 => wasm_function_type([I32, I64, I32], [])
+    ByteBufferWriteAddress => wasm_function_type([I32, I64, I32, I32], [])
+    ByteBufferReadI32 => wasm_function_type([I32, I64], [I32])
     InstanceGlobalCleanup => wasm_function_type([], [])
   }
 }
@@ -80,7 +87,7 @@ fn helper_function_type(role : WasmHelperFunctionRole) -> WasmFunctionType {
     | RetainCallable
     | ReleaseCallable => wasm_function_type([I64], [])
     DestroyNoop | DestroyShape(_) => wasm_function_type([I32], [])
-    ByteSequenceSizer => wasm_function_type([I32], [I32])
+    ByteStorageSizer => wasm_function_type([I32], [I32])
   }
 }
 
@@ -100,8 +107,13 @@ fn runtime_function_order() -> Array[WasmRuntimeFunctionRole] {
     ByteSequenceIndex,
     ByteSequenceGet,
     ByteSequenceSet,
-    ByteSequenceStoreAddress,
     ByteSequenceIsValidUtf8,
+    ByteBufferMake,
+    RequireByteBufferLayout,
+    ByteBufferWriteBytes,
+    ByteBufferWriteI32,
+    ByteBufferWriteAddress,
+    ByteBufferReadI32,
     InstanceGlobalCleanup,
   ]
 }
@@ -123,7 +135,7 @@ fn helper_function_order(
   for shape in 0..<image.object_shapes.length() {
     roles.push(DestroyShape(shape~))
   }
-  roles.push(ByteSequenceSizer)
+  roles.push(ByteStorageSizer)
   roles
 }
 

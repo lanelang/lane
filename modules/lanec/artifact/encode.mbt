@@ -167,7 +167,11 @@ fn write_intrinsic(
       F64ToI64 => 58
       F32ToString => 59
       F64ToString => 60
-      WasmAbiStoreAddress => 62
+      ByteBufferMake => 62
+      ByteBufferWriteBytes => 63
+      ByteBufferWriteI32 => 64
+      ByteBufferWriteAddress => 65
+      ByteBufferReadI32 => 66
     },
   )
 }

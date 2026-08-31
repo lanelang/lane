@@ -210,6 +210,7 @@ fn reachable_functions(
         match instruction {
           ConstFunction(_, target)
           | CallDirect(target, _, _, _, _)
+          | CallRuntimeImport(target, _, _)
           | CallPackedDirect(target, _, _, _, _)
           | MakeClosure(_, target, _) =>
             mark_reachable_function(
@@ -279,6 +280,12 @@ fn remap_instruction_function_ids(
         remap_function_id(function, mappings),
         environment,
         witnesses,
+        arguments,
+        destination,
+      )
+    CallRuntimeImport(function, arguments, destination) =>
+      CallRuntimeImport(
+        remap_function_id(function, mappings),
         arguments,
         destination,
       )

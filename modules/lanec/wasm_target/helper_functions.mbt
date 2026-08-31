@@ -66,7 +66,7 @@ fn compile_helper_function(
         intern_function_type(wasm_module, [I64], []),
         shape,
       )
-    ByteSequenceSizer =>
+    ByteStorageSizer =>
       [
         LocalGet(0),
         I32Load(0, 2, 8L),

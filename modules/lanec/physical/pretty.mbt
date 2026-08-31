@@ -160,7 +160,6 @@ fn render_instruction(instruction : Instruction) -> String {
     RetainCopy(destination, source) =>
       unary_instruction("retain_copy", destination, source)
     Release(source) => "release \{render_slot(source)}"
-    KeepAlive(source) => "keep_alive \{render_slot(source)}"
     ConstI64(destination, value) =>
       "const_i64 \{render_slot(destination)}, \{value}"
     ConstI32(destination, value) =>
@@ -181,6 +180,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "const_string \{render_slot(destination)}, \{render_constant(constant)}"
     CallDirect(function, environment, witnesses, arguments, destination) =>
       "call_direct \{render_optional_destination(destination)}\{render_function(function)} env=\{render_optional_slot(environment)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
+    CallRuntimeImport(function, arguments, destination) =>
+      "call_runtime_import \{render_optional_destination(destination)}\{render_function(function)} arguments=[\{arguments.map(render_runtime_import_argument).join(", ")}]"
     CallPackedDirect(function, callable, witnesses, arguments, destination) =>
       "call_packed_direct \{render_optional_destination(destination)}\{render_function(function)} callable=\{render_slot(callable)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     CallValue(callable, abi, witnesses, arguments, destination) =>
@@ -223,10 +224,16 @@ fn render_instruction(instruction : Instruction) -> String {
       "byte_sequence_slice \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(start)}, \{render_slot(length)}"
     ByteSequenceIsValidUtf8(destination, source) =>
       unary_instruction("byte_sequence_is_valid_utf8", destination, source)
-    ByteSequenceAddress(destination, source, offset) =>
-      binary_instruction("byte_sequence_address", destination, source, offset)
-    ByteSequenceStoreAddress(destination, source, index, offset) =>
-      "byte_sequence_store_address \{render_slot(destination)}, \{render_slot(source)}, \{render_slot(index)}, \{render_slot(offset)}"
+    ByteBufferMake(destination, length) =>
+      unary_instruction("byte_buffer_make", destination, length)
+    ByteBufferWriteBytes(buffer, index, source) =>
+      "byte_buffer_write_bytes \{render_slot(buffer)}, \{render_slot(index)}, \{render_slot(source)}"
+    ByteBufferWriteI32(buffer, index, value) =>
+      "byte_buffer_write_i32 \{render_slot(buffer)}, \{render_slot(index)}, \{render_slot(value)}"
+    ByteBufferWriteAddress(buffer, index, target, offset) =>
+      "byte_buffer_write_address \{render_slot(buffer)}, \{render_slot(index)}, \{render_slot(target)}, \{render_slot(offset)}"
+    ByteBufferReadI32(destination, buffer, index) =>
+      binary_instruction("byte_buffer_read_i32", destination, buffer, index)
     I32Add(destination, left, right) =>
       binary_instruction("i32_add", destination, left, right)
     I32Sub(destination, left, right) =>
@@ -371,6 +378,15 @@ fn render_instruction(instruction : Instruction) -> String {
       "init_global \{render_global(global)}, \{render_slot(source)}"
     BorrowGlobal(destination, global) =>
       "borrow_global \{render_slot(destination)}, \{render_global(global)}"
+  }
+}
+
+///|
+fn render_runtime_import_argument(argument : RuntimeImportArgument) -> String {
+  match argument {
+    Direct(slot) => render_slot(slot)
+    GuestAddress(buffer, offset) =>
+      "guest_address(\{render_slot(buffer)}, \{render_slot(offset)})"
   }
 }
 
@@ -562,6 +578,7 @@ fn render_layout_recipe(recipe : LayoutRecipe) -> String {
     F32 => "f32"
     Callable => "callable"
     ByteSequence => "byte_sequence"
+    ByteBuffer => "byte_buffer"
     Data(shape) => "data(\{render_shape(shape)})"
     Environment(shape) => "environment(\{render_shape(shape)})"
     Reference => "reference"

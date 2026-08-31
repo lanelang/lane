@@ -5,7 +5,6 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | Move(_, source)
     | RetainCopy(_, source)
     | Release(source)
-    | KeepAlive(source)
     | LoadTag(_, source)
     | LoadObjectWitness(_, _, source, _)
     | ByteToI64(_, source)
@@ -38,7 +37,7 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(_, source)
     | UneraseUnit(source)
     | InitGlobal(_, source) => [source]
-    ByteSequenceAddress(_, source, offset) => [source, offset]
+    ByteBufferMake(_, length) => [length]
     ByteSequenceConcat(_, left, right)
     | ByteSequenceEqual(_, left, right)
     | ByteSequenceMake(_, left, right)
@@ -90,8 +89,11 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | F64Ge(_, left, right) => [left, right]
     ByteSequenceSlice(_, string, start, length)
     | ByteSequenceSet(_, string, start, length)
-    | ByteSequenceStoreAddress(_, string, start, length) =>
-      [string, start, length]
+    | ByteBufferWriteBytes(string, start, length)
+    | ByteBufferWriteI32(string, start, length) => [string, start, length]
+    ByteBufferReadI32(_, buffer, index) => [buffer, index]
+    ByteBufferWriteAddress(buffer, index, target, offset) =>
+      [buffer, index, target, offset]
     CallDirect(_, environment, witnesses, arguments, _) => {
       let uses = []
       if environment is Some(value) {
@@ -99,6 +101,19 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
       }
       uses.append(witnesses)
       uses.append(arguments)
+      uses
+    }
+    CallRuntimeImport(_, arguments, _) => {
+      let uses = []
+      for argument in arguments {
+        match argument {
+          Direct(value) => uses.push(value)
+          GuestAddress(buffer, offset) => {
+            uses.push(buffer)
+            uses.push(offset)
+          }
+        }
+      }
       uses
     }
     CallPackedDirect(_, callable, witnesses, arguments, _) =>
@@ -282,9 +297,10 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(destination, _)
     | EraseUnit(destination)
     | BorrowGlobal(destination, _) => [destination]
-    ByteSequenceAddress(destination, _, _)
-    | ByteSequenceStoreAddress(destination, _, _, _) => [destination]
+    ByteBufferMake(destination, _) | ByteBufferReadI32(destination, _, _) =>
+      [destination]
     CallDirect(_, _, _, _, destination)
+    | CallRuntimeImport(_, _, destination)
     | CallPackedDirect(_, _, _, _, destination)
     | CallValue(_, _, _, destination) =>
       destination.map(value => [value]).unwrap_or([])
@@ -297,6 +313,11 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
       }
       destinations
     }
-    Release(_) | KeepAlive(_) | UneraseUnit(_) | InitGlobal(_, _) => []
+    Release(_)
+    | ByteBufferWriteBytes(_, _, _)
+    | ByteBufferWriteI32(_, _, _)
+    | ByteBufferWriteAddress(_, _, _, _)
+    | UneraseUnit(_)
+    | InitGlobal(_, _) => []
   }
 }

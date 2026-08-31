@@ -340,6 +340,7 @@ pub(all) enum RuntimeLayout {
   F32
   Byte
   ByteSequence
+  ByteBuffer
   Reference
   Callable
 } derive(Eq, @debug.Debug)
@@ -391,6 +392,7 @@ pub(all) enum RuntimeType {
   Unit
   Scalar(RuntimeScalarType)
   ByteSequence
+  ByteBuffer
   Data(@buslane.TypeId, Array[RuntimeArgument])
   Callable(Array[RuntimeType], RuntimeType)
   Erased(RuntimeTypeExpressionId, RuntimeEvidence)

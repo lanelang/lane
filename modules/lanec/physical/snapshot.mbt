@@ -78,6 +78,8 @@ fn Instruction::snapshot(self : Instruction) -> Instruction {
         arguments.copy(),
         environment,
       )
+    CallRuntimeImport(function, arguments, destination) =>
+      CallRuntimeImport(function, arguments.copy(), destination)
     CallPackedDirect(function, callable, witnesses, arguments, destination) =>
       CallPackedDirect(
         function,

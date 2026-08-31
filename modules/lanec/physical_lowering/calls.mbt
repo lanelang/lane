@@ -527,7 +527,14 @@ fn FunctionLowerer::lower_intrinsic(
     | BytesIsValidUtf8
     | F32ToString
     | F64ToString => ignore(self.image.intern_layout(ByteSequence))
-    WasmAbiStoreAddress => ignore(self.image.intern_layout(ByteSequence))
+    ByteBufferMake
+    | ByteBufferWriteI32
+    | ByteBufferWriteAddress
+    | ByteBufferReadI32 => ignore(self.image.intern_layout(ByteBuffer))
+    ByteBufferWriteBytes => {
+      ignore(self.image.intern_layout(ByteBuffer))
+      ignore(self.image.intern_layout(ByteSequence))
+    }
     _ => ()
   }
   let slots = arguments.map(fn(argument) {
@@ -536,6 +543,21 @@ fn FunctionLowerer::lower_intrinsic(
       _ => abort("intrinsic argument is not represented by a slot")
     }
   })
+  match (intrinsic, slots) {
+    (ByteBufferWriteBytes, [buffer, index, source]) => {
+      self.emit(ByteBufferWriteBytes(buffer, index, source))
+      return Unit
+    }
+    (ByteBufferWriteI32, [buffer, index, value]) => {
+      self.emit(ByteBufferWriteI32(buffer, index, value))
+      return Unit
+    }
+    (ByteBufferWriteAddress, [buffer, index, target, offset]) => {
+      self.emit(ByteBufferWriteAddress(buffer, index, target, offset))
+      return Unit
+    }
+    _ => ()
+  }
   let destination = self.fresh_slot(result_type)
   let instruction : @vmcfg.Instruction = match (intrinsic, slots) {
     (I64Add, [left, right]) => I64Add(destination, left, right)
@@ -590,8 +612,9 @@ fn FunctionLowerer::lower_intrinsic(
     (BytesSlice, [source, start, length]) =>
       ByteSequenceSlice(destination, source, start, length)
     (BytesIsValidUtf8, [source]) => ByteSequenceIsValidUtf8(destination, source)
-    (WasmAbiStoreAddress, [source, index, offset]) =>
-      ByteSequenceStoreAddress(destination, source, index, offset)
+    (ByteBufferMake, [length]) => ByteBufferMake(destination, length)
+    (ByteBufferReadI32, [buffer, index]) =>
+      ByteBufferReadI32(destination, buffer, index)
     _ => raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   self.emit(instruction)

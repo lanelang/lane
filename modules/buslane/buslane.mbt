@@ -104,6 +104,7 @@ pub(all) enum PrimitiveType {
   String
   Byte
   Bytes
+  ByteBuffer
 } derive(Debug, Eq)
 
 ///|

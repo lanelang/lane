@@ -2,7 +2,7 @@ module Examples.Valid115
 
 import Basic.Wasm.Abi.{ WasmAddress }
 
-// Guest addresses retain their backing ABI frame while the raw host call runs.
+// Guest addresses retain their backing byte buffer while the raw host call runs.
 pub let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io =
   extern("wasi_snapshot_preview1", "fd_write")
 

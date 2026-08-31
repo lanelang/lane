@@ -22,6 +22,7 @@ pub(all) enum RuntimeLayout {
   F32
   Byte
   ByteSequence
+  ByteBuffer
   Reference
   Callable
 } derive(Debug, Eq)
@@ -68,6 +69,7 @@ pub(all) enum RuntimeType {
   Unit
   Scalar(RuntimeScalarType)
   ByteSequence
+  ByteBuffer
   Data(@buslane.TypeId, Array[RuntimeArgument])
   Callable(Array[RuntimeType], RuntimeType)
   Erased(RuntimeTypeExpressionId, RuntimeEvidence)
@@ -243,7 +245,7 @@ fn RuntimeEvidence::snapshot(self : RuntimeEvidence) -> RuntimeEvidence {
 ///|
 fn RuntimeType::snapshot(self : RuntimeType) -> RuntimeType {
   match self {
-    Unit | Scalar(_) | ByteSequence => self
+    Unit | Scalar(_) | ByteSequence | ByteBuffer => self
     Data(owner, arguments) =>
       Data(owner, arguments.map(argument => argument.snapshot()))
     Callable(parameters, result) =>
@@ -293,6 +295,7 @@ pub fn RuntimeType::layout(self : RuntimeType) -> RuntimeLayout? {
     Scalar(F32) => Some(F32)
     Scalar(Byte) => Some(Byte)
     ByteSequence => Some(ByteSequence)
+    ByteBuffer => Some(ByteBuffer)
     Data(_, _) => Some(Reference)
     Callable(_, _) | Forall(_, _) => Some(Callable)
     Erased(_, _) => None

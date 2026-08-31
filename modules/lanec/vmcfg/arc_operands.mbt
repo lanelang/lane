@@ -26,11 +26,6 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
         operands: [(source, Consume)],
         materialize: values => Release(values[0]),
       }
-    KeepAlive(source) =>
-      {
-        operands: [(source, Borrow)],
-        materialize: values => KeepAlive(values[0]),
-      }
     CallDirect(target, environment, witnesses, arguments, destination) => {
       let operands = []
       if environment is Some(value) {
@@ -60,6 +55,40 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
           CallDirect(
             target, lowered_environment, lowered_witnesses, lowered_arguments, destination,
           )
+        },
+      }
+    }
+    CallRuntimeImport(target, arguments, destination) => {
+      let operands = []
+      for argument in arguments {
+        match argument {
+          Direct(value) => operands.push((value, Borrow))
+          GuestAddress(buffer, offset) => {
+            operands.push((buffer, Borrow))
+            operands.push((offset, Borrow))
+          }
+        }
+      }
+      {
+        operands,
+        materialize: values => {
+          let mut cursor = 0
+          let lowered = arguments.map(fn(argument) {
+            match argument {
+              Direct(_) => {
+                let value = values[cursor]
+                cursor += 1
+                Direct(value)
+              }
+              GuestAddress(_, _) => {
+                let buffer = values[cursor]
+                let offset = values[cursor + 1]
+                cursor += 2
+                GuestAddress(buffer, offset)
+              }
+            }
+          })
+          CallRuntimeImport(target, lowered, destination)
         },
       }
     }
@@ -179,13 +208,6 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
         operands: [(source, Consume), (index, Borrow), (value, Borrow)],
         materialize: values => {
           ByteSequenceSet(destination, values[0], values[1], values[2])
-        },
-      }
-    ByteSequenceStoreAddress(destination, source, index, offset) =>
-      {
-        operands: [(source, Consume), (index, Borrow), (offset, Borrow)],
-        materialize: values => {
-          ByteSequenceStoreAddress(destination, values[0], values[1], values[2])
         },
       }
     ByteSequenceConcat(destination, left, right) =>
@@ -323,7 +345,11 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
     | F64ToF32(_, _)
     | F32ToString(_, _)
     | F64ToString(_, _)
-    | ByteSequenceAddress(_, _, _)
+    | ByteBufferMake(_, _)
+    | ByteBufferWriteBytes(_, _, _)
+    | ByteBufferWriteI32(_, _, _)
+    | ByteBufferWriteAddress(_, _, _, _)
+    | ByteBufferReadI32(_, _, _)
     | EraseUnit(_)
     | BorrowGlobal(_, _) =>
       {

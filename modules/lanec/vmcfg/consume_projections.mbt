@@ -247,6 +247,13 @@ fn projection_use_requires_owner(
     | InitGlobal(_, source) => source == value
     CallDirect(_, environment, _, arguments, _) =>
       environment == Some(value) || arguments.contains(value)
+    CallRuntimeImport(_, arguments, _) =>
+      arguments.any(fn(argument) {
+        match argument {
+          Direct(argument) => argument == value
+          GuestAddress(buffer, offset) => buffer == value || offset == value
+        }
+      })
     CallPackedDirect(_, callable, _, arguments, _) =>
       callable == value || arguments.contains(value)
     CallValue(callable, _, arguments, _) =>

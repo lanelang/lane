@@ -35,7 +35,6 @@ fn emit_instruction(
     RetainCopy(destination, source) =>
       RetainCopy(slot(destination), slot(source))
     Release(source) => Release(slot(source))
-    KeepAlive(source) => KeepAlive(slot(source))
     ConstI64(destination, value) => ConstI64(slot(destination), value)
     ConstI32(destination, value) => ConstI32(slot(destination), value)
     ConstF32(destination, bits) => ConstF32(slot(destination), bits)
@@ -62,6 +61,18 @@ fn emit_instruction(
         destination.map(value => slot(value)),
       )
     }
+    CallRuntimeImport(target, arguments, destination) =>
+      CallRuntimeImport(
+        target,
+        arguments.map(argument => {
+          match argument {
+            Direct(value) => Direct(slot(value))
+            GuestAddress(buffer, offset) =>
+              GuestAddress(slot(buffer), slot(offset))
+          }
+        }),
+        destination.map(slot),
+      )
     CallPackedDirect(target, callable, witnesses, arguments, destination) =>
       CallPackedDirect(
         target,
@@ -167,15 +178,21 @@ fn emit_instruction(
       )
     ByteSequenceIsValidUtf8(destination, source) =>
       ByteSequenceIsValidUtf8(slot(destination), slot(source))
-    ByteSequenceAddress(destination, source, offset) =>
-      ByteSequenceAddress(slot(destination), slot(source), slot(offset))
-    ByteSequenceStoreAddress(destination, source, index, offset) =>
-      ByteSequenceStoreAddress(
-        slot(destination),
-        slot(source),
+    ByteBufferMake(destination, length) =>
+      ByteBufferMake(slot(destination), slot(length))
+    ByteBufferWriteBytes(buffer, index, source) =>
+      ByteBufferWriteBytes(slot(buffer), slot(index), slot(source))
+    ByteBufferWriteI32(buffer, index, value) =>
+      ByteBufferWriteI32(slot(buffer), slot(index), slot(value))
+    ByteBufferWriteAddress(buffer, index, target, offset) =>
+      ByteBufferWriteAddress(
+        slot(buffer),
         slot(index),
+        slot(target),
         slot(offset),
       )
+    ByteBufferReadI32(destination, buffer, index) =>
+      ByteBufferReadI32(slot(destination), slot(buffer), slot(index))
     I32Add(destination, left, right) =>
       I32Add(slot(destination), slot(left), slot(right))
     I32Sub(destination, left, right) =>

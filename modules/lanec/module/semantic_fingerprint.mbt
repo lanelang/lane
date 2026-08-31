@@ -428,6 +428,7 @@ fn CanonicalInterfaceEncoder::write_type(
           I32 => 7
           Char => 8
           F32 => 9
+          ByteBuffer => 10
         },
       )
     }

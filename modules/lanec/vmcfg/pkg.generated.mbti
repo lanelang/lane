@@ -179,7 +179,6 @@ pub(all) enum Instruction {
   Move(ValueId, ValueId)
   RetainCopy(ValueId, ValueId)
   Release(ValueId)
-  KeepAlive(ValueId)
   ConstI64(ValueId, Int64)
   ConstI32(ValueId, Int)
   ConstChar(ValueId, Int)
@@ -190,6 +189,7 @@ pub(all) enum Instruction {
   ConstFunction(ValueId, @physical.FunctionId)
   ConstString(ValueId, @physical.ConstantId)
   CallDirect(@physical.FunctionId, ValueId?, Array[ValueId], Array[ValueId], ValueId?)
+  CallRuntimeImport(@physical.FunctionId, Array[RuntimeImportArgument], ValueId?)
   CallPackedDirect(@physical.FunctionId, ValueId, Array[ValueId], Array[ValueId], ValueId?)
   CallValue(ValueId, Array[ValueId], Array[ValueId], ValueId?)
   MakeData(ValueId, @physical.ObjectShapeId, LayoutOperand, Array[ValueId], Array[ValueId])
@@ -211,8 +211,11 @@ pub(all) enum Instruction {
   ByteSequenceConcat(ValueId, ValueId, ValueId)
   ByteSequenceSlice(ValueId, ValueId, ValueId, ValueId)
   ByteSequenceIsValidUtf8(ValueId, ValueId)
-  ByteSequenceAddress(ValueId, ValueId, ValueId)
-  ByteSequenceStoreAddress(ValueId, ValueId, ValueId, ValueId)
+  ByteBufferMake(ValueId, ValueId)
+  ByteBufferWriteBytes(ValueId, ValueId, ValueId)
+  ByteBufferWriteI32(ValueId, ValueId, ValueId)
+  ByteBufferWriteAddress(ValueId, ValueId, ValueId, ValueId)
+  ByteBufferReadI32(ValueId, ValueId, ValueId)
   I32Add(ValueId, ValueId, ValueId)
   I32Sub(ValueId, ValueId, ValueId)
   I32Mul(ValueId, ValueId, ValueId)
@@ -332,6 +335,14 @@ pub(all) struct ProjectionSelection {
 pub fn ProjectionSelection::equal(Self, Self) -> Bool
 pub fn ProjectionSelection::not_equal(Self, Self) -> Bool
 pub fn ProjectionSelection::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RuntimeImportArgument {
+  Direct(ValueId)
+  GuestAddress(ValueId, ValueId)
+} derive(Eq, @debug.Debug)
+pub fn RuntimeImportArgument::equal(Self, Self) -> Bool
+pub fn RuntimeImportArgument::not_equal(Self, Self) -> Bool
+pub fn RuntimeImportArgument::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Terminator {
   Jump(Edge)

@@ -280,8 +280,8 @@ _Avoid_: optimization input, runtime ABI fact, anonymous-means-CPS heuristic
 The closed backend-lowerable ANF produced only by projecting verified,
 effect-aware CPS Core through the Executable Retention Set. It owns
 `RuntimeType`, `RuntimeEvidence`, retained top-level terms, and an immutable
-runtime type-expression catalog; these distinguish scalar, byte-sequence,
-nominal reference, data, callable, and erased representations without carrying
+runtime type-expression catalog; these distinguish scalar, immutable byte
+sequence, mutable byte buffer, nominal reference, data, callable, and erased representations without carrying
 Buslane `Type`, `Effect`, `Kind`, `GenericArgument`, or type-lambda syntax.
 Stable Buslane declaration IDs survive only as nominal symbols. Nominal runtime
 arguments select construction and projection evidence, but do not define a
@@ -541,6 +541,13 @@ _Avoid_: post-emission slot rewrite, Wasm local plan
 The one-pass projection of finalized VM CFG through a Physical Slot Plan into
 the Physical Program.
 _Avoid_: allocation pass, emitted-opcode remapping
+
+**Structured Runtime Import Call**:
+A Physical call whose operands preserve each host parameter's ABI role.
+`GuestAddress` carries its `ByteBuffer` owner and `I32` offset together until
+WebAssembly emission computes the transient wasm32 address immediately before
+the synchronous import. The call operand is the lifetime use.
+_Avoid_: raw pointer slot, address-producing opcode, keep-alive instruction
 
 **Finalized Callable ABI**:
 The canonical callable shape derived from finalized slot metadata and interned

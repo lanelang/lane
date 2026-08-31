@@ -219,7 +219,7 @@ fn RuntimeTypeCatalog::instantiate_type_with(
   visited : Array[RuntimeEvidenceId],
 ) -> RuntimeType raise RuntimeTypeInstantiationError {
   match type_ {
-    Unit | Scalar(_) | ByteSequence => type_
+    Unit | Scalar(_) | ByteSequence | ByteBuffer => type_
     Data(owner, arguments) =>
       Data(
         owner,

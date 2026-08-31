@@ -966,7 +966,6 @@ fn PhysicalProgramVerifier::apply_instruction_flow(
           self.fail(site, "Release requires a definitely live owner")
         Unavailable => self.fail(site, "Release reads an uninitialized slot")
       }
-    KeepAlive(source) => ignore(self.read_flow(site, state, source))
     ConstI64(destination, _)
     | ConstI32(destination, _)
     | ConstChar(destination, _)
@@ -997,6 +996,26 @@ fn PhysicalProgramVerifier::apply_instruction_flow(
       }
       for argument in arguments {
         ignore(self.consume_flow(site, body, state, argument))
+      }
+      if destination is Some(destination) {
+        self.write_from_metadata(site, body, state, destination)
+      }
+    }
+    CallRuntimeImport(target, arguments, destination) => {
+      self.require_global_dependencies(
+        site,
+        state,
+        global_dependencies[target.value - 1],
+        global_lifecycle,
+      )
+      for argument in arguments {
+        match argument {
+          Direct(value) => ignore(self.read_flow(site, state, value))
+          GuestAddress(buffer, offset) => {
+            ignore(self.read_flow(site, state, buffer))
+            ignore(self.read_flow(site, state, offset))
+          }
+        }
       }
       if destination is Some(destination) {
         self.write_from_metadata(site, body, state, destination)
@@ -1115,11 +1134,21 @@ fn PhysicalProgramVerifier::apply_instruction_flow(
       ignore(self.consume_owner(site, body, state, source))
       self.write_from_metadata(site, body, state, destination)
     }
-    ByteSequenceStoreAddress(destination, source, index, offset) => {
-      ignore(self.read_flow(site, state, index))
-      ignore(self.read_flow(site, state, offset))
-      ignore(self.consume_owner(site, body, state, source))
+    ByteBufferMake(destination, length) => {
+      ignore(self.read_flow(site, state, length))
       self.write_from_metadata(site, body, state, destination)
+    }
+    ByteBufferWriteBytes(buffer, index, source)
+    | ByteBufferWriteI32(buffer, index, source) => {
+      ignore(self.read_flow(site, state, buffer))
+      ignore(self.read_flow(site, state, index))
+      ignore(self.read_flow(site, state, source))
+    }
+    ByteBufferWriteAddress(buffer, index, target, offset) => {
+      ignore(self.read_flow(site, state, buffer))
+      ignore(self.read_flow(site, state, index))
+      ignore(self.read_flow(site, state, target))
+      ignore(self.read_flow(site, state, offset))
     }
     ByteSequenceConcat(destination, left, right) => {
       ignore(self.consume_owner(site, body, state, left))
@@ -1244,7 +1273,7 @@ fn PhysicalProgramVerifier::apply_trivial_instruction_flow(
       self.write_trivial_after_reads(site, body, state, destination, [
         source, index,
       ])
-    ByteSequenceAddress(destination, source, offset) =>
+    ByteBufferReadI32(destination, source, offset) =>
       self.write_trivial_after_reads(site, body, state, destination, [
         source, offset,
       ])

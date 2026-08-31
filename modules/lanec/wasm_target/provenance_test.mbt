@@ -85,7 +85,7 @@ test "Wasm compilation records every function at its emission boundary" {
       #|  { index: 9, origin: HelperFunction(RetainReferenceErased) },
       #|  { index: 10, origin: HelperFunction(ReleaseReferenceErased) },
       #|  { index: 11, origin: HelperFunction(DestroyNoop) },
-      #|  { index: 12, origin: HelperFunction(ByteSequenceSizer) },
+      #|  { index: 12, origin: HelperFunction(ByteStorageSizer) },
       #|  { index: 13, origin: EntryWrapper },
       #|]
     ),

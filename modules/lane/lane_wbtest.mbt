@@ -371,38 +371,22 @@ fn wasi_basic_io_source() -> String {
 fn wasi_basic_abi_source() -> String {
   (
     #|module Basic.Wasm.Abi
-    #|let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
+    #|let make : (I64) -> ByteBuffer ! Io = builtin("%byte_buffer_make")
+    #|let write_bytes : (ByteBuffer, I64, Bytes) -> Unit ! Io = builtin("%byte_buffer_write_bytes")
+    #|let write_i32 : (ByteBuffer, I64, I32) -> Unit ! Io = builtin("%byte_buffer_write_i32")
+    #|let write_address : (ByteBuffer, I64, ByteBuffer, I32) -> Unit ! Io = builtin("%byte_buffer_write_address")
     #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
-    #|let bytes_make : (I64, Byte) -> Bytes = builtin("%bytes_make")
-    #|let bytes_set : (Bytes, I64, Byte) -> Bytes = builtin("%bytes_set")
     #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
-    #|let i64_div : (I64, I64) -> I64 = builtin("%i64_div")
-    #|let i64_equal : (I64, I64) -> Bool = builtin("%i64_equal")
-    #|let i64_rem : (I64, I64) -> I64 = builtin("%i64_rem")
-    #|let i64_to_byte : (I64) -> Byte = builtin("%i64_to_byte")
-    #|let store_address : (Bytes, I64, I32) -> Bytes = builtin("%wasm_abi_store_address")
-    #|pub enum Relocations { none(); relocation(I64, I32, Relocations) }
-    #|pub struct FrameBuilder { storage : Bytes; relocations : Relocations }
-    #|pub struct WasmAddress { storage : Bytes; offset : I32 }
+    #|let i64_to_i32 : (I64) -> I32 = builtin("%i64_to_i32")
+    #|pub struct WasmAddress { storage : ByteBuffer; offset : I32 }
     #|let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
-    #|fn copy(destination : Bytes, source : Bytes, offset : I64, length : I64) -> Bytes {
-    #|  if i64_equal(offset, length) { destination } else { copy(bytes_set(destination, i64_add(12, offset), bytes_get(source, offset)), source, i64_add(offset, 1), length) }
-    #|}
-    #|fn store_i32(bytes : Bytes, index : I64, value : I64) -> Bytes {
-    #|  let bytes = bytes_set(bytes, index, i64_to_byte(i64_rem(value, 256)))
-    #|  let bytes = bytes_set(bytes, i64_add(index, 1), i64_to_byte(i64_rem(i64_div(value, 256), 256)))
-    #|  let bytes = bytes_set(bytes, i64_add(index, 2), i64_to_byte(i64_rem(i64_div(value, 65536), 256)))
-    #|  bytes_set(bytes, i64_add(index, 3), i64_to_byte(i64_div(value, 16777216)))
-    #|}
-    #|fn relocate(storage : Bytes, relocations : Relocations) -> Bytes {
-    #|  match relocations { none() => storage; relocation(index, offset, rest) => relocate(store_address(storage, index, offset), rest) }
-    #|}
     #|pub fn write_stdout(source : Bytes) -> Unit ! Io {
     #|  let length = bytes_length(source)
-    #|  let frame = FrameBuilder::{ storage: copy(bytes_make(i64_add(12, length), i64_to_byte(0)), source, 0, length), relocations: none() }
-    #|  let frame = FrameBuilder::{ storage: frame.storage, relocations: relocation(0, 12i32, frame.relocations) }
-    #|  let frame = FrameBuilder::{ storage: store_i32(frame.storage, 4, length), relocations: frame.relocations }
-    #|  let frame = relocate(frame.storage, frame.relocations)
+    #|  let frame = make(i64_add(12, length))
+    #|  write_bytes(frame, 12, source)
+    #|  write_address(frame, 0, frame, 12i32)
+    #|  write_i32(frame, 4, i64_to_i32(length))
+    #|  write_i32(frame, 8, 0i32)
     #|  let _errno = fd_write(1i32, WasmAddress::{ storage: frame, offset: 0i32 }, 1i32, WasmAddress::{ storage: frame, offset: 8i32 })
     #|  ()
     #|}
@@ -761,13 +745,13 @@ test "run accepts built-in Io through an explicit Basic extern" {
     abort("expected Io entry admission to succeed")
   }
   let output : Array[Byte] = []
-  guard execute_entry_with_output(
-      program,
-      entry,
-      write_stdout=Some(bytes => output.append(bytes.to_array())),
-    )
-    is Succeeded else {
-    abort("expected run entry to succeed through WebAssembly")
+  let outcome = execute_entry_with_output(
+    program,
+    entry,
+    write_stdout=Some(bytes => output.append(bytes.to_array())),
+  )
+  guard outcome is Succeeded else {
+    abort("expected run entry to succeed through WebAssembly: \{Repr(outcome)}")
   }
   assert_eq(Bytes::from_array(output), b"hello\n")
 }

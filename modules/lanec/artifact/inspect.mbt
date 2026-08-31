@@ -746,6 +746,7 @@ fn buslane_primitive_text(primitive : @buslane.PrimitiveType) -> String {
     String => "String"
     Byte => "Byte"
     Bytes => "Bytes"
+    ByteBuffer => "ByteBuffer"
   }
 }
 

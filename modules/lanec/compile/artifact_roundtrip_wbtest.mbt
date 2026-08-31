@@ -219,7 +219,7 @@ test "effect aliases export through interface artifacts" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 14
+      #|schema: 15
       #|
       #|imported interfaces:
       #|  (none)
@@ -240,11 +240,11 @@ test "effect aliases export through interface artifacts" {
 }
 
 ///|
-test "Wasm ABI address storage roundtrips through typed artifacts" {
+test "ByteBuffer intrinsic roundtrips through typed artifacts" {
   let compiled = compile_modules_for_test(
     (
       #|module Main
-      #|pub let write : (Bytes, I64, I32) -> Bytes = builtin("%wasm_abi_store_address")
+      #|pub let make : (I64) -> ByteBuffer ! Io = builtin("%byte_buffer_make")
       #|pub fn run(action : () -> Unit ! Io) -> Unit ! Io {
       #|  action()
       #|}
@@ -279,7 +279,7 @@ test "Wasm ABI address storage roundtrips through typed artifacts" {
     })
     .join("\n"),
     content=(
-      #|write: (Bytes, I64, I32) -> Bytes
+      #|make: (I64) -> ByteBuffer ! Io
       #|run: (() -> Unit ! Io) -> Unit ! Io
     ),
   )
@@ -293,7 +293,7 @@ test "Wasm ABI address storage roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 26
+      #|schema: 27
       #|
       #|imported interfaces:
       #|  (none)
@@ -302,23 +302,23 @@ test "Wasm ABI address storage roundtrips through typed artifacts" {
       #|imports:
       #|  (none)
       #|exports:
-      #|  value write
+      #|  value make
       #|  value run
       #|public entries:
-      #|  Main.write : (Bytes, I64, I32) -> Bytes
+      #|  Main.make : (I64) -> ByteBuffer ! Io
       #|  Main.run : (() -> Unit ! Io) -> Unit ! Io
       #|compiler intrinsics:
-      #|  %wasm_abi_store_address : (Bytes, I64, I32) -> Bytes
+      #|  %byte_buffer_make : (I64) -> ByteBuffer ! Io
       #|runtime imports:
       #|  (none)
       #|buslane:
       #|  buslane {
       #|    metadata {
       #|      next_unique#4;
-      #|      value value#0 = "write"#0 value : (Bytes, I64, I32) -> Bytes;
+      #|      value value#0 = "make"#0 value : (I64) -> ByteBuffer ! Io;
       #|      value value#1 = "run"#1 function : (() -> Unit ! Io) -> Unit ! Io;
       #|      value value#2 = "action"#2 parameter : () -> Unit ! Io;
-      #|      value value#3 = "%wasm_abi_store_address"#3 external : (Bytes, I64, I32) -> Bytes;
+      #|      value value#3 = "%byte_buffer_make"#3 external : (I64) -> ByteBuffer ! Io;
       #|    }
       #|    external value#3
       #|    letrec {
@@ -411,7 +411,7 @@ test "external flavors roundtrip through artifacts and linking" {
     content=(
       #|Lane interface artifact
       #|module: Lib
-      #|schema: 14
+      #|schema: 15
       #|
       #|imported interfaces:
       #|  (none)
@@ -825,7 +825,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 14
+      #|schema: 15
       #|
       #|imported interfaces:
       #|  (none)
@@ -847,7 +847,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 26
+      #|schema: 27
       #|
       #|imported interfaces:
       #|  (none)
@@ -1144,7 +1144,7 @@ test "tuple signatures use safe nominal artifact presentation" {
     content=(
       #|Lane interface artifact
       #|module: Main
-      #|schema: 14
+      #|schema: 15
       #|
       #|imported interfaces:
       #|  Basic.Data.Tuple: sha256:b8cc828dc42a4df958a95aea3b3d1a2f0d7ba5b4ed5818057621e3c69bd99885

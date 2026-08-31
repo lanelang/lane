@@ -10,11 +10,12 @@ pub(all) enum PrimitiveType {
   Unit
   Byte
   Bytes
+  ByteBuffer
 } derive(Debug, Eq)
 
 ///|
 pub fn PrimitiveType::all() -> Array[PrimitiveType] {
-  [I64, I32, F64, F32, Bool, String, Char, Unit, Byte, Bytes]
+  [I64, I32, F64, F32, Bool, String, Char, Unit, Byte, Bytes, ByteBuffer]
 }
 
 ///|
@@ -30,6 +31,7 @@ pub fn PrimitiveType::name(self : PrimitiveType) -> String {
     Unit => "Unit"
     Byte => "Byte"
     Bytes => "Bytes"
+    ByteBuffer => "ByteBuffer"
   }
 }
 

@@ -273,7 +273,23 @@ fn @bytecodec.ByteReader::read_intrinsic(
     }
     [u8be(62), .. rest] => {
       self.update_view(rest)
-      WasmAbiStoreAddress
+      ByteBufferMake
+    }
+    [u8be(63), .. rest] => {
+      self.update_view(rest)
+      ByteBufferWriteBytes
+    }
+    [u8be(64), .. rest] => {
+      self.update_view(rest)
+      ByteBufferWriteI32
+    }
+    [u8be(65), .. rest] => {
+      self.update_view(rest)
+      ByteBufferWriteAddress
+    }
+    [u8be(66), .. rest] => {
+      self.update_view(rest)
+      ByteBufferReadI32
     }
     [u8be(tag), .. rest] => {
       self.update_view(rest)

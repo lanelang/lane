@@ -494,6 +494,7 @@ fn lower_primitive_type(
     Unit => Unit
     Byte => Byte
     Bytes => Bytes
+    ByteBuffer => ByteBuffer
   }
 }
 
