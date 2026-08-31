@@ -8,9 +8,7 @@ No ready issues.
 
 ## Unresolved Issues
 
-| ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
-| --- | --- | ---: | --- | --- | --- | --- | --- |
-| [ISS-426](ISS-426.md) | in_progress | 2 | task | codex | none | none | Certify guest-memory reachability and Wasm scale |
+No unresolved issues.
 
 ## Dependency Graph
 
