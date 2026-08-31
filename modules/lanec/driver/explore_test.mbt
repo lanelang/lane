@@ -264,6 +264,156 @@ test "explore protocol v11 exposes all eighteen ordered completed stages" {
 }
 
 ///|
+test "Explore records selective byte-buffer Wasm support" {
+  let scale_keys = [
+    "functionCount", "importCount", "instructionCount", "slotCount", "layoutCount",
+    "localCount", "unreachableWasmSupportRoleCount",
+  ]
+  let pure = explore(
+    explore_test_request(
+      (
+        #|module Pure
+        #|
+        #|pub fn main() -> Unit {
+        #|  ()
+        #|}
+      ),
+    ),
+  )
+  let pure_scales = pure.stages
+    .ordered()
+    .filter_map(stage => {
+      if stage.id != "physical" && stage.id != "wasm" {
+        return None
+      }
+      explore_stage_scale(stage).map(scale => {
+        (scale.0, scale.1.filter(metric => scale_keys.contains(metric.0)))
+      })
+    })
+  let pure_wasm_roles = pure.functions.nodes.filter_map(node => {
+    if node.function.stage == Wasm {
+      Some(node.roles)
+    } else {
+      None
+    }
+  })
+  let report = explore(
+    explore_test_request(
+      (
+        #|module Main
+        #|
+        #|let make : (I64) -> ByteBuffer ! Io = builtin("%byte_buffer_make")
+        #|let write : (ByteBuffer, I64, I32) -> Unit ! Io =
+        #|  builtin("%byte_buffer_write_i32")
+        #|let read : (ByteBuffer, I64) -> I32 ! Io =
+        #|  builtin("%byte_buffer_read_i32")
+        #|
+        #|pub fn main() -> Unit ! Io {
+        #|  let buffer = make(4)
+        #|  write(buffer, 0, 42i32)
+        #|  let _value = read(buffer, 0)
+        #|  ()
+        #|}
+      ),
+    ),
+  )
+  let scales = report.stages
+    .ordered()
+    .filter_map(stage => {
+      if stage.id != "physical" && stage.id != "wasm" {
+        return None
+      }
+      explore_stage_scale(stage).map(scale => {
+        (scale.0, scale.1.filter(metric => scale_keys.contains(metric.0)))
+      })
+    })
+  let wasm_roles = report.functions.nodes.filter_map(node => {
+    if node.function.stage == Wasm {
+      Some(node.roles)
+    } else {
+      None
+    }
+  })
+  debug_inspect(
+    (
+      pure.status,
+      pure_scales,
+      pure_wasm_roles,
+      report.status,
+      scales,
+      wasm_roles,
+    ),
+    content=(
+      #|(
+      #|  Succeeded,
+      #|  [
+      #|    (
+      #|      "physical",
+      #|      [
+      #|        ("functionCount", 1),
+      #|        ("importCount", 0),
+      #|        ("instructionCount", 0),
+      #|        ("slotCount", 0),
+      #|        ("layoutCount", 0),
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "wasm",
+      #|      [
+      #|        ("functionCount", 2),
+      #|        ("importCount", 0),
+      #|        ("instructionCount", 4),
+      #|        ("localCount", 0),
+      #|        ("unreachableWasmSupportRoleCount", 0),
+      #|      ],
+      #|    ),
+      #|  ],
+      #|  [[WasmPhysicalFunction], [EntryWrapper]],
+      #|  Succeeded,
+      #|  [
+      #|    (
+      #|      "physical",
+      #|      [
+      #|        ("functionCount", 1),
+      #|        ("importCount", 0),
+      #|        ("instructionCount", 7),
+      #|        ("slotCount", 3),
+      #|        ("layoutCount", 1),
+      #|      ],
+      #|    ),
+      #|    (
+      #|      "wasm",
+      #|      [
+      #|        ("functionCount", 14),
+      #|        ("importCount", 0),
+      #|        ("instructionCount", 344),
+      #|        ("localCount", 17),
+      #|        ("unreachableWasmSupportRoleCount", 0),
+      #|      ],
+      #|    ),
+      #|  ],
+      #|  [
+      #|    [WasmPhysicalFunction],
+      #|    [WasmRuntimeFunction(name="allocate")],
+      #|    [WasmRuntimeFunction(name="free")],
+      #|    [WasmRuntimeFunction(name="retain reference")],
+      #|    [WasmRuntimeFunction(name="release reference")],
+      #|    [WasmRuntimeFunction(name="byte buffer make")],
+      #|    [WasmRuntimeFunction(name="require byte buffer layout")],
+      #|    [WasmRuntimeFunction(name="byte buffer write i32")],
+      #|    [WasmRuntimeFunction(name="byte buffer read i32")],
+      #|    [WasmHelperFunction(name="retain reference erased", ordinal=None)],
+      #|    [WasmHelperFunction(name="release reference erased", ordinal=None)],
+      #|    [WasmHelperFunction(name="destroy noop", ordinal=None)],
+      #|    [WasmHelperFunction(name="byte storage sizer", ordinal=None)],
+      #|    [EntryWrapper],
+      #|  ],
+      #|)
+    ),
+  )
+}
+
+///|
 test "explore attributes link growth and effect-specialization cleanup" {
   let report = explore(
     explore_test_request(

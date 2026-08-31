@@ -462,6 +462,7 @@ fn WasmFunctionCatalog::validate(
 ) -> Unit raise WasmCompileError {
   let actual_layouts = wasm_runtime_layout_ids(image)
   if self.runtime_layouts.byte_sequence != actual_layouts.byte_sequence ||
+    self.runtime_layouts.byte_buffer != actual_layouts.byte_buffer ||
     self.runtime_layouts.reference != actual_layouts.reference {
     raise InvalidFunctionCatalog(
       detail="runtime layout identities differ from the physical layout table",

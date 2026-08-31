@@ -98,3 +98,83 @@ test "Wasm compilation records every function at its emission boundary" {
     }),
   )
 }
+
+///|
+test "Wasm compilation emits only required byte-buffer support" {
+  let scalar_i64 : @physical.SlotMetadata = {
+    representation: I64,
+    cleanup: Trivial,
+    kind: ScalarValue,
+    erased_companion: None,
+  }
+  let scalar_i32 : @physical.SlotMetadata = {
+    representation: I32,
+    cleanup: Trivial,
+    kind: ScalarValue,
+    erased_companion: None,
+  }
+  let buffer : @physical.SlotMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: ByteBufferValue,
+    erased_companion: None,
+  }
+  let image : @physical.PhysicalProgram = {
+    entry: { value: 1, },
+    initializer: None,
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
+    data_family_count: 0,
+    functions: [
+      PhysicalBody({
+        slots: [scalar_i64, buffer, scalar_i64, scalar_i32, scalar_i32],
+        inputs: { environment: None, witnesses: [], user_parameters: [], },
+        result: Unit,
+        blocks: [
+          {
+            parameters: [],
+            instructions: [
+              ConstI64({ value: 0, }, 4),
+              ByteBufferMake({ value: 1, }, { value: 0, }),
+              ConstI64({ value: 2, }, 0),
+              ConstI32({ value: 3, }, 42),
+              ByteBufferWriteI32({ value: 1, }, { value: 2, }, { value: 3, }),
+              ByteBufferReadI32({ value: 4, }, { value: 1, }, { value: 2, }),
+              Release({ value: 1, }),
+            ],
+            terminator: Return(None),
+          },
+        ],
+      }),
+    ],
+    globals: [],
+    layouts: [ByteBuffer],
+    object_shapes: [],
+    constants: [],
+  }
+  let observed = match compile_observed(certify_physical_program_test(image)) {
+    Ok(observed) => observed
+    Err(error) => fail("observed compile failed: \{Repr(error)}")
+  }
+  debug_inspect(
+    observed.functions.map(function => function.origin),
+    content=(
+      #|[
+      #|  PhysicalFunction(function={ value: 1 }),
+      #|  RuntimeFunction(Allocate),
+      #|  RuntimeFunction(Free),
+      #|  RuntimeFunction(RetainReference),
+      #|  RuntimeFunction(ReleaseReference),
+      #|  RuntimeFunction(ByteBufferMake),
+      #|  RuntimeFunction(RequireByteBufferLayout),
+      #|  RuntimeFunction(ByteBufferWriteI32),
+      #|  RuntimeFunction(ByteBufferReadI32),
+      #|  HelperFunction(RetainReferenceErased),
+      #|  HelperFunction(ReleaseReferenceErased),
+      #|  HelperFunction(DestroyNoop),
+      #|  HelperFunction(ByteStorageSizer),
+      #|  EntryWrapper,
+      #|]
+    ),
+  )
+  assert_eq(observed.scale.unreachable_support_role_count, 0)
+}

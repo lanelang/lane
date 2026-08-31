@@ -2476,6 +2476,15 @@
           "Lane functions without an effect annotation are pure"
         ]
       }
+    },
+    {
+      "name": "119 ByteBuffer roundtrip",
+      "file": "examples/valid/119_byte_buffer_roundtrip.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "buffer roundtrip"
+      }
     }
   ]
 }

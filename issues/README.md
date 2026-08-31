@@ -8,7 +8,9 @@ No ready issues.
 
 ## Unresolved Issues
 
-No unresolved issues.
+| ID | Status | Priority | Type | Assignee | Blocked by | Blocks | Title |
+| --- | --- | ---: | --- | --- | --- | --- | --- |
+| [ISS-426](ISS-426.md) | in_progress | 2 | task | codex | none | none | Certify guest-memory reachability and Wasm scale |
 
 ## Dependency Graph
 
@@ -439,6 +441,7 @@ graph TD
   ISS_423["ISS-423: Direct-call exact packed callable targets"]
   ISS_424["ISS-424: Remove mandatory logical call-depth instrumentation"]
   ISS_425["ISS-425: Complete conventional VM CFG cleanup"]
+  ISS_426["ISS-426: Certify guest-memory reachability and Wasm scale"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

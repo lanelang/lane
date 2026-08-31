@@ -150,3 +150,52 @@ test "function catalog rejects an omitted dependency before emission" {
     ),
   )
 }
+
+///|
+test "function catalog authenticates the byte-buffer layout identity" {
+  let image : @physical.PhysicalProgram = {
+    entry: { value: 1, },
+    initializer: None,
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
+    data_family_count: 0,
+    functions: [
+      PhysicalBody({
+        slots: [],
+        inputs: { environment: None, witnesses: [], user_parameters: [], },
+        result: Unit,
+        blocks: [
+          { parameters: [], instructions: [], terminator: Return(None), },
+        ],
+      }),
+    ],
+    globals: [],
+    layouts: [ByteBuffer],
+    object_shapes: [],
+    constants: [],
+  }
+  let verified = match @physical.verify_physical_program_for_execution(image) {
+    Ok(verified) => verified
+    Err(error) => fail("verification failed: \{Repr(error)}")
+  }
+  let module_ = @wasm_types.Module::empty()
+  let catalog = plan_wasm_function_catalog(
+    image,
+    verified.global_lifecycle(),
+    module_,
+  )
+  let invalid = {
+    ..catalog,
+    runtime_layouts: { ..catalog.runtime_layouts, byte_buffer: 0, },
+  }
+  debug_inspect(
+    try {
+      invalid.validate(image, verified.global_lifecycle(), module_)
+      Ok(())
+    } catch {
+      error => Err(error)
+    },
+    content=(
+      #|Err(InvalidFunctionCatalog(detail="runtime layout identities differ from the physical layout table"))
+    ),
+  )
+}
