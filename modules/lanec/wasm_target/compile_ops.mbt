@@ -957,14 +957,10 @@ fn compile_terminator(
         I32Const(frame),
         I32Const(1),
         I32Const(frame + 8),
-        function_catalog
-        .wasi_preview1(@wasm_abi.wasi_preview1_import("fd_write").unwrap())
-        .call(),
+        function_catalog.core_import(fatal_write_import_contract()).call(),
         Drop,
         I32Const(1),
-        function_catalog
-        .wasi_preview1(@wasm_abi.wasi_preview1_import("proc_exit").unwrap())
-        .call(),
+        function_catalog.core_import(process_exit_import_contract()).call(),
         Unreachable,
       ]
       instructions

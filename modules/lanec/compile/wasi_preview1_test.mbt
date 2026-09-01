@@ -18,6 +18,18 @@ fn compile_single_module_artifact(
 }
 
 ///|
+test "extern module namespaces and effects are library-owned" {
+  let outcome = check_source(
+    (
+      #|module Test
+      #|pub let extension : (I32) -> I64 ! Panic =
+      #|  extern("wasi_snapshot_preview1", "vendor_extension")
+    ),
+  )
+  assert_eq(outcome.diagnostics(), [])
+}
+
+///|
 test "selective WASI import does not require unrelated canonical ABI providers" {
   let abi = compile_single_module_artifact(
     "abi",

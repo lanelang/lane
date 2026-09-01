@@ -209,6 +209,41 @@ fn compile_test_image_observed(
 }
 
 ///|
+test "identical source and fatal imports share one Core Wasm function" {
+  let write : @wasm_abi.ImportContract = {
+    module_name: "wasi_snapshot_preview1",
+    field_name: "fd_write",
+    parameters: [Direct(I32), GuestAddress, Direct(I32), GuestAddress],
+    result: Direct(I32),
+  }
+  let entry = body(
+    slots=[owned_slot(I32, OwnedRef)],
+    instructions=[ConstString({ value: 0, }, { value: 0, })],
+    terminator=Fatal({ value: 0, }),
+  )
+  let observed = compile_test_image_observed({
+    ..image([PhysicalBody(entry), RuntimeImport(write)]),
+    layouts: [ByteSequence],
+    constants: [b"fatal"],
+  }).unwrap()
+  let imports = observed.functions.filter_map(function => {
+    match function.origin {
+      CoreImport(contract) => Some(contract)
+      _ => None
+    }
+  })
+  assert_eq(imports, [
+    write,
+    {
+      module_name: "wasi_snapshot_preview1",
+      field_name: "proc_exit",
+      parameters: [Direct(I32)],
+      result: Unit,
+    },
+  ])
+}
+
+///|
 fn edge(
   target : Int,
   arguments? : Array[@physical.SlotId] = [],

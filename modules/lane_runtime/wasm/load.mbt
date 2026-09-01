@@ -76,13 +76,6 @@ fn load_module(
       InvalidWasm(detail="Lane Wasm modules may only import functions"),
     )
   }
-  if !wasi_preview1_imports_match(wasm_module) {
-    return Err(
-      InvalidWasm(
-        detail="WASI Preview 1 imports do not match the canonical ABI",
-      ),
-    )
-  }
   if !lane_runtime_v1_imports_match(wasm_module) {
     return Err(
       InvalidWasm(
@@ -124,15 +117,6 @@ pub fn project_core_import_func_type(
     params: contract.core_parameters().map(core_value_type),
     results: contract.core_results().map(core_value_type),
   }
-}
-
-///|
-fn wasi_preview1_imports_match(wasm_module : @wasm_types.Module) -> Bool {
-  canonical_imports_match(
-    wasm_module,
-    "wasi_snapshot_preview1",
-    @wasm_abi.wasi_preview1_imports().map(import_ => import_.contract()),
-  )
 }
 
 ///|

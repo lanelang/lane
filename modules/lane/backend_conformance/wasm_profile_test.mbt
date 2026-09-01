@@ -156,62 +156,6 @@ fn wasm_export_kind(desc : @wasm_types.ExportDesc) -> String {
 }
 
 ///|
-fn wasi_preview1_wat_type(type_ : @wasm_abi.CoreValueType) -> String {
-  match type_ {
-    I32 => "i32"
-    I64 => "i64"
-    F32 => "f32"
-    F64 => "f64"
-  }
-}
-
-///|
-fn complete_wasi_preview1_probe() -> String {
-  let mut imports = ""
-  for import_ in @wasm_abi.wasi_preview1_imports() {
-    let contract = import_.contract()
-    let mut parameters = ""
-    for type_ in contract.core_parameters() {
-      parameters = parameters + " " + wasi_preview1_wat_type(type_)
-    }
-    let mut results = ""
-    for type_ in contract.core_results() {
-      results = results + " " + wasi_preview1_wat_type(type_)
-    }
-    let parameter_clause = if parameters == "" {
-      ""
-    } else {
-      " (param\{parameters})"
-    }
-    let result_clause = if results == "" { "" } else { " (result\{results})" }
-    imports = imports +
-      "  (import \"wasi_snapshot_preview1\" \"\{contract.field_name}\" (func\{parameter_clause}\{result_clause}))\n"
-  }
-  "(module\n\{imports}  (func (export \"_start\"))\n  (memory (export \"memory\") 1))"
-}
-
-///|
-test "Wasmoon resolves every canonical WASI Preview 1 import" {
-  let source = complete_wasi_preview1_probe()
-  for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
-    let loaded = match
-      @lane_wasm_runtime.load_wasm(encode_profile_probe(source), mode~) {
-      Ok(loaded) => loaded
-      Err(error) =>
-        fail("complete WASI Preview 1 probe did not load: \{Repr(error)}")
-    }
-    let instance = match loaded.new_instance() {
-      Ok(instance) => instance
-      Err(error) =>
-        fail(
-          "complete WASI Preview 1 probe did not instantiate: \{Repr(error)}",
-        )
-    }
-    assert_eq(instance.execute(), Ok(Returned))
-  }
-}
-
-///|
 test "WASI proc_exit remains distinct from normal return on both engines" {
   for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
     for status in [0, 7] {

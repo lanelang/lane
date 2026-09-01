@@ -9,16 +9,6 @@ pub impl @prettyprinter.Pretty for ExternTypeRestriction with fn pretty(
       text("direct_parameter_required[") + text(index.to_string()) + text("]")
     DirectResultRequired => text("direct_result_required")
     ExternalEffectRowRequired => text("external_effect_row_required")
-    UnknownWasiPreview1Import(field_name~) =>
-      text("unknown_wasi_preview1_import[") + text(field_name) + text("]")
-    WasiPreview1ContractMismatch(expected~) =>
-      text("wasi_preview1_contract_mismatch[") +
-      text(Repr(expected).to_string()) +
-      text("]")
-    WasiPreview1EffectRequired(expected~) =>
-      text("wasi_preview1_effect_required[") +
-      text(Repr(expected).to_string()) +
-      text("]")
     UnknownLaneRuntimeV1Import(field_name~) =>
       text("unknown_lane_runtime_v1_import[") + text(field_name) + text("]")
     LaneRuntimeV1ContractMismatch(expected~) =>

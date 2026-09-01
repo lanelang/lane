@@ -76,12 +76,6 @@ fn extern_type_restriction_message(
     DirectResultRequired => "extern results must use a direct host ABI type"
     ExternalEffectRowRequired =>
       "extern latent effects must be closed and contain only external effects"
-    UnknownWasiPreview1Import(field_name~) =>
-      "WASI Preview 1 has no supported import named `\{field_name}`"
-    WasiPreview1ContractMismatch(expected~) =>
-      "the declaration must use the canonical WASI core signature `\{Repr(expected.parameters)} -> \{Repr(expected.result)}`"
-    WasiPreview1EffectRequired(expected~) =>
-      "the declaration must use the canonical WASI `\{Repr(expected)}` effect"
     UnknownLaneRuntimeV1Import(field_name~) =>
       "Lane Runtime V1 has no supported import named `\{field_name}`"
     LaneRuntimeV1ContractMismatch(expected~) =>

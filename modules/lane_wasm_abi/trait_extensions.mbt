@@ -35,9 +35,6 @@ pub extend ImportContract with Debug::{to_repr}
 pub extend ImportContract with Eq::{not_equal, equal}
 
 ///|
-pub extend WasiPreview1Import with Debug::{to_repr}
-
-///|
 pub extend LaneRuntimeV1Import with Debug::{to_repr}
 
 ///|
@@ -74,10 +71,3 @@ pub extend RunCommandHostStatus with Debug::{to_repr}
 pub extend RunCommandHostStatus with Eq::{equal, not_equal}
 
 ///|
-pub extend WasiPreview1Import with Eq::{not_equal, equal}
-
-///|
-pub extend WasiPreview1Effect with Debug::{to_repr}
-
-///|
-pub extend WasiPreview1Effect with Eq::{not_equal, equal}

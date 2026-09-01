@@ -14,12 +14,6 @@ pub fn lane_runtime_v1_imports() -> Array[LaneRuntimeV1Import]
 
 pub fn run_command_response_size() -> Int
 
-pub fn wasi_preview1_contract(String) -> ImportContract?
-
-pub fn wasi_preview1_import(String) -> WasiPreview1Import?
-
-pub fn wasi_preview1_imports() -> Array[WasiPreview1Import]
-
 // Errors
 pub(all) suberror RunCommandFrameError {
   InvalidRunCommandFrame(detail~ : String)
@@ -62,7 +56,6 @@ pub fn ImportContract::op_le(Self, Self) -> Bool
 pub fn ImportContract::op_lt(Self, Self) -> Bool
 pub fn ImportContract::snapshot(Self) -> Self
 pub fn ImportContract::to_repr(Self) -> @debug.Repr
-pub fn ImportContract::wasi_preview1_import(Self) -> WasiPreview1Import?
 
 pub(all) enum ImportParameter {
   ErasedUnit
@@ -140,24 +133,6 @@ pub fn RunCommandTermination::equal(Self, Self) -> Bool
 pub fn RunCommandTermination::not_equal(Self, Self) -> Bool
 pub fn RunCommandTermination::response_words(Self) -> (Int, Int)
 pub fn RunCommandTermination::to_repr(Self) -> @debug.Repr
-
-pub(all) enum WasiPreview1Effect {
-  Io
-  Panic
-} derive(Eq, @debug.Debug)
-pub fn WasiPreview1Effect::equal(Self, Self) -> Bool
-pub fn WasiPreview1Effect::not_equal(Self, Self) -> Bool
-pub fn WasiPreview1Effect::to_repr(Self) -> @debug.Repr
-
-pub struct WasiPreview1Import {
-  // private fields
-} derive(Eq, @debug.Debug)
-pub fn WasiPreview1Import::contract(Self) -> ImportContract
-pub fn WasiPreview1Import::effect(Self) -> WasiPreview1Effect
-pub fn WasiPreview1Import::equal(Self, Self) -> Bool
-pub fn WasiPreview1Import::field_name(Self) -> String
-pub fn WasiPreview1Import::not_equal(Self, Self) -> Bool
-pub fn WasiPreview1Import::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

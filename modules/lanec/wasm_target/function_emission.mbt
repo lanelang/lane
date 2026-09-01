@@ -49,12 +49,7 @@ pub(all) enum WasmBuiltinFunctionRole {
 ///|
 pub(all) enum WasmFunctionOrigin {
   BuiltinFunction(WasmBuiltinFunctionRole)
-  WasiPreview1Import(@wasm_abi.WasiPreview1Import)
-  PhysicalRuntimeImport(
-    function~ : @physical.FunctionId,
-    module_name~ : String,
-    field_name~ : String
-  )
+  CoreImport(@wasm_abi.ImportContract)
   PhysicalFunction(function~ : @physical.FunctionId)
   RuntimeImportAdapter(
     function~ : @physical.FunctionId,

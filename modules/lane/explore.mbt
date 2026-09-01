@@ -304,10 +304,8 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
       "runtime import \{module_name}.\{field_name} for \{source}"
     }
     WasmBuiltinFunction(name~) => "Wasm builtin function \{name}"
-    WasiPreview1Import(module_name~, field_name~) =>
-      "WASI Preview 1 import \{module_name}.\{field_name}"
-    PhysicalRuntimeImport(module_name~, field_name~) =>
-      "physical runtime import \{module_name}.\{field_name}"
+    CoreImport(module_name~, field_name~) =>
+      "Core Wasm import \{module_name}.\{field_name}"
     WasmPhysicalFunction => "WebAssembly body for physical function"
     RuntimeImportAdapter(module_name~, field_name~) =>
       "runtime import adapter \{module_name}.\{field_name}"

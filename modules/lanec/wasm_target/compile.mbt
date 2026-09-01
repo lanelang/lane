@@ -127,7 +127,7 @@ fn compile_or_raise(
               },
               EntryLifecycle,
             )
-          WasiPreview1Import(_) | PhysicalRuntimeImport(_) =>
+          CoreImport(_) =>
             raise InvalidFunctionCatalog(
               detail="catalog import was classified as a definition",
             )

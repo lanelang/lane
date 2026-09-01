@@ -1,4 +1,0 @@
-module Examples.Invalid116
-
-// A WASI declaration must use the standardized parameter list exactly.
-let fd_write : (I32, I32, I32) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")

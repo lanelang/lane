@@ -173,11 +173,11 @@ fn require_physical_terminator_dependencies(
     Fatal(_) => {
       require_wasm_function(
         dependencies,
-        WasiPreview1Import(@wasm_abi.wasi_preview1_import("fd_write").unwrap()),
+        CoreImport(fatal_write_import_contract()),
       )
       require_wasm_function(
         dependencies,
-        WasiPreview1Import(@wasm_abi.wasi_preview1_import("proc_exit").unwrap()),
+        CoreImport(process_exit_import_contract()),
       )
     }
     _ => ()
@@ -206,24 +206,6 @@ fn physical_body_dependencies(
     )
   }
   dependencies
-}
-
-///|
-fn runtime_import_adapter_dependencies(
-  function : @physical.FunctionId,
-  import_ : @wasm_abi.ImportContract,
-) -> Array[WasmFunctionOrigin] {
-  match import_.wasi_preview1_import() {
-    Some(import_) => [WasiPreview1Import(import_)]
-    None =>
-      [
-        PhysicalRuntimeImport(
-          function~,
-          module_name=import_.module_name,
-          field_name=import_.field_name,
-        ),
-      ]
-  }
 }
 
 ///|
@@ -328,7 +310,7 @@ fn wasm_function_dependencies(
   origin : WasmFunctionOrigin,
 ) -> Array[WasmFunctionOrigin] raise WasmCompileError {
   match origin {
-    WasiPreview1Import(_) => []
+    CoreImport(_) => []
     BuiltinFunction(FormatF32) =>
       [BuiltinFunction(FloatMemcpy), BuiltinFunction(CanonicalizeFloatText)]
     BuiltinFunction(FormatF64) =>
@@ -340,14 +322,6 @@ fn wasm_function_dependencies(
     BuiltinFunction(FloatMemcpy)
     | BuiltinFunction(CanonicalizeFloatText)
     | BuiltinFunction(FloatMulShift) => []
-    PhysicalRuntimeImport(function~, ..) =>
-      match image.functions[function.value - 1] {
-        RuntimeImport(_) => []
-        PhysicalBody(_) =>
-          raise InvalidFunctionCatalog(
-            detail="physical import requirement names a physical body",
-          )
-      }
     PhysicalFunction(function~) =>
       match image.functions[function.value - 1] {
         PhysicalBody(body) => physical_body_dependencies(image, body)
@@ -358,8 +332,7 @@ fn wasm_function_dependencies(
       }
     RuntimeImportAdapter(function~, ..) =>
       match image.functions[function.value - 1] {
-        RuntimeImport(import_) =>
-          runtime_import_adapter_dependencies(function, import_)
+        RuntimeImport(import_) => [CoreImport(import_)]
         PhysicalBody(_) =>
           raise InvalidFunctionCatalog(
             detail="runtime adapter requirement names a physical body",

@@ -170,7 +170,12 @@ fn assert_effect_erased_host_boundary(
     }
   }
   assert_eq(imports, [
-    @wasm_abi.wasi_preview1_import("fd_write").unwrap().contract(),
+    {
+      module_name: "wasi_snapshot_preview1",
+      field_name: "fd_write",
+      parameters: [Direct(I32), GuestAddress, Direct(I32), GuestAddress],
+      result: Direct(I32),
+    },
   ])
   let adapter_bodies = image.functions.filter_map(function => {
     if function is PhysicalBody(body) &&

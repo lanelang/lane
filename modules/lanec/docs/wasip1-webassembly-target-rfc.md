@@ -104,10 +104,11 @@ WASI result.
 
 ### WASI imports
 
-WASI Preview 1 owns the module name, field name, and physical core-Wasm type of
-every system import. The compiler maintains one checked WASI catalog derived
-from that standard. Planning, emission, and validation consume the catalog;
-they do not independently restate individual signatures.
+WASI Preview 1 owns the standardized module names, field names, and physical
+core-Wasm types. Basic is the Lane binding for that standard. The compiler does
+not mirror the WASI surface in a target catalog or interpret individual WASI
+operations; it lowers every raw `extern` from its complete structural import
+contract.
 
 Basic facilities such as console output are ordinary Lane functions built on
 the narrow WASI primitives they need. For example, `println` is implemented
@@ -123,11 +124,11 @@ one or more `ByteBuffer` values. The canonical `WasmAddress` value is
 `{ storage : ByteBuffer; offset : I32 }`. Neither Basic nor user source can
 extract its raw `i32` pointer.
 
-The source-facing import contract records a `GuestAddress` parameter; the WASI
-catalog also owns its deterministic core-contract projection to `i32`. Physical
-Lowering carries the buffer and offset together as one structured import-call
-operand; the WebAssembly emitter checks the buffer layout and bounds, computes
-the payload address, and immediately performs the synchronous import call.
+The source-facing import contract records a `GuestAddress` parameter and owns
+its deterministic core-contract projection to `i32`. Physical Lowering carries
+the buffer and offset together as one structured import-call operand; the
+WebAssembly emitter checks the buffer layout and bounds, computes the payload
+address, and immediately performs the synchronous import call.
 The call operand itself is the use that keeps the buffer live. There is no
 standalone address-producing opcode, lifetime marker, relocation pass, or
 operation-specific `fd_write` compiler intrinsic. A host import must not retain
@@ -153,9 +154,11 @@ Bytes, other nominal data, generic values, closures, layout witnesses, and
 host-language objects do not cross this seam implicitly. A library must expose
 an explicit scalar or frame-based guest-memory protocol for richer values.
 
-WASI declarations use the same syntax but are certified against the canonical
-WASI catalog rather than trusted as arbitrary user declarations. A mismatched
-module, field, or function type is a compile-time error.
+WASI declarations use exactly the same syntax and lowering as imports for any
+other core-Wasm platform. Their standard signatures and source effects belong
+to the binding library. At instantiation, the selected host must provide a
+matching core-Wasm import; the ordinary WebAssembly linker/type checks enforce
+that boundary without a compiler-owned namespace whitelist.
 
 ### Host resources
 
@@ -198,8 +201,7 @@ panic channel from a private import, export, tag, or global.
 Deterministic F32/F64 shortest-round-trip formatting is also guest code. The
 compiler statically emits the reachable Ryū-derived Wasm functions and their
 tables; `%f32_to_string` and `%f64_to_string` introduce no host import. Together
-with the canonical WASI catalog, this keeps the module import section the only
-host-contract owner.
+This keeps the module import section the only emitted host-contract owner.
 
 ## Artifact and build consequences
 
@@ -219,7 +221,9 @@ registry fallback, alternate runtime adapter, or silent feature downgrade.
 The target architecture has the following single owners:
 
 - the Lane WebAssembly Profile owns the permitted and required Wasm features;
-- the WASI catalog owns standardized import identities and function types;
+- platform binding libraries own their source declarations and effect choices;
+- the structural Core Wasm Import Contract owns each emitted import identity
+  and function type;
 - the Canonical Basic ABI owns the exact `WasmAddress` source identity and
   shape;
 - the Runtime ANF and Physical Program own `ByteBuffer` as a distinct mutable
@@ -244,16 +248,16 @@ runtime is actually supported.
 The migration is intentionally ordered so each step replaces an owner instead
 of layering another adapter over the current runtime.
 
-1. **Freeze the target contract.** Add the feature-profile and WASI catalog
-   owners, plus black-box feature probes executed through both Wasmoon modes.
+1. **Freeze the target contract.** Add the feature-profile owner and black-box
+   feature probes executed through both Wasmoon modes.
 2. **Make the Physical Program Wasm-specific.** Replace remaining generic VM
    terminology and runtime-import shapes with explicit Wasm call, memory, and
    import contracts. Preserve its verifier as the last compiler trust seam.
-3. **Introduce the WASI module entry.** Emit `_start`, `memory`, and canonical
-   Preview 1 imports. Move Basic output onto the narrow guest-memory/WASI seam.
+3. **Introduce the WASI module entry.** Emit `_start` and `memory`, and move
+   Basic output onto the narrow guest-memory/WASI seam.
 4. **Introduce direct core-Wasm externs.** Change source and interface syntax
-   to `extern("module", "value")`, restrict its value universe, and certify
-   WASI imports through the canonical catalog.
+   to `extern("module", "value")` and restrict its value universe. Platform
+   libraries, not the compiler, define standardized import surfaces.
 5. **Delete the semantic host runtime.** Remove the runtime manifest, Runtime
    Registry, Runtime Value Kinds, runtime services, Opaque Host Object Table,
    and `lane.runtime.v1`. Keep the standard `_start` and `memory` exports.

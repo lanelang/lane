@@ -61,10 +61,13 @@ test "Wasm compilation records every function at its emission boundary" {
       #|[
       #|  {
       #|    index: 0,
-      #|    origin: PhysicalRuntimeImport(
-      #|      function={ value: 2 },
-      #|      module_name="lane.test",
-      #|      field_name="lane.test.observe",
+      #|    origin: CoreImport(
+      #|      {
+      #|        module_name: "lane.test",
+      #|        field_name: "lane.test.observe",
+      #|        parameters: [],
+      #|        result: Unit,
+      #|      },
       #|    ),
       #|  },
       #|  { index: 1, origin: PhysicalFunction(function={ value: 1 }) },

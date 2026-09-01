@@ -193,9 +193,8 @@ fn @wasm_compiler.WasmFunctionOrigin::physical_function(
   self : @wasm_compiler.WasmFunctionOrigin,
 ) -> @physical.FunctionId? {
   match self {
-    PhysicalRuntimeImport(function~, ..)
-    | PhysicalFunction(function~)
-    | RuntimeImportAdapter(function~, ..) => Some(function)
+    PhysicalFunction(function~) | RuntimeImportAdapter(function~, ..) =>
+      Some(function)
     _ => None
   }
 }
@@ -213,15 +212,11 @@ fn wasm_role(origin : @wasm_compiler.WasmFunctionOrigin) -> ExploreFunctionRole 
           FloatMulShift => "float_mul_shift"
         },
       )
-    WasiPreview1Import(import_) => {
-      let contract = import_.contract()
-      WasiPreview1Import(
+    CoreImport(contract) =>
+      CoreImport(
         module_name=contract.module_name,
         field_name=contract.field_name,
       )
-    }
-    PhysicalRuntimeImport(module_name~, field_name~, ..) =>
-      PhysicalRuntimeImport(module_name~, field_name~)
     PhysicalFunction(_) => WasmPhysicalFunction
     RuntimeImportAdapter(module_name~, field_name~, ..) =>
       RuntimeImportAdapter(module_name~, field_name~)

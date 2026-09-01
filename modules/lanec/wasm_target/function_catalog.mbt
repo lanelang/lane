@@ -240,16 +240,15 @@ fn WasmFunctionCatalog::add_entry(
 }
 
 ///|
-fn WasmFunctionCatalog::declare_wasi_preview1_import(
+fn WasmFunctionCatalog::declare_core_import(
   self : WasmFunctionCatalog,
   wasm_module : @wasm_types.Module,
-  import_ : @wasm_abi.WasiPreview1Import,
+  contract : @wasm_abi.ImportContract,
 ) -> Unit raise WasmCompileError {
-  let contract = import_.contract()
   ignore(
     self.add_entry(
       wasm_module,
-      WasiPreview1Import(import_),
+      CoreImport(contract),
       wasm_function_type(
         contract.core_parameters().map(core_value_type),
         contract.core_results().map(core_value_type),
@@ -328,11 +327,11 @@ fn WasmFunctionCatalog::helper(
 }
 
 ///|
-fn WasmFunctionCatalog::wasi_preview1(
+fn WasmFunctionCatalog::core_import(
   self : WasmFunctionCatalog,
-  import_ : @wasm_abi.WasiPreview1Import,
+  contract : @wasm_abi.ImportContract,
 ) -> WasmFunctionHandle {
-  self.require(WasiPreview1Import(import_))
+  self.require(CoreImport(contract))
 }
 
 ///|
@@ -408,31 +407,11 @@ fn expected_function_type(
     BuiltinFunction(FormatF64) => wasm_function_type([F64, I32], [I32])
     BuiltinFunction(FloatMulShift) =>
       wasm_function_type([I64, I32, I32, I32, I32, I32], [I64])
-    WasiPreview1Import(import_) => {
-      let contract = import_.contract()
+    CoreImport(contract) =>
       wasm_function_type(
         contract.core_parameters().map(core_value_type),
         contract.core_results().map(core_value_type),
       )
-    }
-    PhysicalRuntimeImport(function~, ..) => {
-      if function.value <= 0 || function.value > image.functions.length() {
-        raise InvalidFunctionCatalog(
-          detail="physical import role has an invalid FunctionId",
-        )
-      }
-      let import_ = match image.functions[function.value - 1] {
-        RuntimeImport(import_) => import_
-        PhysicalBody(_) =>
-          raise InvalidFunctionCatalog(
-            detail="physical import role names a physical body",
-          )
-      }
-      wasm_function_type(
-        physical_runtime_parameters(import_),
-        runtime_results(import_),
-      )
-    }
     PhysicalFunction(function~) | RuntimeImportAdapter(function~, ..) => {
       if function.value <= 0 || function.value > image.functions.length() {
         raise InvalidFunctionCatalog(
@@ -576,16 +555,7 @@ fn WasmFunctionCatalog::validate(
             detail="physical function mapping is inconsistent",
           )
         }
-      RuntimeImport(import_) => {
-        let import_origin = match import_.wasi_preview1_import() {
-          Some(import_) => WasiPreview1Import(import_)
-          None =>
-            PhysicalRuntimeImport(
-              function~,
-              module_name=import_.module_name,
-              field_name=import_.field_name,
-            )
-        }
+      RuntimeImport(import_) =>
         if self.entry(handle).origin !=
           RuntimeImportAdapter(
             function~,
@@ -594,12 +564,11 @@ fn WasmFunctionCatalog::validate(
           ) ||
           self.physical_imports[index] is None ||
           self.entry(self.physical_imports[index].unwrap()).origin !=
-          import_origin {
+          CoreImport(import_) {
           raise InvalidFunctionCatalog(
             detail="runtime import mapping is inconsistent",
           )
         }
-      }
     }
   }
   let cleanup = self.find(RuntimeFunction(InstanceGlobalCleanup))
@@ -652,37 +621,16 @@ fn plan_wasm_function_catalog(
   let requirements = plan_wasm_function_requirements(image, global_lifecycle)
   let runtime_layouts = wasm_runtime_layout_ids(image)
   let catalog = WasmFunctionCatalog::new(image, requirements, runtime_layouts)
-  for import_ in @wasm_abi.wasi_preview1_imports() {
-    if catalog.requires(WasiPreview1Import(import_)) {
-      catalog.declare_wasi_preview1_import(wasm_module, import_)
+  for origin in catalog.required {
+    if origin is CoreImport(contract) {
+      catalog.declare_core_import(wasm_module, contract)
     }
   }
   for index, entry in image.functions {
     if entry is RuntimeImport(import_) {
-      let function : @physical.FunctionId = { value: index + 1, }
-      if import_.wasi_preview1_import() is Some(wasi_import) {
-        catalog.physical_imports[index] = Some(
-          catalog.require(WasiPreview1Import(wasi_import)),
-        )
-        continue
-      }
-      let origin = PhysicalRuntimeImport(
-        function~,
-        module_name=import_.module_name,
-        field_name=import_.field_name,
+      catalog.physical_imports[index] = Some(
+        catalog.require(CoreImport(import_)),
       )
-      guard catalog.requires(origin) else { continue }
-      let handle = catalog.add_entry(
-        wasm_module,
-        origin,
-        wasm_function_type(
-          physical_runtime_parameters(import_),
-          runtime_results(import_),
-        ),
-        Import(module_name=import_.module_name, name=import_.field_name),
-        false,
-      )
-      catalog.physical_imports[index] = Some(handle)
     }
   }
   let address_taken = address_taken_functions(image)

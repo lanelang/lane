@@ -2462,19 +2462,6 @@
       }
     },
     {
-      "name": "invalid 116 WASI fd_write signature mismatch",
-      "file": "examples/invalid/116_wasi_fd_write_signature_mismatch.lane",
-      "mode": "check-error",
-      "expect": {
-        "diagnostics": { "errors": 1, "warnings": 0 },
-        "contains": [
-          "error[E3029]",
-          "extern `wasi_snapshot_preview1.fd_write` has an unsupported type",
-          "the declaration must use the canonical WASI core signature"
-        ]
-      }
-    },
-    {
       "name": "117 scalar-replaced local aggregate",
       "file": "examples/valid/117_scalar_replaced_local_aggregate.lane",
       "mode": "run",
