@@ -35,8 +35,10 @@ _Avoid_: Wasmoon callback registration, Basic function type
 The versioned non-WASI host capability catalog implemented by the Lane Command
 execution target. Its first operation is the synchronous
 `lane_runtime_v1.run_command` import. The catalog owns the exact Core Wasm
-contract and the guest-memory request frame; the compiler, Basic wrapper, and
-host adapter do not redefine its semantics.
+contract and normative wire semantics. Basic implements the guest encoder and
+the host uses the catalog decoder; neither endpoint may infer or alter the
+protocol. Runtime adapters derive host registration and response projection
+from the catalog rather than restating those facts.
 _Avoid_: compiler intrinsic, shell command string, Wasmoon-specific callback
 
 **Run Command Request Frame**:

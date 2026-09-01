@@ -117,6 +117,7 @@ pub(all) enum RunCommandHostStatus {
 pub fn RunCommandHostStatus::equal(Self, Self) -> Bool
 pub fn RunCommandHostStatus::not_equal(Self, Self) -> Bool
 pub fn RunCommandHostStatus::to_repr(Self) -> @debug.Repr
+pub fn RunCommandHostStatus::wire_code(Self) -> Int
 
 pub(all) struct RunCommandRequest {
   executable : String
@@ -135,6 +136,7 @@ pub(all) enum RunCommandTermination {
 } derive(Eq, @debug.Debug)
 pub fn RunCommandTermination::equal(Self, Self) -> Bool
 pub fn RunCommandTermination::not_equal(Self, Self) -> Bool
+pub fn RunCommandTermination::response_words(Self) -> (Int, Int)
 pub fn RunCommandTermination::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WasiPreview1Import {

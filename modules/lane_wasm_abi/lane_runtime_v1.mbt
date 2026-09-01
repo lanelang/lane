@@ -70,6 +70,27 @@ pub(all) enum RunCommandHostStatus {
 } derive(Debug, Eq)
 
 ///|
+pub fn RunCommandHostStatus::wire_code(self : RunCommandHostStatus) -> Int {
+  match self {
+    Succeeded => 0
+    InvalidRequest => 1
+    ExecutableNotFound => 2
+    PermissionDenied => 3
+    SystemFailure => 4
+  }
+}
+
+///|
+pub fn RunCommandTermination::response_words(
+  self : RunCommandTermination,
+) -> (Int, Int) {
+  match self {
+    Exited(code~) => (0, code)
+    Signaled(signal~) => (1, signal)
+  }
+}
+
+///|
 pub fn run_command_response_size() -> Int {
   8
 }

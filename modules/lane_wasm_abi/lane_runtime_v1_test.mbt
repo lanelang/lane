@@ -43,6 +43,25 @@ test "Lane Runtime V1 catalog owns the run-command contract" {
 }
 
 ///|
+test "Lane Runtime V1 catalog owns run-command result projection" {
+  debug_inspect(
+    (
+      [
+        RunCommandHostStatus::Succeeded,
+        InvalidRequest,
+        ExecutableNotFound,
+        PermissionDenied,
+        SystemFailure,
+      ].map(RunCommandHostStatus::wire_code),
+      [RunCommandTermination::Exited(code=7), Signaled(signal=9)].map(
+        RunCommandTermination::response_words,
+      ),
+    ),
+    content="([0, 1, 2, 3, 4], [(0, 7), (1, 9)])",
+  )
+}
+
+///|
 test "run-command request frame decodes structured process input" {
   assert_eq(
     decode_run_command_request(run_command_fixture()),

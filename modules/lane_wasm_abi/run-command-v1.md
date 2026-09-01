@@ -4,6 +4,10 @@
 It executes an executable directly with a structured argument vector. It never
 parses a shell command and never invokes a shell implicitly.
 
+The Basic wrapper is the guest-side encoder for this protocol. Runtime hosts
+consume the catalog decoder and wire projections; they do not independently
+choose import identities, function types, status codes, or response tags.
+
 Its source-facing Lane contract is:
 
 ```lane

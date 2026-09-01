@@ -3,6 +3,7 @@ package "Milky2018/lane_runtime/wasm"
 
 import {
   "Milky2018/lane_runtime",
+  "Milky2018/lane_wasm_abi",
   "Milky2018/wasm_core/types",
   "Milky2018/wasmoon/runtime",
   "moonbitlang/core/debug",
@@ -10,6 +11,8 @@ import {
 
 // Values
 pub fn load_wasm(Bytes, mode? : ExecutionMode, wasi_stdout? : ((Bytes) -> Unit)?, wasi_stderr? : ((Bytes) -> Unit)?, configure_host? : (@runtime.Linker) -> Unit raise @runtime.RuntimeError) -> Result[LoadedImage, WasmLoadError]
+
+pub fn project_core_import_func_type(@lane_wasm_abi.ImportContract) -> @types.FuncType
 
 // Errors
 pub(all) suberror WasmLoadError {

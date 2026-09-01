@@ -117,6 +117,16 @@ fn core_value_type(type_ : @wasm_abi.CoreValueType) -> @wasm_types.ValueType {
 }
 
 ///|
+pub fn project_core_import_func_type(
+  contract : @wasm_abi.ImportContract,
+) -> @wasm_types.FuncType {
+  {
+    params: contract.core_parameters().map(core_value_type),
+    results: contract.core_results().map(core_value_type),
+  }
+}
+
+///|
 fn wasi_preview1_imports_match(wasm_module : @wasm_types.Module) -> Bool {
   canonical_imports_match(
     wasm_module,
@@ -155,10 +165,7 @@ fn canonical_imports_match(
       return false
     }
     let contract = canonical[index]
-    let expected : @wasm_types.FuncType = {
-      params: contract.core_parameters().map(core_value_type),
-      results: contract.core_results().map(core_value_type),
-    }
+    let expected = project_core_import_func_type(contract)
     if wasm_module.validated_func_type_at(type_index) != expected {
       return false
     }

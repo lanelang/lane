@@ -30,6 +30,12 @@ An embedding callback that adds implementations for non-WASI core Wasm imports
 to the Wasmoon Linker before instantiation. Wasmoon owns signature matching.
 _Avoid_: Runtime Registry, per-call symbol lookup
 
+**Core Import Type Projection**:
+The sole adapter from a canonical Core Wasm Import Contract to Wasmoon's
+function-type representation. Loader validation and host registration consume
+the same projection.
+_Avoid_: handwritten host signature, backend-specific import catalog
+
 **Lane Runtime V1 Host**:
 The Lane Command adapter implementing the canonical non-WASI
 `lane_runtime_v1` import catalog. `run_command` decodes the catalog-owned guest
