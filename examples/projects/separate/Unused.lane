@@ -1,0 +1,5 @@
+module Examples.Projects.Separate.Unused
+
+pub struct Noise {
+  value : I64
+}

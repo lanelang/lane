@@ -1,0 +1,8 @@
+module Examples.Invalid.PanicRequiresEffect
+
+import Basic.Data.Void.{ absurd }
+import Basic.Io.{ panic }
+
+pub fn answer() -> Unit {
+  absurd[Unit](panic("panic is effectful"))
+}

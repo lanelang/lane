@@ -31,6 +31,13 @@ enum FixtureCase {
     entry~ : String,
     expectation~ : FixtureExpectation
   )
+  RunErrorCase(
+    name~ : String,
+    file~ : String,
+    entry~ : String,
+    exit_code~ : Int,
+    expectation~ : FixtureExpectation
+  )
 }
 
 struct LaneRunResult {
@@ -52,6 +59,7 @@ enum FixtureMode {
   CheckSuccess
   CheckError
   RunEntry
+  RunError
 } derive(Eq)
 
 async fn main raise {
@@ -220,18 +228,27 @@ fn decode_case(json : Json, path : String) -> FixtureCase {
       match decode_mode(json, path + ".mode") {
         CheckSuccess => {
           reject_entry_field(json, path)
+          reject_exit_field(json, path)
           reject_expect_field(json, path)
           CheckSuccessCase(name~, file~)
         }
         CheckError => {
           reject_entry_field(json, path)
+          reject_exit_field(json, path)
           let expectation = decode_required_expectation(json, path)
           CheckErrorCase(name~, file~, expectation~)
         }
         RunEntry => {
+          reject_exit_field(json, path)
           let entry = decode_required_entry(json, path)
           let expectation = decode_required_expectation(json, path)
           RunCase(name~, file~, entry~, expectation~)
+        }
+        RunError => {
+          let entry = decode_required_entry(json, path)
+          let exit_code = decode_required_exit_code(json, path)
+          let expectation = decode_required_expectation(json, path)
+          RunErrorCase(name~, file~, entry~, exit_code~, expectation~)
         }
       }
     _ =>
@@ -249,7 +266,12 @@ fn decode_mode(json : Json, path : String) -> FixtureMode {
         "check" => CheckSuccess
         "check-error" => CheckError
         "run" => RunEntry
-        _ => abort(path + " must be \"check\", \"check-error\", or \"run\"")
+        "run-error" => RunError
+        _ =>
+          abort(
+            path +
+            " must be \"check\", \"check-error\", \"run\", or \"run-error\"",
+          )
       }
     _ => abort(path + " is required")
   }
@@ -258,6 +280,12 @@ fn decode_mode(json : Json, path : String) -> FixtureMode {
 fn reject_entry_field(json : Json, path : String) -> Unit {
   if json is { "entry": _, .. } {
     abort(path + ".entry is only valid for run cases")
+  }
+}
+
+fn reject_exit_field(json : Json, path : String) -> Unit {
+  if json is { "exit": _, .. } {
+    abort(path + ".exit is only valid for run-error cases")
   }
 }
 
@@ -272,6 +300,20 @@ fn decode_required_entry(json : Json, path : String) -> String {
     { "entry": String(entry), .. } => entry
     { "entry": _, .. } => abort(path + ".entry must be a JSON string")
     _ => abort(path + ".entry is required for run cases")
+  }
+}
+
+fn decode_required_exit_code(json : Json, path : String) -> Int {
+  match json {
+    { "exit": Number(exit_code, ..), .. } => {
+      let exit_code = exit_code.to_int()
+      if exit_code == 0 {
+        abort(path + ".exit must be nonzero for run-error cases")
+      }
+      exit_code
+    }
+    { "exit": _, .. } => abort(path + ".exit must be a JSON integer")
+    _ => abort(path + ".exit is required for run-error cases")
   }
 }
 
@@ -351,7 +393,7 @@ async fn run_lane(case : FixtureCase) -> LaneRunResult {
   match case {
     CheckSuccessCase(..) | CheckErrorCase(..) =>
       return { code: check_code, output: check_output }
-    RunCase(entry~, ..) => {
+    RunCase(entry~, ..) | RunErrorCase(entry~, ..) => {
       let args = ["run", file + ":" + entry]
       let (code, output) = run_lane_process(args)
       return { code, output: output.text().trim_end(chars="\n\r").to_owned() }
@@ -364,6 +406,7 @@ fn FixtureCase::name(self : FixtureCase) -> String {
     CheckSuccessCase(name~, ..) => name
     CheckErrorCase(name~, ..) => name
     RunCase(name~, ..) => name
+    RunErrorCase(name~, ..) => name
   }
 }
 
@@ -372,12 +415,15 @@ fn FixtureCase::file(self : FixtureCase) -> String {
     CheckSuccessCase(file~, ..) => file
     CheckErrorCase(file~, ..) => file
     RunCase(file~, ..) => file
+    RunErrorCase(file~, ..) => file
   }
 }
 
 fn FixtureCase::print_entry(self : FixtureCase) -> Unit {
-  if self is RunCase(entry~, ..) {
-    println("  entry: " + entry)
+  match self {
+    RunCase(entry~, ..) | RunErrorCase(entry~, ..) =>
+      println("  entry: " + entry)
+    _ => ()
   }
 }
 
@@ -386,6 +432,10 @@ fn FixtureCase::print_expectation(self : FixtureCase) -> Unit {
     CheckSuccessCase(..) => println("  expected: successful format and check")
     CheckErrorCase(expectation~, ..) => print_expectation(expectation)
     RunCase(expectation~, ..) => print_expectation(expectation)
+    RunErrorCase(exit_code~, expectation~, ..) => {
+      println("  expected exit: " + exit_code.to_string())
+      print_expectation(expectation)
+    }
   }
 }
 
@@ -399,6 +449,8 @@ fn FixtureCase::matches_result(
       result.code != 0 && matches_expectation(result.output, expectation)
     RunCase(expectation~, ..) =>
       result.code == 0 && matches_expectation(result.output, expectation)
+    RunErrorCase(exit_code~, expectation~, ..) =>
+      result.code == exit_code && matches_expectation(result.output, expectation)
   }
 }
 
@@ -407,104 +459,55 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   if !@fs.path_exists(workspace) {
     @fs.create_dir(workspace)
   }
-  let a_path = workspace + "/a.lane"
-  let extra_path = workspace + "/extra.lane"
-  let b_path = workspace + "/b.lane"
-  let c_path = workspace + "/c.lane"
-  @fs.write_string_to_file(
-    a_path,
-    (
-      #|module A
-      #|
-      #|pub struct Box {
-      #|  value : I64
-      #|}
-      #|
-      #|pub let box : Box = Box::{ value: 42 }
-    ),
-  )
-  @fs.write_string_to_file(
-    extra_path,
-    (
-      #|module Extra
-      #|
-      #|pub struct Noise {
-      #|  value : I64
-      #|}
-    ),
-  )
-  @fs.write_string_to_file(
-    b_path,
-    (
-      #|module B
-      #|
-      #|import A.*
-      #|
-      #|pub let forwarded : Box = box
-    ),
-  )
-  @fs.write_string_to_file(
-    c_path,
-    (
-      #|module C
-      #|
-      #|import A.*
-      #|
-      #|import B.*
-      #|
-      #|fn ignore_i64(_value : I64) -> Unit {
-      #|  ()
-      #|}
-      #|
-      #|pub fn main() -> Unit {
-      #|  ignore_i64(forwarded.value)
-      #|}
-    ),
-  )
-  let a_interface = workspace + "/a.lmi"
-  let a_object = workspace + "/a.lmo"
-  let extra_interface = workspace + "/extra.lmi"
-  let extra_object = workspace + "/extra.lmo"
-  let b_interface = workspace + "/b.lmi"
-  let b_object = workspace + "/b.lmo"
-  let c_interface = workspace + "/c.lmi"
-  let c_object = workspace + "/c.lmo"
+  let fixture = "examples/projects/separate"
+  let provider_path = fixture + "/Provider.lane"
+  let unused_path = fixture + "/Unused.lane"
+  let facade_path = fixture + "/Facade.lane"
+  let main_path = fixture + "/Main.lane"
+  let provider_interface = workspace + "/provider.lmi"
+  let provider_object = workspace + "/provider.lmo"
+  let unused_interface = workspace + "/unused.lmi"
+  let unused_object = workspace + "/unused.lmo"
+  let facade_interface = workspace + "/facade.lmi"
+  let facade_object = workspace + "/facade.lmo"
+  let main_interface = workspace + "/main.lmi"
+  let main_object = workspace + "/main.lmo"
   let wasm = workspace + "/program.wasm"
-  let a_compile = run_moon_lane([
-    "compile", a_path, "-I", a_interface, "-o", a_object,
+  let provider_compile = run_moon_lane([
+    "compile", provider_path, "-I", provider_interface, "-o", provider_object,
   ])
-  if a_compile.code != 0 {
-    return a_compile
+  if provider_compile.code != 0 {
+    return provider_compile
   }
-  let extra_compile = run_moon_lane([
-    "compile", extra_path, "-I", extra_interface, "-o", extra_object,
+  let unused_compile = run_moon_lane([
+    "compile", unused_path, "-I", unused_interface, "-o", unused_object,
   ])
-  if extra_compile.code != 0 {
-    return extra_compile
+  if unused_compile.code != 0 {
+    return unused_compile
   }
-  let b_compile = run_moon_lane([
-    "compile", b_path, "--interface", extra_interface, "--interface",
-    a_interface, "-I", b_interface, "-o", b_object,
+  let facade_compile = run_moon_lane([
+    "compile", facade_path, "--interface", provider_interface, "-I",
+    facade_interface, "-o", facade_object,
   ])
-  if b_compile.code != 0 {
-    return b_compile
+  if facade_compile.code != 0 {
+    return facade_compile
   }
-  let c_check = run_moon_lane([
-    "check", "--deny", c_path, "--lib", b_path, "--lib", a_path,
+  let main_check = run_moon_lane([
+    "check", "--deny", main_path, "--lib", facade_path, "--lib", provider_path,
   ])
-  if c_check.code != 0 {
-    return c_check
+  if main_check.code != 0 {
+    return main_check
   }
-  let c_compile = run_moon_lane([
-    "compile", c_path, "--interface", b_interface, "--interface",
-    a_interface, "-I", c_interface, "-o", c_object,
+  let main_compile = run_moon_lane([
+    "compile", main_path, "--interface", facade_interface, "--interface",
+    provider_interface, "-I", main_interface, "-o", main_object,
   ])
-  if c_compile.code != 0 {
-    return c_compile
+  if main_compile.code != 0 {
+    return main_compile
   }
   let link = run_moon_lane([
-    "link", "--entry", "C.main", "--output", wasm, c_object,
-    b_object, a_object,
+    "link", "--entry", "Examples.Projects.Separate.Main.main", "--output", wasm,
+    main_object, facade_object, provider_object,
   ])
   if link.code != 0 {
     return link
@@ -580,8 +583,10 @@ fn print_expectation(expectation : FixtureExpectation) -> Unit {
 
 fn validate_corpus_coverage(manifest : FixtureManifest) -> Unit raise {
   let registered = manifest.cases.map(FixtureCase::file)
+  validate_directory_coverage("examples/valid", registered)
   validate_directory_coverage("examples/invalid", registered)
   validate_directory_coverage("examples/warnings", registered)
+  validate_directory_coverage("examples/runtime", registered)
 }
 
 fn validate_directory_coverage(

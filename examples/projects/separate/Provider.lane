@@ -1,0 +1,19 @@
+module Examples.Projects.Separate.Provider
+
+pub struct Box[T] {
+  value : T
+}
+
+pub struct Witness[T] {
+  apply : (T) -> T
+}
+
+pub offer i64_witness : Witness[I64] = Witness::{
+  apply: fn(value) {
+    value
+  }
+}
+
+pub fn[T] unwrap(box : Box[T], auto witness : Witness[T]) -> T {
+  witness.apply(box.value)
+}

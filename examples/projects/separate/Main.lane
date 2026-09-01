@@ -1,0 +1,11 @@
+module Examples.Projects.Separate.Main
+
+import Examples.Projects.Separate.Facade.{ Box, Witness, i64_witness, unwrap }
+
+fn consume(_value : I64) -> Unit {
+  ()
+}
+
+pub fn main() -> Unit {
+  consume(unwrap(Box::{ value: 42 }))
+}

@@ -1,0 +1,22 @@
+module Examples.Valid.PanicVoidElimination
+
+import Basic.Data.I64.*
+import Basic.Data.Void.{ absurd }
+import Basic.Io.{ panic, println }
+import Basic.Ops.*
+
+fn require_value(present : Bool) -> I64 ! Panic {
+  if present {
+    42
+  } else {
+    absurd[I64](panic("missing value"))
+  }
+}
+
+pub fn answer() -> Unit ! { Io, Panic } {
+  if require_value(true) == 42 {
+    println("panic void elimination=42")
+  } else {
+    println("panic void elimination=bad")
+  }
+}

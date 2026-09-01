@@ -1,0 +1,60 @@
+module Examples.Valid.EffectfulHigherKindedMap
+
+import Basic.Data.I64.*
+import Basic.Io.{ println }
+import Basic.Ops.*
+
+effect Trace {
+  emit(I64) -> Unit
+}
+
+enum Box[T] {
+  box(T)
+}
+
+struct Mappable[F : [Type] -> Type] {
+  map : [A, B, E : Effect](F[A], (A) -> B ! E) -> F[B] ! E
+}
+
+fn[A, B, E : Effect] box_map(value : Box[A], callback : (A) -> B ! E) -> Box[B] ! E {
+  match value {
+    box(inner) => Box::box(callback(inner))
+  }
+}
+
+offer box_mappable : Mappable[Box] = Mappable::{ map: box_map }
+
+fn[F : [Type] -> Type, A, B, E : Effect] map(
+  value : F[A],
+  callback : (A) -> B ! E,
+  auto mappable : Mappable[F]
+) -> F[B] ! E {
+  mappable.map(value, callback)
+}
+
+fn program(offset : I64) -> Box[I64] ! Trace {
+  let add_offset : (I64) -> I64 ! Trace = fn(value) {
+    Trace::emit!(value)
+    value + offset
+  }
+  map(Box::box(40), add_offset)
+}
+
+pub fn answer() -> Unit ! Io {
+  let mapped = handle program(2) with {
+    Trace::emit(value, resume) => {
+      if value == 40 {
+        println("trace=40")
+      } else {
+        println("trace=bad")
+      }
+      resume(())
+    }
+  } final value {
+    value
+  }
+  match mapped {
+    box(42) => println("mapped=42")
+    box(_) => println("mapped=bad")
+  }
+}

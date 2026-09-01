@@ -2505,6 +2505,68 @@
       "expect": {
         "equals": "buffer roundtrip"
       }
+    },
+    {
+      "name": "120 shortest round-trip float formatting",
+      "file": "examples/valid/120_float_to_string.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "0.0\n-0.0\n1.0\n0.1\n1.0000001\n3.4028235e+38\ninf\n-inf\nNaN\n0.0\n-0.0\n1.0\n0.1\n5e-324\n1.7976931348623157e+308\ninf\n-inf\nNaN"
+      }
+    },
+    {
+      "name": "121 effectful higher-kinded contextual map",
+      "file": "examples/valid/121_effectful_higher_kinded_map.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "trace=40\nmapped=42"
+      }
+    },
+    {
+      "name": "122 ByteBuffer allocation lifecycle",
+      "file": "examples/valid/122_byte_buffer_allocation_lifecycle.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "buffer lifecycle=2080"
+      }
+    },
+    {
+      "name": "invalid 120 panic requires effect",
+      "file": "examples/invalid/120_panic_requires_effect.lane",
+      "mode": "check-error",
+      "expect": {
+        "diagnostics": { "errors": 1, "warnings": 0 },
+        "contains": [
+          "--> examples/invalid/120_panic_requires_effect.lane:6:25",
+          "error[E3007]",
+          "effect mismatch",
+          "expected effect `{}`, found `Panic`",
+          "Lane functions without an effect annotation are pure",
+          "add the required effect annotation or remove the effectful operation"
+        ]
+      }
+    },
+    {
+      "name": "runtime 01 panic maps to process exit",
+      "file": "examples/runtime/01_panic_process_exit.lane",
+      "mode": "run-error",
+      "entry": "answer",
+      "exit": 1,
+      "expect": {
+        "equals": "intentional panic example"
+      }
+    },
+    {
+      "name": "123 panic Void elimination",
+      "file": "examples/valid/123_panic_void_elimination.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "panic void elimination=42"
+      }
     }
   ]
 }

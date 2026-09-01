@@ -1,0 +1,27 @@
+module Examples.Valid.ByteBufferAllocationLifecycle
+
+import Basic.Builtins.{ i32_to_i64, i64_to_i32 }
+import Basic.Data.I64.*
+import Basic.Io.{ println }
+import Basic.Ops.*
+import Basic.Wasm.Abi.{ allocate, read_i32, write_i32 }
+
+fn sum_allocations(remaining : I64, total : I64) -> I64 ! Io {
+  if remaining == 0 {
+    total
+  } else {
+    let buffer = allocate(8)
+    write_i32(buffer, 0, i64_to_i32(remaining))
+    write_i32(buffer, 4, read_i32(buffer, 0))
+    let next = i32_to_i64(read_i32(buffer, 4))
+    sum_allocations(remaining - 1, total + next)
+  }
+}
+
+pub fn answer() -> Unit ! Io {
+  if sum_allocations(64, 0) == 2080 {
+    println("buffer lifecycle=2080")
+  } else {
+    println("buffer lifecycle=bad")
+  }
+}
