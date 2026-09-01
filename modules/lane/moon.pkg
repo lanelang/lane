@@ -12,6 +12,9 @@ import {
   "Milky2018/lane/terminal",
   "Milky2018/lane_runtime",
   "Milky2018/lane_runtime/wasm" @lane_wasm_runtime,
+  "Milky2018/lane_wasm_abi" @wasm_abi,
+  "Milky2018/wasm_core/types" @wasm_types,
+  "Milky2018/wasmoon/runtime" @wasmoon_runtime,
   "moonbit-community/prettyprinter",
   "moonbitlang/async",
   "moonbitlang/async/fs",
@@ -32,3 +35,7 @@ import {
 supported_targets = "native"
 
 pkgtype(kind: "executable")
+
+options(
+  "native-stub": [ "run_command_host.c" ],
+)

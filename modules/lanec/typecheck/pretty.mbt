@@ -15,6 +15,13 @@ pub impl @prettyprinter.Pretty for ExternTypeRestriction with fn pretty(
       text("wasi_preview1_contract_mismatch[") +
       text(Repr(expected).to_string()) +
       text("]")
+    UnknownLaneRuntimeV1Import(field_name~) =>
+      text("unknown_lane_runtime_v1_import[") + text(field_name) + text("]")
+    LaneRuntimeV1ContractMismatch(expected~) =>
+      text("lane_runtime_v1_contract_mismatch[") +
+      text(Repr(expected).to_string()) +
+      text("]")
+    LaneRuntimeV1IoEffectRequired => text("lane_runtime_v1_io_effect_required")
   }
 }
 

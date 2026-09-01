@@ -19,6 +19,14 @@ Compilation and execution of one selected public entry from a Root Source and
 its [Library Inputs](../../CONTEXT.md).
 _Avoid_: language-level `main`, project build
 
+**Run Command Host Adapter**:
+The Lane Command implementation of the canonical
+`lane_runtime_v1.run_command` capability. It borrows the generated module's
+request frame, launches the requested executable directly, waits for
+termination, and writes the fixed response. The adapter owns OS process calls;
+the ABI package owns framing and Basic owns the source-level command model.
+_Avoid_: shell execution, compiler builtin, process logic in Wasmoon
+
 **Execution Profile**:
 The execution-target-owned immutable policy admitting closed residual effects
 at an Executable Entry. The Lane Command profile admits `Io`, `Panic`, and

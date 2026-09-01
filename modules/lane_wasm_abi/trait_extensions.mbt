@@ -38,4 +38,40 @@ pub extend ImportContract with Eq::{not_equal, equal}
 pub extend WasiPreview1Import with Debug::{to_repr}
 
 ///|
+pub extend LaneRuntimeV1Import with Debug::{to_repr}
+
+///|
+pub extend LaneRuntimeV1Import with Eq::{equal, not_equal}
+
+///|
+pub extend RunCommandEnvironmentEntry with Debug::{to_repr}
+
+///|
+pub extend RunCommandEnvironmentEntry with Eq::{equal, not_equal}
+
+///|
+pub extend RunCommandRequest with Debug::{to_repr}
+
+///|
+pub extend RunCommandRequest with Eq::{equal, not_equal}
+
+///|
+pub extend RunCommandFrameError with Debug::{to_repr}
+
+///|
+pub extend RunCommandFrameError with Eq::{equal, not_equal}
+
+///|
+pub extend RunCommandTermination with Debug::{to_repr}
+
+///|
+pub extend RunCommandTermination with Eq::{equal, not_equal}
+
+///|
+pub extend RunCommandHostStatus with Debug::{to_repr}
+
+///|
+pub extend RunCommandHostStatus with Eq::{equal, not_equal}
+
+///|
 pub extend WasiPreview1Import with Eq::{not_equal, equal}

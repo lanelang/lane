@@ -276,6 +276,9 @@ pub(all) enum ExternTypeRestriction {
   ExternalEffectRowRequired
   UnknownWasiPreview1Import(field_name~ : String)
   WasiPreview1ContractMismatch(expected~ : @lane_wasm_abi.ImportContract)
+  UnknownLaneRuntimeV1Import(field_name~ : String)
+  LaneRuntimeV1ContractMismatch(expected~ : @lane_wasm_abi.ImportContract)
+  LaneRuntimeV1IoEffectRequired
 } derive(Eq, @debug.Debug)
 pub fn ExternTypeRestriction::equal(Self, Self) -> Bool
 pub fn ExternTypeRestriction::not_equal(Self, Self) -> Bool

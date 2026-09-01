@@ -127,7 +127,13 @@ fn execute_wasm_with_wasi_stdout(
   } else {
     Jit
   }
-  let loaded = match @lane_wasm_runtime.load_wasm(wasm, mode~, wasi_stdout~) {
+  let loaded = match
+    @lane_wasm_runtime.load_wasm(
+      wasm,
+      mode~,
+      wasi_stdout~,
+      configure_host=configure_lane_runtime_v1,
+    ) {
     Ok(loaded) => loaded
     Err(error) =>
       return LaneCommandOutcome::user_error(

@@ -179,6 +179,25 @@ test "WASI proc_exit remains distinct from normal return on both engines" {
 }
 
 ///|
+test "Wasm loading rejects forged Lane Runtime V1 imports" {
+  let wasm = encode_profile_probe(
+    (
+      #|(module
+      #|  (type (func (param i32 i32) (result i32)))
+      #|  (import "lane_runtime_v1" "run_command" (func (type 0)))
+      #|  (func (export "_start"))
+      #|  (memory (export "memory") 1))
+    ),
+  )
+  for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
+    guard @lane_wasm_runtime.load_wasm(wasm, mode~) is Err(InvalidWasm(detail~)) else {
+      fail("forged Lane Runtime V1 import was accepted")
+    }
+    assert_eq(detail, "Lane Runtime V1 imports do not match the canonical ABI")
+  }
+}
+
+///|
 test "linked executable is a raw WASI command module" {
   let image = compile_effect_conformance_image(
     (

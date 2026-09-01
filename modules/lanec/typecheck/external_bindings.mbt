@@ -181,6 +181,16 @@ fn SemanticChecker::validate_extern_contract(
         if contract != canonical {
           return Err(WasiPreview1ContractMismatch(expected=canonical))
         }
+      } else if module_name == "lane_runtime_v1" {
+        guard @wasm_abi.lane_runtime_v1_contract(field_name) is Some(canonical) else {
+          return Err(UnknownLaneRuntimeV1Import(field_name~))
+        }
+        if contract != canonical {
+          return Err(LaneRuntimeV1ContractMismatch(expected=canonical))
+        }
+        if !(effect.canonicalize() is Builtin(Io)) {
+          return Err(LaneRuntimeV1IoEffectRequired)
+        }
       }
       Ok(contract)
     }

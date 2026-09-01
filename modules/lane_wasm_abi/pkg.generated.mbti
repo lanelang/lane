@@ -6,11 +6,25 @@ import {
 }
 
 // Values
+pub fn decode_run_command_request(Bytes) -> Result[RunCommandRequest, RunCommandFrameError]
+
+pub fn lane_runtime_v1_contract(String) -> ImportContract?
+
+pub fn lane_runtime_v1_imports() -> Array[LaneRuntimeV1Import]
+
+pub fn run_command_response_size() -> Int
+
 pub fn wasi_preview1_contract(String) -> ImportContract?
 
 pub fn wasi_preview1_imports() -> Array[WasiPreview1Import]
 
 // Errors
+pub(all) suberror RunCommandFrameError {
+  InvalidRunCommandFrame(detail~ : String)
+} derive(Eq, @debug.Debug)
+pub fn RunCommandFrameError::equal(Self, Self) -> Bool
+pub fn RunCommandFrameError::not_equal(Self, Self) -> Bool
+pub fn RunCommandFrameError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
 pub(all) enum CoreValueType {
@@ -76,6 +90,52 @@ pub fn ImportResult::op_gt(Self, Self) -> Bool
 pub fn ImportResult::op_le(Self, Self) -> Bool
 pub fn ImportResult::op_lt(Self, Self) -> Bool
 pub fn ImportResult::to_repr(Self) -> @debug.Repr
+
+pub(all) enum LaneRuntimeV1Import {
+  RunCommand
+} derive(Eq, @debug.Debug)
+pub fn LaneRuntimeV1Import::contract(Self) -> ImportContract
+pub fn LaneRuntimeV1Import::equal(Self, Self) -> Bool
+pub fn LaneRuntimeV1Import::not_equal(Self, Self) -> Bool
+pub fn LaneRuntimeV1Import::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RunCommandEnvironmentEntry {
+  key : String
+  value : String
+} derive(Eq, @debug.Debug)
+pub fn RunCommandEnvironmentEntry::equal(Self, Self) -> Bool
+pub fn RunCommandEnvironmentEntry::not_equal(Self, Self) -> Bool
+pub fn RunCommandEnvironmentEntry::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RunCommandHostStatus {
+  Succeeded
+  InvalidRequest
+  ExecutableNotFound
+  PermissionDenied
+  SystemFailure
+} derive(Eq, @debug.Debug)
+pub fn RunCommandHostStatus::equal(Self, Self) -> Bool
+pub fn RunCommandHostStatus::not_equal(Self, Self) -> Bool
+pub fn RunCommandHostStatus::to_repr(Self) -> @debug.Repr
+
+pub(all) struct RunCommandRequest {
+  executable : String
+  arguments : Array[String]
+  working_directory : String?
+  environment : Array[RunCommandEnvironmentEntry]
+  inherit_environment : Bool
+} derive(Eq, @debug.Debug)
+pub fn RunCommandRequest::equal(Self, Self) -> Bool
+pub fn RunCommandRequest::not_equal(Self, Self) -> Bool
+pub fn RunCommandRequest::to_repr(Self) -> @debug.Repr
+
+pub(all) enum RunCommandTermination {
+  Exited(code~ : Int)
+  Signaled(signal~ : Int)
+} derive(Eq, @debug.Debug)
+pub fn RunCommandTermination::equal(Self, Self) -> Bool
+pub fn RunCommandTermination::not_equal(Self, Self) -> Bool
+pub fn RunCommandTermination::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WasiPreview1Import {
   FdWrite

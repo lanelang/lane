@@ -30,3 +30,21 @@ function types of the Preview 1 operations Lane currently emits. Adding a
 standardized operation extends this catalog rather than restating its signature
 in a consumer.
 _Avoid_: Wasmoon callback registration, Basic function type
+
+**Lane Runtime V1 Catalog**:
+The versioned non-WASI host capability catalog implemented by the Lane Command
+execution target. Its first operation is the synchronous
+`lane_runtime_v1.run_command` import. The catalog owns the exact Core Wasm
+contract and the guest-memory request frame; the compiler, Basic wrapper, and
+host adapter do not redefine its semantics.
+_Avoid_: compiler intrinsic, shell command string, Wasmoon-specific callback
+
+**Run Command Request Frame**:
+A little-endian guest-memory record containing flags, executable, argv, optional
+working directory, and environment overrides. All strings are length-delimited
+UTF-8 ranges relative to the frame start. The import borrows the frame only for
+the duration of a synchronous call and never invokes a shell.
+_Avoid_: retained guest pointer, NUL-delimited command string, implicit argv parsing
+
+The normative byte layout and result codes are defined in
+[`run-command-v1.md`](run-command-v1.md).

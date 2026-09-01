@@ -145,6 +145,55 @@ test "golden external nominal values are not a portable host ABI" {
 }
 
 ///|
+test "golden Lane Runtime V1 rejects unknown imports" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|let bad : (I32) -> I32 = extern("lane_runtime_v1", "unknown")
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3029", "extern `lane_runtime_v1.unknown` has an unsupported type",
+  )
+}
+
+///|
+test "golden Lane Runtime V1 rejects forged run-command contracts" {
+  let diagnostic = single_check_diagnostic(
+    (
+      #|module Test
+      #|let bad : (I32, I32, I32) -> I32 ! Io = extern("lane_runtime_v1", "run_command")
+    ),
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3029", "extern `lane_runtime_v1.run_command` has an unsupported type",
+  )
+}
+
+///|
+test "golden Lane Runtime V1 rejects forged run-command effects" {
+  let diagnostic = single_check_sources_diagnostic(
+    (
+      #|module Test
+      #|import Basic.Wasm.Abi.{ WasmAddress }
+      #|let bad : (WasmAddress, I32, WasmAddress) -> I32 ! Panic = extern("lane_runtime_v1", "run_command")
+    ),
+    [
+      (
+        #|module Basic.Wasm.Abi
+        #|pub struct WasmAddress {
+        #|  storage : ByteBuffer
+        #|  offset : I32
+        #|}
+      ),
+    ],
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E3029", "extern `lane_runtime_v1.run_command` has an unsupported type",
+  )
+}
+
+///|
 test "golden function literal parameter diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (

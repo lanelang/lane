@@ -83,6 +83,13 @@ fn load_module(
       ),
     )
   }
+  if !lane_runtime_v1_imports_match(wasm_module) {
+    return Err(
+      InvalidWasm(
+        detail="Lane Runtime V1 imports do not match the canonical ABI",
+      ),
+    )
+  }
   let backend = match mode {
     Jit =>
       match compile_wasm_module_for_jit(wasm_module) {
@@ -111,14 +118,35 @@ fn core_value_type(type_ : @wasm_abi.CoreValueType) -> @wasm_types.ValueType {
 
 ///|
 fn wasi_preview1_imports_match(wasm_module : @wasm_types.Module) -> Bool {
+  canonical_imports_match(
+    wasm_module,
+    "wasi_snapshot_preview1",
+    @wasm_abi.wasi_preview1_imports().map(import_ => import_.contract()),
+  )
+}
+
+///|
+fn lane_runtime_v1_imports_match(wasm_module : @wasm_types.Module) -> Bool {
+  canonical_imports_match(
+    wasm_module,
+    "lane_runtime_v1",
+    @wasm_abi.lane_runtime_v1_imports().map(import_ => import_.contract()),
+  )
+}
+
+///|
+fn canonical_imports_match(
+  wasm_module : @wasm_types.Module,
+  module_name : String,
+  canonical : Array[@wasm_abi.ImportContract],
+) -> Bool {
   let mut previous_index = -1
-  let canonical = @wasm_abi.wasi_preview1_imports()
   for wasm_import in wasm_module.imports {
-    guard wasm_import.mod_name == "wasi_snapshot_preview1" else { continue }
+    guard wasm_import.mod_name == module_name else { continue }
     guard wasm_import.desc is Func(type_index) else { return false }
     let mut matched_index : Int? = None
-    for index, import_ in canonical {
-      if import_.contract().field_name == wasm_import.name {
+    for index, contract in canonical {
+      if contract.field_name == wasm_import.name {
         matched_index = Some(index)
         break
       }
@@ -126,7 +154,7 @@ fn wasi_preview1_imports_match(wasm_module : @wasm_types.Module) -> Bool {
     guard matched_index is Some(index) && index > previous_index else {
       return false
     }
-    let contract = canonical[index].contract()
+    let contract = canonical[index]
     let expected : @wasm_types.FuncType = {
       params: contract.core_parameters().map(core_value_type),
       results: contract.core_results().map(core_value_type),

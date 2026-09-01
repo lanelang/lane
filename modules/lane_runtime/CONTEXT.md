@@ -30,6 +30,13 @@ An embedding callback that adds implementations for non-WASI core Wasm imports
 to the Wasmoon Linker before instantiation. Wasmoon owns signature matching.
 _Avoid_: Runtime Registry, per-call symbol lookup
 
+**Lane Runtime V1 Host**:
+The Lane Command adapter implementing the canonical non-WASI
+`lane_runtime_v1` import catalog. `run_command` decodes the catalog-owned guest
+frame and performs a synchronous direct process launch. It is not a compiler
+intrinsic and does not interpret a shell command.
+_Avoid_: Basic command builder, generic runtime registry, implicit shell
+
 **Loaded Wasm Executable**:
 A parsed and validated Wasm Artifact whose selected engine mode is prepared for
 fresh instantiation.
