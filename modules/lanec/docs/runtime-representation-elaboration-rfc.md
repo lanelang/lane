@@ -3,7 +3,7 @@
 Status: Implemented for the canonical generic ABI and higher-kinded evidence.
 The representation-specialization architecture is defined by
 [ADR-0138](adr/0138-uniform-generic-abi-and-optional-representation-specialization.md)
-and ISS-390.
+and implemented by ISS-431.
 
 ## Summary
 
@@ -215,11 +215,19 @@ graph.
 
 Specialization is an optimization over the canonical generic program:
 
-1. Find a closed call whose canonical runtime ABI is known.
-2. Use `(generic definition, canonical runtime ABI)` as the specialization key.
-3. Create at most one concrete worker for that key.
-4. Rewrite the actual definition and call to use the worker.
-5. Run ordinary cleanup to remove dead evidence and adaptations.
+1. Before emitting VM CFG bodies, collect closed calls and generic-candidate
+   call edges from Runtime ANF.
+2. Use the semantic generic definition and complete canonical runtime arguments
+   and callable ABI as the specialization key. Alpha-equivalent arguments share
+   one key.
+3. Solve the finite demand graph. A recursive SCC propagates only stable edges
+   that preserve the complete argument vector; a changing recursive edge uses
+   the generic implementation.
+4. Reserve exactly one worker for every selected key and publish the completed
+   private plan.
+5. Emit calls, closures, generic functions, and workers by querying that plan.
+   Emission cannot add demands, select fallback, or create another worker.
+6. Run ordinary cleanup to remove dead evidence and adaptations.
 
 The generic implementation remains available for open, indirect, unsupported,
 or recursively expanding uses. A recursive call may reuse a stable existing
@@ -230,6 +238,9 @@ required by lowering.
 Specialization does not produce a second representation policy. The worker is
 checked against the same physical contracts and explicit adaptation operation
 as generic elaboration. Disabling the pass affects only generated code.
+The completed plan is private construction state rather than a public IR seam;
+after construction it exposes only lookup and is discarded with the lowering
+operation.
 
 ## Verification responsibilities
 

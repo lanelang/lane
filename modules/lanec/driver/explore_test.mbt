@@ -860,7 +860,7 @@ test "explore lowers nested handlers through a finite recursive callable contrac
 }
 
 ///|
-test "explore records direct canonical generic representation costs" {
+test "explore records closed recursive representation specialization" {
   let report = explore(
     explore_test_request(
       (
@@ -915,25 +915,26 @@ test "explore records direct canonical generic representation costs" {
       #|        ("functionCount", 2),
       #|        ("importCount", 2),
       #|        ("blockCount", 4),
-      #|        ("instructionCount", 15),
-      #|        ("valueCount", 19),
+      #|        ("instructionCount", 9),
+      #|        ("valueCount", 11),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("genericAbiEraseCount", 2),
+      #|        ("genericAbiEraseCount", 0),
       #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
       #|        ("releaseCount", 0),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 2),
+      #|        ("layoutCount", 0),
       #|        ("objectShapeCount", 0),
       #|        ("constantCount", 0),
+      #|        ("duplicateRuntimeAbiWorkerCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 3, operation_count: 1, value_count: 5 },
-      #|        { index: 2, block_count: 1, operation_count: 14, value_count: 14 },
+      #|        { index: 1, block_count: 1, operation_count: 8, value_count: 8 },
+      #|        { index: 2, block_count: 3, operation_count: 1, value_count: 3 },
       #|      ],
       #|    ),
       #|    (
@@ -941,27 +942,28 @@ test "explore records direct canonical generic representation costs" {
       #|      [
       #|        ("functionCount", 2),
       #|        ("importCount", 2),
-      #|        ("blockCount", 5),
-      #|        ("instructionCount", 16),
-      #|        ("slotCount", 11),
+      #|        ("blockCount", 4),
+      #|        ("instructionCount", 9),
+      #|        ("slotCount", 5),
       #|        ("directCallCount", 6),
       #|        ("indirectCallCount", 0),
       #|        ("functionReferenceCount", 0),
       #|        ("closureCount", 0),
       #|        ("environmentCount", 0),
-      #|        ("genericAbiEraseCount", 2),
+      #|        ("genericAbiEraseCount", 0),
       #|        ("genericAbiUneraseCount", 0),
       #|        ("retainCount", 0),
-      #|        ("releaseCount", 1),
+      #|        ("releaseCount", 0),
       #|        ("callableAbiCount", 3),
       #|        ("globalCount", 0),
-      #|        ("layoutCount", 2),
+      #|        ("layoutCount", 0),
       #|        ("objectShapeCount", 0),
       #|        ("constantCount", 0),
+      #|        ("duplicateRuntimeAbiWorkerCount", 0),
       #|      ],
       #|      [
-      #|        { index: 1, block_count: 4, operation_count: 2, value_count: 4 },
-      #|        { index: 2, block_count: 1, operation_count: 14, value_count: 7 },
+      #|        { index: 1, block_count: 1, operation_count: 8, value_count: 3 },
+      #|        { index: 2, block_count: 3, operation_count: 1, value_count: 2 },
       #|      ],
       #|    ),
       #|  ],

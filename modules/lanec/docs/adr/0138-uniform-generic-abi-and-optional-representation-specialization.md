@@ -85,14 +85,26 @@ Representation specialization is an optional program rewrite over this
 correct generic model:
 
 - a closed canonical runtime-ABI key may create one concrete worker;
-- the pass rewrites actual definitions and calls rather than publishing a
-  representation-demand model for later lowering;
+- Physical Lowering first collects closed demands and candidate-call edges from
+  Runtime ANF, then solves one private immutable plan before emitting any VM CFG
+  function body;
+- the key is the semantic generic definition together with its complete
+  canonical runtime arguments and callable ABI, modulo alpha-equivalence;
+- each planned key reserves exactly one worker before body emission, and call,
+  closure, and function emission can only query the completed plan;
 - the generic implementation remains available for every open, indirect,
   unsupported, or recursively expanding use;
-- a recursive call may reuse an already selected stable key; a transformation
-  that produces an unbounded sequence of keys stays generic;
+- a recursive SCC propagates a demand only when the recursive edge preserves
+  the complete canonical argument vector; an edge that changes that vector
+  stays generic, so recursive planning closes without fuel or size limits;
 - disabling or deleting specialization changes performance only, never whether
   a valid program can be lowered or what it observes.
+
+The specialization plan is not a public Physical ANF or a second
+representation policy. It is private construction state owned by Physical
+Lowering: the builder mutates its local catalogs, publishes the completed plan
+to the emitter through lookup-only operations, and discards it after producing
+the Physical Program.
 
 The initial implementation does not specialize nominal storage families.
 Generic containers retain their uniform declaration schema. Non-escaping

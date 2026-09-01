@@ -180,16 +180,12 @@ fn test_image_lowerer(metadata : @buslane.MetadataRegistry) -> ImageLowerer {
     layouts: [],
     object_shapes: [],
     intrinsic_wrappers: [],
-    representation_workers: [],
-    representation_worker_contracts: { entries: [], },
-    representation_worker_candidates: [],
+    representation_specialization: { contracts: { entries: [], }, workers: [], },
     callable_adapters: [],
     callable_adapter_worker_contracts: { entries: [], },
     physical_callable_contracts: { requests: [], entries: [], },
     data_families: [],
     synthetic_parameters: [],
-    active_specialization_ancestry: [],
-    representation_specialization_enabled: false,
   }
 }
 

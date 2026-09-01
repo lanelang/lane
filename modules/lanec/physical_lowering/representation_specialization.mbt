@@ -1,102 +1,49 @@
 ///|
-fn FunctionLowerer::representation_worker(
+fn FunctionLowerer::planned_representation_worker(
   self : FunctionLowerer,
   source : @physical.FunctionId,
-  type_ : @anf.RuntimeType,
   arguments : Array[@anf.RuntimeArgument],
 ) -> (@physical.FunctionId, @anf.RuntimeType)? raise PhysicalLoweringError {
-  guard self.image.representation_specialization_enabled else { return None }
-  let (parameters, _, _) = function_type_parts(type_)
-  guard parameters.length() == arguments.length() else { return None }
   let arguments = arguments.map(argument => {
     self.substitute_generic_argument(argument)
   })
-  let substitutions = self.substitutions.overlay(
-    RuntimeSubstitution::from_arguments(parameters, arguments),
-  )
-  let target_type = substitutions.apply_type(
-    self.image.runtime_types,
-    callable_body_type(type_),
-  )
-  guard runtime_type_is_closed(target_type, []) else { return None }
-  let source_plan = self.image.plans.get(source.value - 1)
-  let (body, captured_parameters, captures, capture_abi, recursive_functions) = match
-    source_plan.entry {
-    Function(_, body) => (body, [], [], ClosureEnvironment(None), [])
-    LiftedFunction(plan) =>
-      (
-        plan.function,
-        plan.captured_parameters,
-        plan.captures,
-        plan.capture_abi,
-        plan.recursive_functions,
-      )
-    _ => return None
+  match
+    self.image.representation_specialization.resolve(
+      source,
+      arguments,
+      self.image.runtime_types,
+    ) {
+    Generic => None
+    Specialized(function, type_) => Some((function, type_))
   }
-  guard self.image.representation_worker_candidates.contains(body.id) else {
-    return None
-  }
-  let callable = self.image.physical_callable_contract(
-    target_type,
-    RuntimeSubstitution::new(),
-    [],
-  )
-  let contract = self.image.intern_representation_worker_contract({
-    source,
-    callable,
-    arguments,
-  })
-  for worker in self.image.representation_workers {
-    if worker.contract == contract {
-      return Some((worker.function, worker.type_))
+}
+
+///|
+fn RepresentationSpecializationPlan::resolve(
+  self : RepresentationSpecializationPlan,
+  source : @physical.FunctionId,
+  arguments : Array[@anf.RuntimeArgument],
+  runtime_types : RuntimeTypeArena,
+) -> RepresentationSpecializationDisposition {
+  for worker in self.workers {
+    let contract = self.contracts.entries[worker.contract.value]
+    if contract.source == source &&
+      @anf.runtime_arguments_alpha_equivalent(contract.arguments, arguments, expression => {
+        runtime_types.type_expression(expression)
+      }) {
+      return Specialized(worker.function, worker.type_)
     }
   }
-  // Encountering the same semantic definition with a new ABI while lowering
-  // one of its workers is an expanding recursive specialization. The generic
-  // implementation is the canonical finite fallback for that edge.
-  guard !self.image.active_specialization_ancestry.contains(source) else {
-    return None
-  }
-  let ancestry = self.image.active_specialization_ancestry.copy()
-  ancestry.push(source)
-  let specialized_body = specialize_anf_function(
-    body,
-    substitutions,
-    self.image.runtime_types,
-  )
-  let (_, worker) = self.image.plans.append_with_result(
-    RepresentationWorker(
-      function=body.id,
-      source=body.source,
-      origin=body.origin,
-      contract~,
-    ),
-    fn(function) {
-      let worker : RepresentationWorkerPlan = {
-        function,
-        contract,
-        body: specialized_body,
-        type_: target_type,
-        substitutions,
-        captured_parameters,
-        captures,
-        capture_abi,
-        recursive_functions,
-        ancestry,
-      }
-      self.image.representation_workers.push(worker)
-      (RepresentationWorker(worker), worker)
-    },
-  )
-  Some((worker.function, worker.type_))
+  Generic
 }
 
 ///|
 fn ImageLowerer::intern_representation_worker_contract(
   self : ImageLowerer,
+  catalog : RepresentationWorkerContractCatalog,
   contract : RepresentationWorkerContract,
 ) -> RepresentationWorkerContractId {
-  for index, existing in self.representation_worker_contracts.entries {
+  for index, existing in catalog.entries {
     if existing.source == contract.source &&
       self.physical_callable_contracts_equivalent(
         existing.callable,
@@ -110,10 +57,8 @@ fn ImageLowerer::intern_representation_worker_contract(
       return { value: index, }
     }
   }
-  let id : RepresentationWorkerContractId = {
-    value: self.representation_worker_contracts.entries.length(),
-  }
-  self.representation_worker_contracts.entries.push(contract)
+  let id : RepresentationWorkerContractId = { value: catalog.entries.length(), }
+  catalog.entries.push(contract)
   id
 }
 
@@ -122,24 +67,18 @@ fn ImageLowerer::lower_representation_worker(
   self : ImageLowerer,
   plan : RepresentationWorkerPlan,
 ) -> @vmcfg.FunctionBody raise PhysicalLoweringError {
-  let previous = self.active_specialization_ancestry.copy()
-  self.active_specialization_ancestry.clear()
-  self.active_specialization_ancestry.append(plan.ancestry)
   let (_, parameter_types, result_type) = function_type_parts(plan.type_)
-  let body = self.lower_function_body(
+  self.lower_function_body(
     plan.body,
     [],
     parameter_types,
     result_type,
-    plan.captured_parameters,
-    plan.captures,
-    plan.capture_abi,
-    plan.recursive_functions,
+    [],
+    [],
+    ClosureEnvironment(None),
+    [],
     plan.substitutions,
   )
-  self.active_specialization_ancestry.clear()
-  self.active_specialization_ancestry.append(previous)
-  body
 }
 
 ///|
@@ -343,30 +282,124 @@ fn runtime_evidence_is_closed(
 }
 
 ///|
-priv struct RepresentationCandidateUse {
+priv struct RepresentationCandidate {
   value : @buslane.ValueId
-  function : @anf.AnfFunctionId
-  mut has_closed_application : Bool
+  function : @anf.AnfFunction
+  parameters : Array[@anf.RuntimeEvidenceParameter]
+  closed_applications : Array[Array[@anf.RuntimeArgument]]
+  calls : Array[RepresentationCandidateCall]
   mut open : Bool
 }
 
 ///|
-priv struct RepresentationStableRecursion {
-  value : @buslane.ValueId
-  parameters : Array[@anf.RuntimeEvidenceParameter]
+priv struct RepresentationCandidateCall {
+  target : @buslane.ValueId
+  arguments : Array[@anf.RuntimeArgument]
 }
 
 ///|
-fn representation_specialization_candidates(
+priv struct RepresentationSpecializationDemand {
+  candidate : Int
+  arguments : Array[@anf.RuntimeArgument]
+}
+
+///|
+priv struct RepresentationCandidateApplication {
+  candidate : Int
+  arguments : Array[@anf.RuntimeArgument]
+}
+
+///|
+priv struct RepresentationApplicationScope {
+  mut values : Array[(@buslane.ValueId, RepresentationCandidateApplication)]
+  mut temps : Array[(@anf.AnfTempId, RepresentationCandidateApplication)]
+}
+
+///|
+fn plan_representation_specialization(
+  image : ImageLowerer,
   program : @anf.AnfProgram,
-) -> Array[@anf.AnfFunctionId] {
+) -> RepresentationSpecializationPlan raise PhysicalLoweringError {
+  let candidates = collect_representation_candidates(program)
+  let demands = solve_representation_specialization_demands(
+    candidates,
+    image.runtime_types,
+  )
+  let contracts : RepresentationWorkerContractCatalog = { entries: [], }
+  let workers : Array[RepresentationWorkerPlan] = []
+  for demand in demands {
+    let candidate = candidates[demand.candidate]
+    guard !candidate.open &&
+      image.find_global(candidate.value) is Some(Function(source, type_)) else {
+      continue
+    }
+    let (parameters, _, _) = function_type_parts(type_)
+    guard parameters.length() == demand.arguments.length() else {
+      raise RepresentationElaborationInvariant(
+        detail="specialization demand does not match its generic definition",
+      )
+    }
+    let substitutions = RuntimeSubstitution::from_arguments(
+      parameters,
+      demand.arguments,
+    )
+    let target_type = substitutions.apply_type(
+      image.runtime_types,
+      callable_body_type(type_),
+    )
+    guard runtime_type_is_closed(target_type, []) else { continue }
+    let callable = image.physical_callable_contract(
+      target_type,
+      RuntimeSubstitution::new(),
+      [],
+    )
+    let contract = image.intern_representation_worker_contract(contracts, {
+      source,
+      callable,
+      arguments: demand.arguments,
+    })
+    if workers.any(worker => worker.contract == contract) {
+      continue
+    }
+    let specialized_body = specialize_anf_function(
+      candidate.function,
+      substitutions,
+      image.runtime_types,
+    )
+    let (_, worker) = image.plans.append_with_result(
+      RepresentationWorker(
+        function=candidate.function.id,
+        source=candidate.function.source,
+        origin=candidate.function.origin,
+        contract~,
+      ),
+      fn(function) {
+        let worker : RepresentationWorkerPlan = {
+          function,
+          contract,
+          body: specialized_body,
+          type_: target_type,
+          substitutions,
+        }
+        (RepresentationWorker(worker), worker)
+      },
+    )
+    workers.push(worker)
+  }
+  { contracts, workers, }
+}
+
+///|
+fn collect_representation_candidates(
+  program : @anf.AnfProgram,
+) -> Array[RepresentationCandidate] raise PhysicalLoweringError {
   let metadata = program.metadata()
-  let uses : Array[RepresentationCandidateUse] = []
+  let candidates : Array[RepresentationCandidate] = []
   for term in program.terms() {
     match term {
       Let(value, expression) =>
         if extract_top_function(expression) is Some(function) {
-          record_representation_candidate(metadata, value, function, uses)
+          record_representation_candidate(metadata, value, function, candidates)
         }
       LetRec(bindings) =>
         for binding in bindings {
@@ -375,39 +408,38 @@ fn representation_specialization_candidates(
               metadata,
               binding.id,
               function,
-              uses,
+              candidates,
             )
           }
         }
       External(_) => ()
     }
   }
+  let scope : RepresentationApplicationScope = { values: [], temps: [], }
   for term in program.terms() {
     match term {
       Let(value, expression) => {
-        let stable_recursion = match
-          extract_top_evidence_parameters(expression) {
-          Some(parameters) => Some({ value, parameters, })
-          None => None
-        }
-        collect_representation_candidate_expr(
-          expression, uses, stable_recursion,
+        let application = collect_representation_candidate_expr(
+          expression,
+          candidates,
+          representation_candidate_index(candidates, value),
+          scope,
         )
+        scope.bind_value(value, application)
       }
       LetRec(bindings) =>
         for binding in bindings {
-          collect_representation_candidate_atom(binding.rhs, uses, None)
+          collect_representation_candidate_atom_use(
+            binding.rhs,
+            candidates,
+            representation_candidate_index(candidates, binding.id),
+            scope,
+          )
         }
       External(_) => ()
     }
   }
-  uses.filter_map(candidate => {
-    if !candidate.open && candidate.has_closed_application {
-      Some(candidate.function)
-    } else {
-      None
-    }
-  })
+  candidates
 }
 
 ///|
@@ -415,15 +447,18 @@ fn record_representation_candidate(
   metadata : @anf.RuntimeMetadata,
   value : @buslane.ValueId,
   function : @anf.AnfFunction,
-  uses : Array[RepresentationCandidateUse],
-) -> Unit {
+  candidates : Array[RepresentationCandidate],
+) -> Unit raise PhysicalLoweringError {
   guard metadata.value_info(value) is Some(info) && info.type_ is Forall(_, _) else {
     return
   }
-  uses.push({
+  let (parameters, _, _) = function_type_parts(info.type_)
+  candidates.push({
     value,
-    function: function.id,
-    has_closed_application: false,
+    function,
+    parameters,
+    closed_applications: [],
+    calls: [],
     open: false,
   })
 }
@@ -431,29 +466,40 @@ fn record_representation_candidate(
 ///|
 fn collect_representation_candidate_expr(
   expression : @anf.AnfExpr,
-  uses : Array[RepresentationCandidateUse],
-  stable_recursion : RepresentationStableRecursion?,
-) -> Unit {
+  candidates : Array[RepresentationCandidate],
+  current : Int?,
+  scope : RepresentationApplicationScope,
+) -> RepresentationCandidateApplication? {
   match expression {
-    Atom(atom) =>
-      collect_representation_candidate_atom(atom, uses, stable_recursion)
+    Atom(atom) => {
+      let application = scope.resolve(atom, candidates)
+      if application is None {
+        collect_representation_candidate_atom_use(
+          atom, candidates, current, scope,
+        )
+      }
+      application
+    }
     Let(binding, body) => {
-      collect_representation_candidate_rhs(
+      let application = collect_representation_candidate_rhs(
         binding.rhs(),
-        uses,
-        stable_recursion,
+        candidates,
+        current,
+        scope,
       )
-      collect_representation_candidate_expr(body, uses, stable_recursion)
+      scope.bind(binding, application)
+      collect_representation_candidate_expr(body, candidates, current, scope)
     }
     LetRec(bindings, body) => {
       for binding in bindings {
-        collect_representation_candidate_atom(
+        collect_representation_candidate_atom_use(
           binding.rhs,
-          uses,
-          stable_recursion,
+          candidates,
+          current,
+          scope,
         )
       }
-      collect_representation_candidate_expr(body, uses, stable_recursion)
+      collect_representation_candidate_expr(body, candidates, current, scope)
     }
   }
 }
@@ -461,124 +507,338 @@ fn collect_representation_candidate_expr(
 ///|
 fn collect_representation_candidate_rhs(
   rhs : @anf.AnfRhs,
-  uses : Array[RepresentationCandidateUse],
-  stable_recursion : RepresentationStableRecursion?,
-) -> Unit {
+  candidates : Array[RepresentationCandidate],
+  current : Int?,
+  scope : RepresentationApplicationScope,
+) -> RepresentationCandidateApplication? {
   match rhs {
-    ApplyEvidence(callee=Ref(value), arguments~) =>
-      record_representation_candidate_application(
-        value, arguments, uses, stable_recursion,
-      )
-    ApplyEvidence(callee~, ..) =>
-      collect_representation_candidate_atom(callee, uses, stable_recursion)
-    Atom(atom) =>
-      collect_representation_candidate_atom(atom, uses, stable_recursion)
-    Call(callee~, arguments~) => {
-      collect_representation_candidate_atom(callee, uses, stable_recursion)
-      for argument in arguments {
-        collect_representation_candidate_atom(argument, uses, stable_recursion)
+    ApplyEvidence(callee~, arguments~) => {
+      guard scope.resolve(callee, candidates) is Some(application) else {
+        collect_representation_candidate_atom_use(
+          callee, candidates, current, scope,
+        )
+        return None
       }
-    }
-    Construct(construct) =>
-      for payload in construct.payloads {
-        collect_representation_candidate_atom(payload, uses, stable_recursion)
+      let applied : RepresentationCandidateApplication = {
+        candidate: application.candidate,
+        arguments: application.arguments + arguments,
       }
-    Match(match_) => {
-      collect_representation_candidate_atom(
-        match_.scrutinee,
-        uses,
-        stable_recursion,
-      )
-      for alternative in match_.alternatives {
-        collect_representation_candidate_expr(
-          alternative.body,
-          uses,
-          stable_recursion,
+      let parameter_count = candidates[applied.candidate].parameters.length()
+      if applied.arguments.length() == parameter_count {
+        record_representation_candidate_application(
+          applied, candidates, current,
         )
       }
+      if applied.arguments.length() <= parameter_count {
+        Some(applied)
+      } else {
+        None
+      }
+    }
+    Atom(atom) => {
+      let application = scope.resolve(atom, candidates)
+      if application is None {
+        collect_representation_candidate_atom_use(
+          atom, candidates, current, scope,
+        )
+      }
+      application
+    }
+    Call(callee~, arguments~) => {
+      match scope.resolve(callee, candidates) {
+        Some(application) =>
+          if application.arguments.length() !=
+            candidates[application.candidate].parameters.length() {
+            candidates[application.candidate].open = true
+          }
+        None =>
+          collect_representation_candidate_atom_use(
+            callee, candidates, current, scope,
+          )
+      }
+      for argument in arguments {
+        collect_representation_candidate_atom_use(
+          argument, candidates, current, scope,
+        )
+      }
+      None
+    }
+    Construct(construct) => {
+      for payload in construct.payloads {
+        collect_representation_candidate_atom_use(
+          payload, candidates, current, scope,
+        )
+      }
+      None
+    }
+    Match(match_) => {
+      collect_representation_candidate_atom_use(
+        match_.scrutinee,
+        candidates,
+        current,
+        scope,
+      )
+      for alternative in match_.alternatives {
+        if collect_representation_candidate_expr(
+            alternative.body,
+            candidates,
+            current,
+            { values: scope.values.copy(), temps: scope.temps.copy(), },
+          )
+          is Some(application) {
+          candidates[application.candidate].open = true
+        }
+      }
+      None
     }
   }
 }
 
 ///|
-fn collect_representation_candidate_atom(
+fn collect_representation_candidate_atom_use(
   atom : @anf.AnfAtom,
-  uses : Array[RepresentationCandidateUse],
-  stable_recursion : RepresentationStableRecursion?,
+  candidates : Array[RepresentationCandidate],
+  current : Int?,
+  scope : RepresentationApplicationScope,
 ) -> Unit {
+  if scope.resolve(atom, candidates) is Some(application) {
+    candidates[application.candidate].open = true
+    return
+  }
   match atom {
-    Ref(value) => mark_representation_candidate_open(value, uses)
+    Ref(_) | Temp(_) => ()
     Function(function) | DirectFunction(function) | JoinPoint(function) =>
-      collect_representation_candidate_expr(
-        function.body,
-        uses,
-        stable_recursion,
-      )
+      if collect_representation_candidate_expr(
+          function.body,
+          candidates,
+          current,
+          { values: scope.values.copy(), temps: scope.temps.copy(), },
+        )
+        is Some(application) {
+        candidates[application.candidate].open = true
+      }
     EvidenceLambda(body~, ..) =>
-      collect_representation_candidate_expr(body, uses, stable_recursion)
-    Literal(_) | Temp(_) => ()
+      if collect_representation_candidate_expr(body, candidates, current, {
+          values: scope.values.copy(),
+          temps: scope.temps.copy(),
+        })
+        is Some(application) {
+        candidates[application.candidate].open = true
+      }
+    Literal(_) => ()
   }
 }
 
 ///|
 fn record_representation_candidate_application(
-  value : @buslane.ValueId,
-  arguments : Array[@anf.RuntimeArgument],
-  uses : Array[RepresentationCandidateUse],
-  stable_recursion : RepresentationStableRecursion?,
+  application : RepresentationCandidateApplication,
+  candidates : Array[RepresentationCandidate],
+  current : Int?,
 ) -> Unit {
-  for candidate in uses {
-    guard candidate.value == value else { continue }
-    if stable_recursion is Some(recursion) &&
-      recursion.value == value &&
-      is_stable_recursive_application(arguments, recursion.parameters) {
-      return
-    }
-    guard arguments.all(argument => {
+  let target = application.candidate
+  if current is Some(source) {
+    candidates[source].calls.push({
+      target: candidates[target].value,
+      arguments: application.arguments,
+    })
+  }
+  if application.arguments.all(argument => {
       runtime_evidence_is_closed(argument.evidence, [])
-    }) else {
-      candidate.open = true
-      return
+    }) {
+    candidates[target].closed_applications.push(application.arguments)
+  } else if current is None {
+    candidates[target].open = true
+  }
+}
+
+///|
+fn RepresentationApplicationScope::resolve(
+  self : RepresentationApplicationScope,
+  atom : @anf.AnfAtom,
+  candidates : Array[RepresentationCandidate],
+) -> RepresentationCandidateApplication? {
+  match atom {
+    Ref(value) => {
+      for entry in self.values {
+        if entry.0 == value {
+          return Some(entry.1)
+        }
+      }
+      representation_candidate_index(candidates, value).map(candidate => {
+        candidate,
+        arguments: [],
+      })
     }
-    candidate.has_closed_application = true
+    Temp(temp) => {
+      for entry in self.temps {
+        if entry.0 == temp {
+          return Some(entry.1)
+        }
+      }
+      None
+    }
+    Literal(_)
+    | Function(_)
+    | DirectFunction(_)
+    | JoinPoint(_)
+    | EvidenceLambda(_) => None
+  }
+}
+
+///|
+fn RepresentationApplicationScope::bind(
+  self : RepresentationApplicationScope,
+  binding : @anf.AnfBinding,
+  application : RepresentationCandidateApplication?,
+) -> Unit {
+  match binding {
+    Value(id~, ..) => self.bind_value(id, application)
+    Temp(temp~, ..) => {
+      self.temps = self.temps.filter(entry => entry.0 != temp)
+      if application is Some(application) {
+        self.temps.push((temp, application))
+      }
+    }
+  }
+}
+
+///|
+fn RepresentationApplicationScope::bind_value(
+  self : RepresentationApplicationScope,
+  value : @buslane.ValueId,
+  application : RepresentationCandidateApplication?,
+) -> Unit {
+  self.values = self.values.filter(entry => entry.0 != value)
+  if application is Some(application) {
+    self.values.push((value, application))
+  }
+}
+
+///|
+fn solve_representation_specialization_demands(
+  candidates : Array[RepresentationCandidate],
+  runtime_types : RuntimeTypeArena,
+) -> Array[RepresentationSpecializationDemand] raise PhysicalLoweringError {
+  let demands : Array[RepresentationSpecializationDemand] = []
+  for index, candidate in candidates {
+    guard !candidate.open else { continue }
+    for arguments in candidate.closed_applications {
+      add_representation_specialization_demand(
+        demands, index, arguments, runtime_types,
+      )
+    }
+  }
+  let mut next = 0
+  while next < demands.length() {
+    let demand = demands[next]
+    next += 1
+    let source = candidates[demand.candidate]
+    let substitutions = RuntimeSubstitution::from_arguments(
+      source.parameters,
+      demand.arguments,
+    )
+    for call in source.calls {
+      guard representation_candidate_index(candidates, call.target)
+        is Some(target_index) &&
+        !candidates[target_index].open else {
+        continue
+      }
+      let arguments = call.arguments.map(argument => {
+        substitutions.apply_argument(runtime_types, argument)
+      })
+      guard arguments.all(argument => {
+        runtime_evidence_is_closed(argument.evidence, [])
+      }) else {
+        continue
+      }
+      if representation_candidates_share_recursive_component(
+          candidates,
+          demand.candidate,
+          target_index,
+        ) &&
+        !@anf.runtime_arguments_alpha_equivalent(demand.arguments, arguments, expression => {
+          runtime_types.type_expression(expression)
+        }) {
+        continue
+      }
+      add_representation_specialization_demand(
+        demands, target_index, arguments, runtime_types,
+      )
+    }
+  }
+  demands
+}
+
+///|
+fn representation_candidate_index(
+  candidates : Array[RepresentationCandidate],
+  value : @buslane.ValueId,
+) -> Int? {
+  for index, candidate in candidates {
+    if candidate.value == value {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn add_representation_specialization_demand(
+  demands : Array[RepresentationSpecializationDemand],
+  candidate : Int,
+  arguments : Array[@anf.RuntimeArgument],
+  runtime_types : RuntimeTypeArena,
+) -> Unit {
+  if demands.any(demand => {
+      demand.candidate == candidate &&
+      @anf.runtime_arguments_alpha_equivalent(demand.arguments, arguments, expression => {
+        runtime_types.type_expression(expression)
+      })
+    }) {
     return
   }
+  demands.push({ candidate, arguments, })
 }
 
 ///|
-fn is_stable_recursive_application(
-  arguments : Array[@anf.RuntimeArgument],
-  parameters : Array[@anf.RuntimeEvidenceParameter],
+fn representation_candidates_share_recursive_component(
+  candidates : Array[RepresentationCandidate],
+  left : Int,
+  right : Int,
 ) -> Bool {
-  guard arguments.length() == parameters.length() else { return false }
-  for index, argument in arguments {
-    guard argument.evidence is Parameter(id) && id == parameters[index].id else {
-      return false
-    }
+  if left == right {
+    return true
   }
-  true
+  representation_candidate_reaches(candidates, left, right) &&
+  representation_candidate_reaches(candidates, right, left)
 }
 
 ///|
-fn extract_top_evidence_parameters(
-  expression : @anf.AnfExpr,
-) -> Array[@anf.RuntimeEvidenceParameter]? {
-  guard expression is Atom(atom) else { return None }
-  match atom {
-    EvidenceLambda(parameters~, ..) => Some(parameters)
-    _ => None
-  }
-}
-
-///|
-fn mark_representation_candidate_open(
-  value : @buslane.ValueId,
-  uses : Array[RepresentationCandidateUse],
-) -> Unit {
-  for candidate in uses {
-    if candidate.value == value {
-      candidate.open = true
-      return
+fn representation_candidate_reaches(
+  candidates : Array[RepresentationCandidate],
+  source : Int,
+  target : Int,
+) -> Bool {
+  let pending = [source]
+  let visited : Array[Int] = []
+  while !pending.is_empty() {
+    let current = pending.pop().unwrap()
+    if visited.contains(current) {
+      continue
+    }
+    visited.push(current)
+    for call in candidates[current].calls {
+      guard representation_candidate_index(candidates, call.target)
+        is Some(next) else {
+        continue
+      }
+      if next == target {
+        return true
+      }
+      if !visited.contains(next) {
+        pending.push(next)
+      }
     }
   }
+  false
 }

@@ -22,7 +22,7 @@ fn FunctionLowerer::lower_call(
     JoinTarget(block, type_) =>
       self.lower_join_call(block, type_, lowered_arguments)
     EvidenceApplied(Function(function, type_), type_arguments) =>
-      match self.representation_worker(function, type_, type_arguments) {
+      match self.planned_representation_worker(function, type_arguments) {
         Some((worker, worker_type)) =>
           self.lower_direct_call(worker, worker_type, lowered_arguments, None)
         None =>
@@ -35,7 +35,7 @@ fn FunctionLowerer::lower_call(
           )
       }
     EvidenceAppliedFunction(function, type_, environment, type_arguments) =>
-      match self.representation_worker(function, type_, type_arguments) {
+      match self.planned_representation_worker(function, type_arguments) {
         Some((worker, worker_type)) =>
           self.lower_direct_call(
             worker, worker_type, lowered_arguments, environment,
@@ -123,7 +123,7 @@ fn FunctionLowerer::materialize_local(
       )
     AdaptedCallable(adaptation) => self.materialize_callable_adapter(adaptation)
     EvidenceApplied(Function(function, type_), arguments) =>
-      match self.representation_worker(function, type_, arguments) {
+      match self.planned_representation_worker(function, arguments) {
         Some((worker, worker_type)) =>
           self.materialize_local(RecursiveFunction(worker, worker_type, None))
         None => {
@@ -135,7 +135,7 @@ fn FunctionLowerer::materialize_local(
         }
       }
     EvidenceAppliedFunction(function, type_, environment, arguments) =>
-      match self.representation_worker(function, type_, arguments) {
+      match self.planned_representation_worker(function, arguments) {
         Some((worker, worker_type)) =>
           self.materialize_local(
             RecursiveFunction(worker, worker_type, environment),

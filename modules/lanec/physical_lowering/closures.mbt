@@ -47,7 +47,6 @@ fn FunctionLowerer::lower_nested_function_with_type(
           captures: capture_plans,
           capture_abi: ClosureEnvironment(environment_shape),
           recursive_functions: [],
-          specialization_ancestry: self.image.active_specialization_ancestry.copy(),
         })
       },
     ).function
@@ -92,7 +91,6 @@ fn FunctionLowerer::lower_nested_direct_function(
           captures: [],
           capture_abi: DirectInputs(capture_plans),
           recursive_functions: [],
-          specialization_ancestry: self.image.active_specialization_ancestry.copy(),
         })
       },
     ).function
@@ -176,7 +174,6 @@ fn FunctionLowerer::lower_recursive_group(
           captures: capture_plans,
           capture_abi: ClosureEnvironment(environment_shape),
           recursive_functions,
-          specialization_ancestry: self.image.active_specialization_ancestry.copy(),
         })
       }
     }),
@@ -260,7 +257,6 @@ fn FunctionLowerer::lower_direct_recursive_group(
           captures: [],
           capture_abi: DirectInputs(capture_plans),
           recursive_functions,
-          specialization_ancestry: self.image.active_specialization_ancestry.copy(),
         })
       }
     }),

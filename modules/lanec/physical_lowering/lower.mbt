@@ -11,15 +11,11 @@ priv struct ImageLowerer {
   layouts : Array[@physical.LayoutRecipe]
   object_shapes : Array[@physical.ObjectShape]
   intrinsic_wrappers : Array[IntrinsicWrapperPlan]
-  representation_workers : Array[RepresentationWorkerPlan]
-  representation_worker_contracts : RepresentationWorkerContractCatalog
-  representation_worker_candidates : Array[@anf.AnfFunctionId]
+  representation_specialization : RepresentationSpecializationPlan
   callable_adapters : Array[CallableAdapterPlan]
   callable_adapter_worker_contracts : CallableAdapterWorkerContractCatalog
   physical_callable_contracts : PhysicalCallableContractCatalog
   synthetic_parameters : Array[@anf.RuntimeEvidenceParameter]
-  active_specialization_ancestry : Array[@physical.FunctionId]
-  representation_specialization_enabled : Bool
 }
 
 ///|
@@ -103,12 +99,7 @@ fn lower_executable_program_to_physical_or_raise(
   }
   observe(Anf(anf))
   let metadata = anf.metadata()
-  let representation_worker_candidates = if representation_specialization_enabled {
-    representation_specialization_candidates(anf)
-  } else {
-    []
-  }
-  let lowerer : ImageLowerer = {
+  let planning_lowerer : ImageLowerer = {
     metadata,
     runtime_types: RuntimeTypeArena::from_metadata(metadata),
     externals,
@@ -120,17 +111,19 @@ fn lower_executable_program_to_physical_or_raise(
     layouts: [],
     object_shapes: [],
     intrinsic_wrappers: [],
-    representation_workers: [],
-    representation_worker_contracts: { entries: [], },
-    representation_worker_candidates,
+    representation_specialization: { contracts: { entries: [], }, workers: [], },
     callable_adapters: [],
     callable_adapter_worker_contracts: { entries: [], },
     physical_callable_contracts: { requests: [], entries: [], },
     synthetic_parameters: [],
-    active_specialization_ancestry: [],
-    representation_specialization_enabled,
   }
-  let initializer = lowerer.plan(anf)
+  let initializer = planning_lowerer.plan(anf)
+  let representation_specialization = if representation_specialization_enabled {
+    plan_representation_specialization(planning_lowerer, anf)
+  } else {
+    { contracts: { entries: [], }, workers: [], }
+  }
+  let lowerer = { ..planning_lowerer, representation_specialization, }
   let entry_function = match lowerer.find_global(entry.value) {
     Some(Function(function, _)) => function
     _ => raise MissingEntry(value=entry.value)

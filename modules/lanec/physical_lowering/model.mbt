@@ -268,17 +268,24 @@ priv struct RepresentationWorkerContractCatalog {
 }
 
 ///|
+priv struct RepresentationSpecializationPlan {
+  contracts : RepresentationWorkerContractCatalog
+  workers : Array[RepresentationWorkerPlan]
+}
+
+///|
+priv enum RepresentationSpecializationDisposition {
+  Generic
+  Specialized(@physical.FunctionId, @anf.RuntimeType)
+}
+
+///|
 priv struct RepresentationWorkerPlan {
   function : @physical.FunctionId
   contract : RepresentationWorkerContractId
   body : @anf.AnfFunction
   type_ : @anf.RuntimeType
   substitutions : RuntimeSubstitution
-  captured_parameters : Array[@anf.RuntimeEvidenceParameter]
-  captures : Array[CapturePlan]
-  capture_abi : LiftedCaptureAbi
-  recursive_functions : Array[RecursiveFunctionPlan]
-  ancestry : Array[@physical.FunctionId]
 }
 
 ///|
@@ -485,7 +492,6 @@ priv struct LiftedFunctionPlan {
   captures : Array[CapturePlan]
   capture_abi : LiftedCaptureAbi
   recursive_functions : Array[RecursiveFunctionPlan]
-  specialization_ancestry : Array[@physical.FunctionId]
 }
 
 ///|
