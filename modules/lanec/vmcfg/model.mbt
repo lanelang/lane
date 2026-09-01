@@ -250,7 +250,7 @@ pub(all) enum Terminator {
     Array[ValueId]
   )
   TailCallValue(ValueId, Array[ValueId], Array[ValueId])
-  Fatal(ValueId)
+  Fatal
   Unreachable
 } derive(Debug, Eq)
 

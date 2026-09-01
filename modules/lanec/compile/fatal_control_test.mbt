@@ -12,7 +12,7 @@ fn canonical_void_source() -> String {
 }
 
 ///|
-fn check_panic_module(
+fn check_abort_module(
   source : String,
   void_source? : String = canonical_void_source(),
 ) -> CompilationOutcome[Unit] {
@@ -23,12 +23,12 @@ fn check_panic_module(
 }
 
 ///|
-test "fatal builtin has the canonical Basic Void and Panic function type" {
-  let valid = check_panic_module(
+test "abort builtin has the canonical Basic Void and Panic function type" {
+  let valid = check_abort_module(
     (
       #|module Basic.Io
       #|import Basic.Data.Void.{ Void }
-      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|pub let abort : () -> Void ! Panic = builtin("%abort")
     ),
   )
   assert_true(valid is Succeeded(_))
@@ -37,28 +37,28 @@ test "fatal builtin has the canonical Basic Void and Panic function type" {
     (
       #|module Basic.Io
       #|import Basic.Data.Void.{ Void }
-      #|pub let panic : (I64) -> Void ! Panic = builtin("%panic")
+      #|pub let abort : (I64) -> Void ! Panic = builtin("%abort")
     ),
     (
       #|module Basic.Io
       #|import Basic.Data.Void.{ Void }
-      #|pub let panic : (String) -> Void = builtin("%panic")
+      #|pub let abort : () -> Void = builtin("%abort")
     ),
     (
       #|module Basic.Io
       #|import Basic.Data.Void.{ Void }
-      #|pub let panic : (String) -> Unit ! Panic = builtin("%panic")
+      #|pub let abort : () -> Unit ! Panic = builtin("%abort")
     ),
     (
       #|module Basic.Io
       #|import Basic.Data.Void.{ Void }
       #|pub enum OtherVoid {}
-      #|pub let panic : (String) -> OtherVoid ! Panic = builtin("%panic")
+      #|pub let abort : () -> OtherVoid ! Panic = builtin("%abort")
     ),
   ]
   for source in invalid_sources {
-    guard check_panic_module(source) is Failed(failure) else {
-      fail("invalid panic builtin type unexpectedly typechecked")
+    guard check_abort_module(source) is Failed(failure) else {
+      fail("invalid abort builtin type unexpectedly typechecked")
     }
     assert_eq(failure.diagnostics().map(diagnostic => diagnostic.code), [
       Some("E3027"),
@@ -67,12 +67,12 @@ test "fatal builtin has the canonical Basic Void and Panic function type" {
 }
 
 ///|
-test "fatal builtin requires the canonical public empty Void provider" {
-  let outcome = check_panic_module(
+test "abort builtin requires the canonical public empty Void provider" {
+  let outcome = check_abort_module(
     (
       #|module Basic.Io
       #|import Basic.Data.Void.{ Void }
-      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|pub let abort : () -> Void ! Panic = builtin("%abort")
     ),
     void_source=(
       #|module Basic.Data.Void
@@ -88,18 +88,18 @@ test "fatal builtin requires the canonical public empty Void provider" {
 }
 
 ///|
-test "fatal builtin reports a missing canonical Void provider" {
+test "abort builtin reports a missing canonical Void provider" {
   guard check_source(
       (
         #|module Main
         #|pub fn answer() -> Unit {
-        #|  let panic = builtin("%panic")
+        #|  let abort = builtin("%abort")
         #|  ()
         #|}
       ),
     )
     is Failed(failure) else {
-    fail("panic unexpectedly synthesized without its canonical Void provider")
+    fail("abort unexpectedly synthesized without its canonical Void provider")
   }
   assert_eq(failure.diagnostics().map(diagnostic => diagnostic.code), [
     Some("E3039"),
@@ -107,7 +107,7 @@ test "fatal builtin reports a missing canonical Void provider" {
 }
 
 ///|
-test "Void elimination composes panic into arbitrary result types" {
+test "Void elimination composes effectful panic into arbitrary result types" {
   let outcome = check({
     root: {
       source_id: "main",
@@ -115,7 +115,7 @@ test "Void elimination composes panic into arbitrary result types" {
         #|module Main
         #|import Basic.Data.Void.{ absurd }
         #|import Basic.Io.{ panic }
-        #|pub fn answer() -> I64 ! Panic {
+        #|pub fn answer() -> I64 ! { Io, Panic } {
         #|  absurd[I64](panic("missing integer"))
         #|}
       ),
@@ -127,7 +127,12 @@ test "Void elimination composes panic into arbitrary result types" {
         text: (
           #|module Basic.Io
           #|import Basic.Data.Void.{ Void }
-          #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+          #|let abort : () -> Void ! Panic = builtin("%abort")
+          #|pub fn panic(_message : String) -> Void ! { Io, Panic } {
+          #|  let write : () -> Unit ! Io = extern("lane.test", "panic_message")
+          #|  write()
+          #|  abort()
+          #|}
         ),
       },
     ],
@@ -136,14 +141,14 @@ test "Void elimination composes panic into arbitrary result types" {
 }
 
 ///|
-test "fatal builtin synthesizes its canonical nominal type" {
-  let outcome = check_panic_module(
+test "abort builtin synthesizes its canonical nominal type" {
+  let outcome = check_abort_module(
     (
       #|module Basic.Io
       #|import Basic.Data.Void.{ Void }
       #|pub fn answer() -> Unit {
-      #|  let panic = builtin("%panic")
-      #|  let _typed : (String) -> Void ! Panic = panic
+      #|  let abort = builtin("%abort")
+      #|  let _typed : () -> Void ! Panic = abort
       #|  ()
       #|}
     ),

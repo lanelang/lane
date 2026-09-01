@@ -156,7 +156,7 @@ fn terminator_targets(terminator : @physical.Terminator) -> Array[Int] {
     | TailCallDirect(_, _, _, _)
     | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _, _)
-    | Fatal(_)
+    | Fatal
     | Unreachable => []
   }
 }

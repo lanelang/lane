@@ -125,7 +125,7 @@ fn Terminator::snapshot(self : Terminator) -> Terminator {
       )
     TailCallValue(callable, abi, witnesses, arguments) =>
       TailCallValue(callable, abi, witnesses.copy(), arguments.copy())
-    Return(_) | Fatal(_) | Unreachable => self
+    Return(_) | Fatal | Unreachable => self
   }
 }
 

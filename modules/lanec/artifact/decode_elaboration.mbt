@@ -101,7 +101,7 @@ fn @bytecodec.ByteReader::read_intrinsic(
     }
     [u8be(18), .. rest] => {
       self.update_view(rest)
-      Panic
+      Abort
     }
     [u8be(19), .. rest] => {
       self.update_view(rest)

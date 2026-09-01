@@ -43,7 +43,7 @@ test "builtin external contract rejects metadata signature drift" {
     (
       #|module Basic.Data.Void
       #|pub enum Void {}
-      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|pub let abort : () -> Void ! Panic = builtin("%abort")
     ),
   )
   guard object.externals.builtins is [builtin] else {
@@ -67,7 +67,7 @@ test "builtin external contract rejects metadata signature drift" {
       #|      severity: Error,
       #|      code: Some("E4208"),
       #|      labels: [],
-      #|      notes: ["builtin `%panic` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
+      #|      notes: ["builtin `%abort` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
       #|      helps: ["recompile the module object from valid Lane source"],
       #|      facts: [],
       #|      suggestions: [],
@@ -131,7 +131,7 @@ test "linker consumes the certified canonical Basic runtime identity" {
     (
       #|module Basic.Data.Void
       #|pub enum Void {}
-      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|pub let abort : () -> Void ! Panic = builtin("%abort")
     ),
   )
   let malformed = refingerprint_test_object({
@@ -149,7 +149,7 @@ test "linker consumes the certified canonical Basic runtime identity" {
       #|    severity: Error,
       #|    code: Some("E4208"),
       #|    labels: [],
-      #|    notes: ["builtin `%panic` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
+      #|    notes: ["builtin `%abort` does not match its canonical source contract; module objects must be internally valid before identity remapping begins"],
       #|    helps: ["recompile the module object from valid Lane source"],
       #|    facts: [],
       #|    suggestions: [],
@@ -165,7 +165,7 @@ test "canonical Basic owner certifies the persisted Void shape" {
     (
       #|module Basic.Data.Void
       #|pub enum Void {}
-      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|pub let abort : () -> Void ! Panic = builtin("%abort")
     ),
   )
   guard object.canonical_basic_abi.void_type() is Some(void_type) else {

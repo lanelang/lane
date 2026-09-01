@@ -6,15 +6,15 @@ test "compiler-owned fatal control has the canonical callable ABI" {
       #|
       #|import Basic.Data.Void.{ Void, absurd }
       #|
-      #|let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|let abort : () -> Void ! Panic = builtin("%abort")
       #|
-      #|fn invoke(abort : (String) -> Void ! Panic) -> Unit ! Panic {
-      #|  absurd[Unit](abort("indirect"))
+      #|fn invoke(abort : () -> Void ! Panic) -> Unit ! Panic {
+      #|  absurd[Unit](abort())
       #|  ()
       #|}
       #|
       #|pub fn answer() -> Unit ! Panic {
-      #|  invoke(panic)
+      #|  invoke(abort)
       #|  ()
       #|}
     ),
@@ -33,19 +33,13 @@ test "compiler-owned fatal control has the canonical callable ABI" {
     match entry {
       PhysicalBody(body) =>
         for block in body.blocks {
-          if block.terminator is Fatal(message) {
+          if block.terminator is Fatal {
             fatal_count += 1
             guard body.callable_abi()
               is Some(
                 {
                   witnesses: [],
-                  parameters: [
-                    {
-                      representation: I32,
-                      cleanup: OwnedRef,
-                      kind: ByteSequenceValue,
-                    },
-                  ],
+                  parameters: [],
                   result: Value(I32, OwnedRef, DataValue(_)),
                 }
               ) else {
@@ -54,7 +48,7 @@ test "compiler-owned fatal control has the canonical callable ABI" {
             assert_eq(body.inputs, {
               environment: None,
               witnesses: [],
-              user_parameters: [message],
+              user_parameters: [],
             })
           }
         }

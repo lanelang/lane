@@ -106,7 +106,7 @@ fn write_intrinsic(
 ) -> Unit {
   writer.write_u8(
     match intrinsic {
-      Panic => 18
+      Abort => 18
       I64Add => 0
       I64Sub => 1
       I64Mul => 2

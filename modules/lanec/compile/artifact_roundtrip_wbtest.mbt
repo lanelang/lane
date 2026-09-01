@@ -293,7 +293,7 @@ test "ByteBuffer intrinsic roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 27
+      #|schema: 28
       #|
       #|imported interfaces:
       #|  (none)
@@ -334,12 +334,12 @@ test "ByteBuffer intrinsic roundtrips through typed artifacts" {
 }
 
 ///|
-test "Panic and Bytes intrinsics roundtrip through object artifacts" {
+test "Abort and Bytes intrinsics roundtrip through object artifacts" {
   let compiled = compile_modules_for_test(
     (
       #|module Basic.Data.Void
       #|pub enum Void {}
-      #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+      #|pub let abort : () -> Void ! Panic = builtin("%abort")
       #|pub let bytes_get : (Bytes, I64) -> Byte = builtin("%bytes_get")
       #|pub let bytes_set : (Bytes, I64, Byte) -> Bytes = builtin("%bytes_set")
     ),
@@ -847,7 +847,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 27
+      #|schema: 28
       #|
       #|imported interfaces:
       #|  (none)

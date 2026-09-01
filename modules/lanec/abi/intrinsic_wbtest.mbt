@@ -7,21 +7,21 @@ fn expected_direct_intrinsic(
 }
 
 ///|
-test "panic intrinsic owns its exact Panic signature" {
+test "abort intrinsic owns its exact terminal signature" {
   assert_eq(
     (
-      Intrinsic::from_name("%panic"),
-      Intrinsic::Panic.name(),
-      Intrinsic::Panic.signature(),
+      Intrinsic::from_name("%abort"),
+      Intrinsic::Abort.name(),
+      Intrinsic::Abort.signature(),
     ),
     (
-      Some(Panic),
-      "%panic",
+      Some(Abort),
+      "%abort",
       Function(
-        parameters=[String],
+        parameters=[],
         result=CanonicalBasicVoid,
         effect=BuiltinPanic,
-        implementation=Fatal(message_parameter=0),
+        implementation=Fatal,
       ),
     ),
   )

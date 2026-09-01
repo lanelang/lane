@@ -209,38 +209,11 @@ fn compile_test_image_observed(
 }
 
 ///|
-test "identical source and fatal imports share one Core Wasm function" {
-  let write : @wasm_abi.ImportContract = {
-    module_name: "wasi_snapshot_preview1",
-    field_name: "fd_write",
-    parameters: [Direct(I32), GuestAddress, Direct(I32), GuestAddress],
-    result: Direct(I32),
-  }
-  let entry = body(
-    slots=[owned_slot(I32, OwnedRef)],
-    instructions=[ConstString({ value: 0, }, { value: 0, })],
-    terminator=Fatal({ value: 0, }),
-  )
-  let observed = compile_test_image_observed({
-    ..image([PhysicalBody(entry), RuntimeImport(write)]),
-    layouts: [ByteSequence],
-    constants: [b"fatal"],
-  }).unwrap()
-  let imports = observed.functions.filter_map(function => {
-    match function.origin {
-      CoreImport(contract) => Some(contract)
-      _ => None
-    }
-  })
-  assert_eq(imports, [
-    write,
-    {
-      module_name: "wasi_snapshot_preview1",
-      field_name: "proc_exit",
-      parameters: [Direct(I32)],
-      result: Unit,
-    },
-  ])
+test "Fatal emits a platform-independent Wasm trap" {
+  let entry = body(terminator=Fatal)
+  let observed = compile_test_image_observed({ ..image([PhysicalBody(entry)]), }).unwrap()
+  assert_eq(observed.module_.imports, [])
+  assert_eq(observed.module_.codes[0].body, [Unreachable])
 }
 
 ///|
@@ -1017,7 +990,7 @@ test "packed direct call transfers environment ownership into fatal control" {
           Release({ value: 0, }),
           ConstString({ value: 1, }, { value: 0, }),
         ],
-        terminator: Fatal({ value: 1, }),
+        terminator: Fatal,
       },
     ],
   }
@@ -1030,7 +1003,7 @@ test "packed direct call transfers environment ownership into fatal control" {
   for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
     let loaded = load(physical_program, mode~).unwrap()
     let instance = loaded.new_instance().unwrap()
-    assert_eq(instance.execute(), Ok(ProcessExit(code=1)))
+    assert_true(instance.execute() is Err(EngineTrap(_)))
   }
 }
 

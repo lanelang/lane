@@ -698,7 +698,7 @@ fn terminator_edges(terminator : Terminator) -> Array[Edge] {
     | TailCallDirect(_, _, _, _)
     | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
-    | Fatal(_)
+    | Fatal
     | Unreachable => []
   }
 }

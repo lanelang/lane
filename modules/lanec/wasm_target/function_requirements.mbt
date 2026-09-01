@@ -170,16 +170,7 @@ fn require_physical_terminator_dependencies(
     }
     TailCallValue(_, _, _, _) =>
       require_wasm_function(dependencies, HelperFunction(CallableAbiGuard))
-    Fatal(_) => {
-      require_wasm_function(
-        dependencies,
-        CoreImport(fatal_write_import_contract()),
-      )
-      require_wasm_function(
-        dependencies,
-        CoreImport(process_exit_import_contract()),
-      )
-    }
+    Fatal => ()
     _ => ()
   }
 }

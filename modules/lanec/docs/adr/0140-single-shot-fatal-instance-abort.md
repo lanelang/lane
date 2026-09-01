@@ -1,5 +1,11 @@
 # Single-shot fatal instance abort
 
+This backend mechanism is superseded by
+[ADR 0141](0141-platform-owned-panic-and-core-abort.md). The ownership rule
+remains: terminal execution abandons the instance. The current WebAssembly
+target implements fieldless `Fatal` directly with `unreachable`, without the
+private exception described below.
+
 Lane fatal control is non-recoverable. A fatal intrinsic, runtime resource
 limit, runtime-import failure, or compiler-owned runtime guard terminates the
 current WebAssembly execution instance. The instance cannot be resumed or

@@ -318,7 +318,7 @@ pub(all) enum Terminator {
   TailCallDirect(FunctionId, SlotId?, Array[SlotId], Array[SlotId])
   TailCallPackedDirect(FunctionId, SlotId, Array[SlotId], Array[SlotId])
   TailCallValue(SlotId, CallableAbiId, Array[SlotId], Array[SlotId])
-  Fatal(SlotId)
+  Fatal
   Unreachable
 } derive(Debug, Eq)
 

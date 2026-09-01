@@ -405,7 +405,7 @@ fn render_terminator(terminator : Terminator) -> String {
       "tail_call_packed_direct \{render_function(function)} callable=\{render_slot(callable)} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
     TailCallValue(callable, abi, witnesses, arguments) =>
       "tail_call_value \{render_slot(callable)} abi=abi\{abi.value} witnesses=[\{render_slots(witnesses)}] arguments=[\{render_slots(arguments)}]"
-    Fatal(message) => "fatal \{render_slot(message)}"
+    Fatal => "fatal"
     Unreachable => "unreachable"
   }
 }

@@ -300,9 +300,9 @@ test "Wasm fatal control terminates the instance without recovery cleanup" {
     wasm_global_slot(I32, cleanup=OwnedRef, kind=ByteSequenceValue),
   )
   entry.blocks[0].instructions.push(ConstString({ value: 5, }, { value: 0, }))
-  entry.blocks[0] = { ..entry.blocks[0], terminator: Fatal({ value: 5, }), }
+  entry.blocks[0] = { ..entry.blocks[0], terminator: Fatal, }
   let instance = wasm_global_instance(image)
-  assert_eq(instance.execute(), Ok(ProcessExit(code=1)))
+  assert_true(instance.execute() is Err(EngineTrap(_)))
   assert_eq(instance.execute(), Err(InstanceNotReady))
 }
 

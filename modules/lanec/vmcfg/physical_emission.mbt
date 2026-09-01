@@ -404,7 +404,7 @@ fn emit_terminator(
       )
       TailCallValue(slot(callable), abi, lowered_witnesses, lowered_arguments)
     }
-    Fatal(message) => Fatal(slot(message))
+    Fatal => Fatal
     Unreachable => Unreachable
   }
 }

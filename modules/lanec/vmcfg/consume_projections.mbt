@@ -285,8 +285,7 @@ fn projection_terminator_requires_owner(
       callable == value || arguments.contains(value)
     TailCallValue(callable, _, arguments) =>
       callable == value || arguments.contains(value)
-    Fatal(message) => message == value
-    Unreachable => false
+    Fatal | Unreachable => false
   }
 }
 

@@ -40,7 +40,7 @@ pub(all) enum IntrinsicEffect {
 ///|
 pub(all) enum IntrinsicFunctionImplementation {
   Direct
-  Fatal(message_parameter~ : Int)
+  Fatal
 } derive(Debug, Eq)
 
 ///|
@@ -191,7 +191,7 @@ pub fn BasicVariantProvider::variant_name(
 
 ///|
 pub(all) enum Intrinsic {
-  Panic
+  Abort
   I64Add
   I64Sub
   I64Mul
@@ -262,7 +262,7 @@ pub(all) enum Intrinsic {
 ///|
 pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
   match name {
-    "%panic" => Some(Panic)
+    "%abort" => Some(Abort)
     "%i64_add" => Some(I64Add)
     "%i64_sub" => Some(I64Sub)
     "%i64_mul" => Some(I64Mul)
@@ -335,7 +335,7 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
 ///|
 pub fn Intrinsic::name(self : Intrinsic) -> String {
   match self {
-    Panic => "%panic"
+    Abort => "%abort"
     I64Add => "%i64_add"
     I64Sub => "%i64_sub"
     I64Mul => "%i64_mul"
@@ -407,12 +407,12 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
 ///|
 pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
   match self {
-    Panic =>
+    Abort =>
       Function(
-        parameters=[String],
+        parameters=[],
         result=CanonicalBasicVoid,
         effect=BuiltinPanic,
-        implementation=Fatal(message_parameter=0),
+        implementation=Fatal,
       )
     I64Add | I64Sub | I64Mul | I64Div | I64Rem =>
       pure_intrinsic_function(parameters=[I64, I64], result=I64)

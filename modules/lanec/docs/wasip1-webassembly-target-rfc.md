@@ -95,10 +95,10 @@ and are not an embedding interface merely because WebAssembly assigns them an
 index or a name.
 
 `_start` initializes the Lane instance, invokes the linked entry selected by
-the Lane command, releases normal execution roots, and returns normally. A
-source panic or an unrecoverable runtime failure follows the compiler-owned
-fatal-control path and terminates execution rather than becoming a recoverable
-WASI result.
+the Lane command, releases normal execution roots, and returns normally. The
+shipped Basic panic requests WASIP1 process exit; compiler-owned abort and an
+unrecoverable runtime failure trap the current instance rather than becoming a
+recoverable WASI result.
 
 ## Host ABI
 
@@ -191,12 +191,16 @@ how one synchronous core-Wasm import borrows Lane-owned guest memory.
 
 ## Panic and process termination
 
-Source `panic` remains distinct from recoverable exceptions and from ordinary
-I/O. It is compiler-owned terminal control. The Wasm backend writes the panic
-message to standard error with `wasi_snapshot_preview1.fd_write`, then calls
-`wasi_snapshot_preview1.proc_exit(1)`. The runtime reports that standard WASI
-termination as `ExecutionOutcome::ProcessExit(code=1)`; it does not reconstruct a second typed
-panic channel from a private import, export, tag, or global.
+Source `panic` remains distinct from recoverable exceptions. Canonical Basic,
+not the compiler backend, owns its WASIP1 policy: it writes the message with
+`wasi_snapshot_preview1.fd_write`, calls
+`wasi_snapshot_preview1.proc_exit(1)`, and retains `%abort` as a non-returning
+fallback. Its source type is `(String) -> Void ! { Io, Panic }` because output
+and terminal control are separate observable facts.
+
+The compiler-owned `%abort` intrinsic is platform-independent. Its fieldless
+`Fatal` terminator emits only WebAssembly `unreachable`; it creates no WASI
+import, frame, helper, or private outcome channel.
 
 Deterministic F32/F64 shortest-round-trip formatting is also guest code. The
 compiler statically emits the reachable Ryū-derived Wasm functions and their

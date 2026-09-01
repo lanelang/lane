@@ -2530,7 +2530,7 @@
           "--> examples/invalid/120_panic_requires_effect.lane:6:25",
           "error[E3007]",
           "effect mismatch",
-          "expected effect `{}`, found `Panic`",
+          "expected effect `{}`, found `{ Io, Panic }`",
           "Lane functions without an effect annotation are pure",
           "add the required effect annotation or remove the effectful operation"
         ]

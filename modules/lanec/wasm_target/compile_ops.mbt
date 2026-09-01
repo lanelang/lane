@@ -938,33 +938,7 @@ fn compile_terminator(
       instructions.push(ReturnCallIndirect(type_index, 0))
       instructions
     }
-    Fatal(message) => {
-      let frame = static_image.fatal_io_frame_base
-      let instructions : Array[@wasm_types.Instruction] = [
-        I32Const(frame),
-        LocalGet(locals.slot_local(message)),
-        I32Const(12),
-        I32Add,
-        I32Store(0, 2, 0L),
-        I32Const(frame),
-        LocalGet(locals.slot_local(message)),
-        I32Load(0, 2, 8L),
-        I32Store(0, 2, 4L),
-        I32Const(frame),
-        I32Const(0),
-        I32Store(0, 2, 8L),
-        I32Const(2),
-        I32Const(frame),
-        I32Const(1),
-        I32Const(frame + 8),
-        function_catalog.core_import(fatal_write_import_contract()).call(),
-        Drop,
-        I32Const(1),
-        function_catalog.core_import(process_exit_import_contract()).call(),
-        Unreachable,
-      ]
-      instructions
-    }
+    Fatal => [Unreachable]
     Unreachable => [Unreachable]
     unsupported =>
       raise UnsupportedInstruction(

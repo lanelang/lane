@@ -361,7 +361,7 @@ fn render_terminator(terminator : Terminator) -> String {
       "tail_call_packed_direct \{render_function(function)} callable=\{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
     TailCallValue(callable, witnesses, arguments) =>
       "tail_call_value \{render_value(callable)} witnesses=[\{render_values(witnesses)}] arguments=[\{render_values(arguments)}]"
-    Fatal(message) => "fatal \{render_value(message)}"
+    Fatal => "fatal"
     Unreachable => "unreachable"
   }
 }

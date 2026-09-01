@@ -327,14 +327,6 @@ fn WasmFunctionCatalog::helper(
 }
 
 ///|
-fn WasmFunctionCatalog::core_import(
-  self : WasmFunctionCatalog,
-  contract : @wasm_abi.ImportContract,
-) -> WasmFunctionHandle {
-  self.require(CoreImport(contract))
-}
-
-///|
 fn WasmFunctionCatalog::builtin(
   self : WasmFunctionCatalog,
   role : WasmBuiltinFunctionRole,

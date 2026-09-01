@@ -144,7 +144,7 @@ fn sparse_executable_edges(
     | TailCallDirect(_, _, _, _)
     | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
-    | Fatal(_)
+    | Fatal
     | Unreachable => []
   }
 }

@@ -336,7 +336,7 @@ fn map_terminator_edges(
     | TailCallDirect(_, _, _, _)
     | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
-    | Fatal(_)
+    | Fatal
     | Unreachable => terminator
   }
 }
@@ -381,7 +381,7 @@ fn map_terminator_values(
         witnesses.map(transform),
         arguments.map(transform),
       )
-    Fatal(message) => Fatal(transform(message))
+    Fatal => Fatal
     Unreachable => Unreachable
   }
 }

@@ -158,8 +158,7 @@ fn layout_uses(layout : LayoutOperand) -> Array[ValueId] {
 fn terminator_operand_values(terminator : Terminator) -> Array[ValueId] {
   match terminator {
     Return(Some(value)) => [value]
-    Return(None) | Unreachable => []
-    Fatal(message) => [message]
+    Return(None) | Fatal | Unreachable => []
     Jump(edge) => edge.arguments
     BranchBool(condition, if_true, if_false) =>
       [condition] + if_true.arguments + if_false.arguments

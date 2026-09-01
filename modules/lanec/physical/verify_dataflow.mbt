@@ -1634,12 +1634,7 @@ fn PhysicalProgramVerifier::apply_terminator_flow(
       self.require_no_live_owners(site, state)
       []
     }
-    Fatal(message) => {
-      ignore(self.consume_owner(site, body, state, message))
-      self.require_no_live_owners(site, state)
-      []
-    }
-    Unreachable => {
+    Fatal | Unreachable => {
       ignore(function)
       []
     }

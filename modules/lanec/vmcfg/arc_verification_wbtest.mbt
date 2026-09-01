@@ -228,12 +228,10 @@ test "fatal termination abandons current-instance owners" {
       user_parameters: [{ value: 0, }, { value: 1, }],
     },
     result: Unit,
-    blocks: [
-      { parameters: [], instructions: [], terminator: Fatal({ value: 0, }), },
-    ],
+    blocks: [{ parameters: [], instructions: [], terminator: Fatal, }],
   })
   assert_eq(arc_final.body.blocks, [
-    { parameters: [], instructions: [], terminator: Fatal({ value: 0, }), },
+    { parameters: [], instructions: [], terminator: Fatal, },
   ])
 }
 

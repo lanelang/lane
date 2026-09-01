@@ -1,8 +1,13 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Panic effect
+
+This source-effect decision is refined by
+[ADR 0141](0141-platform-owned-panic-and-core-abort.md). `Panic` remains the
+non-algebraic terminal effect, but user-facing Basic panic now also carries
+`Io`, while the compiler intrinsic is the parameterless `%abort`.
 
 Lane defines `Panic` as a compiler-provided built-in effect atom distinct from
 `Io`. It marks source operations whose documented, value-dependent failure

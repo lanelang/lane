@@ -156,35 +156,13 @@ test "verified Physical programs isolate images and lifecycle plans" {
 }
 
 ///|
-test "physical verifier enforces Fatal message shape" {
-  let message = verification_slot(
-    I32,
-    cleanup=OwnedRef,
-    kind=Some(ByteSequenceValue),
-  )
-  let fatal = {
-    ..verification_body(slots=[message], terminator=Fatal({ value: 0, })),
-    inputs: {
-      environment: None,
-      witnesses: [],
-      user_parameters: [{ value: 0, }],
-    },
-    result: Unit,
-  }
+test "physical verifier accepts fieldless Fatal control" {
+  let fatal = verification_body(terminator=Fatal)
   assert_eq(
     verify_physical_program(
       verification_image(verification_body(), functions=[PhysicalBody(fatal)]),
     ),
     Ok(()),
-  )
-  let wrong_message = { ..fatal, slots: [verification_slot(I32)], }
-  assert_true(
-    verify_physical_program(
-      verification_image(verification_body(), functions=[
-        PhysicalBody(wrong_message),
-      ]),
-    )
-    is Err(_),
   )
 }
 

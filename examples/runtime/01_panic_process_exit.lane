@@ -3,8 +3,8 @@ module Examples.Runtime.PanicProcessExit
 import Basic.Data.Void.{ Void, absurd }
 import Basic.Io.{ panic }
 
-pub fn answer() -> Unit ! Panic {
-  let terminate : (String) -> Void ! Panic = panic
+pub fn answer() -> Unit ! { Io, Panic } {
+  let terminate : (String) -> Void ! { Io, Panic } = panic
   absurd[Unit](terminate("intentional panic example"))
   ()
 }

@@ -123,7 +123,7 @@ fn block_successors(block : Block) -> Array[Int] {
     | TailCallDirect(_, _, _, _)
     | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
-    | Fatal(_)
+    | Fatal
     | Unreachable => []
   }
 }
@@ -152,7 +152,7 @@ fn append_threaded_edge_arguments(
     | TailCallDirect(_, _, _, _)
     | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
-    | Fatal(_)
+    | Fatal
     | Unreachable => terminator
   }
 }

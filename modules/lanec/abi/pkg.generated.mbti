@@ -58,7 +58,7 @@ pub fn HostSignature::not_equal(Self, Self) -> Bool
 pub fn HostSignature::to_repr(Self) -> @debug.Repr
 
 pub(all) enum Intrinsic {
-  Panic
+  Abort
   I64Add
   I64Sub
   I64Mul
@@ -143,7 +143,7 @@ pub fn IntrinsicEffect::to_repr(Self) -> @debug.Repr
 
 pub(all) enum IntrinsicFunctionImplementation {
   Direct
-  Fatal(message_parameter~ : Int)
+  Fatal
 } derive(Eq, @debug.Debug)
 pub fn IntrinsicFunctionImplementation::equal(Self, Self) -> Bool
 pub fn IntrinsicFunctionImplementation::not_equal(Self, Self) -> Bool

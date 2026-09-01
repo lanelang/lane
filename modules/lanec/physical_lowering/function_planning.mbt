@@ -148,7 +148,7 @@ fn ImageLowerer::plan_intrinsic(
       match implementation {
         Direct =>
           self.globals.push({ value, lowered: Intrinsic(function_contract), })
-        Fatal(..) => {
+        Fatal => {
           let function = self.intrinsic_wrapper(function_contract)
           self.globals.push({ value, lowered: Function(function, type_), })
         }
@@ -431,9 +431,8 @@ fn ImageLowerer::lower_intrinsic_wrapper(
   }
   let parameter_slots = parameter_types.map(type_ => lowerer.fresh_slot(type_))
   match plan.contract.implementation {
-    Fatal(message_parameter~) => {
-      let message = parameter_slots[message_parameter]
-      lowerer.terminate(Fatal(message))
+    Fatal => {
+      lowerer.terminate(Fatal)
       {
         values: lowerer.values,
         inputs: {
@@ -442,9 +441,7 @@ fn ImageLowerer::lower_intrinsic_wrapper(
           user_parameters: parameter_slots,
         },
         result: self.result_abi(result_type),
-        blocks: [
-          { parameters: [], instructions: [], terminator: Fatal(message), },
-        ],
+        blocks: [{ parameters: [], instructions: [], terminator: Fatal, }],
       }
     }
     Direct => {

@@ -10,18 +10,26 @@ fn effect_conformance_basic_io() -> String {
     #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
     #|let i64_to_i32 : (I64) -> I32 = builtin("%i64_to_i32")
     #|let wasi_fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
-    #|pub fn println(value : String) -> Unit ! Io {
-    #|  let bytes = bytes_concat(string_to_bytes(value), string_to_bytes("\n"))
+    #|let wasi_proc_exit : (I32) -> Unit ! Panic = extern("wasi_snapshot_preview1", "proc_exit")
+    #|fn write(fd : I32, bytes : Bytes) -> Unit ! Io {
     #|  let length = bytes_length(bytes)
     #|  let frame = allocate(i64_add(12, length))
     #|  write_bytes(frame, 12, bytes)
     #|  write_address(frame, 0, frame, 12i32)
     #|  write_i32(frame, 4, i64_to_i32(length))
     #|  write_i32(frame, 8, 0i32)
-    #|  let _errno = wasi_fd_write(1i32, address(frame, 0i32), 1i32, address(frame, 8i32))
+    #|  let _errno = wasi_fd_write(fd, address(frame, 0i32), 1i32, address(frame, 8i32))
     #|  ()
     #|}
-    #|pub let panic : (String) -> Void ! Panic = builtin("%panic")
+    #|pub fn println(value : String) -> Unit ! Io {
+    #|  write(1i32, bytes_concat(string_to_bytes(value), string_to_bytes("\n")))
+    #|}
+    #|let abort : () -> Void ! Panic = builtin("%abort")
+    #|pub fn panic(value : String) -> Void ! { Io, Panic } {
+    #|  write(2i32, string_to_bytes(value))
+    #|  wasi_proc_exit(1i32)
+    #|  abort()
+    #|}
   )
 }
 
@@ -596,13 +604,13 @@ test "statement-position panic is fatal and does not continue on either backend"
 }
 
 ///|
-test "first-class panic preserves fatal control on either backend" {
+test "first-class panic preserves platform fatal control on either backend" {
   let image = compile_effect_conformance_image(
     (
       #|module Main
       #|import Basic.Io.*
       #|import Basic.Data.Void.{ Void, absurd }
-      #|fn invoke(abort : (String) -> Void ! Panic) -> Unit ! Panic {
+      #|fn invoke(abort : (String) -> Void ! { Io, Panic }) -> Unit ! { Io, Panic } {
       #|  absurd[Unit](abort("forwarded"))
       #|  ()
       #|}

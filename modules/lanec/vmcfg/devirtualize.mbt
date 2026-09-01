@@ -251,8 +251,9 @@ fn collect_environment_terminator_candidate(
       record_callable_candidate(candidates, facts, flow, callable_fact)
       invalidate_callable_values(candidates, facts, flow, witnesses + arguments)
     }
-    Jump(_) | BranchBool(_, _, _) | SwitchTag(_, _, _) | Unreachable => ()
-    Return(Some(value)) | Fatal(value) =>
+    Jump(_) | BranchBool(_, _, _) | SwitchTag(_, _, _) | Fatal | Unreachable =>
+      ()
+    Return(Some(value)) =>
       invalidate_callable_fact(candidates, flow, facts[value.value])
     Return(None) => ()
   }

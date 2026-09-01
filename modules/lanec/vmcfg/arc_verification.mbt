@@ -113,7 +113,7 @@ fn block_edges(terminator : Terminator) -> Array[Edge] {
     | TailCallDirect(_, _, _, _)
     | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
-    | Fatal(_)
+    | Fatal
     | Unreachable => []
   }
 }
@@ -414,11 +414,7 @@ fn apply_arc_terminator(
       successors.push(apply_arc_edge(body, block, state.copy(), default))
       successors
     }
-    Fatal(message) => {
-      apply_arc_operand(body, block, state, message, Borrow)
-      []
-    }
-    Unreachable => []
+    Fatal | Unreachable => []
     Return(_)
     | TailCallDirect(_, _, _, _)
     | TailCallPackedDirect(_, _, _, _)

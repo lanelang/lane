@@ -55,7 +55,7 @@ fn insert_arc_block(
     edge_blocks,
   )
   match terminator {
-    Fatal(_) | Unreachable => ()
+    Fatal | Unreachable => ()
     _ =>
       for value_index, is_live in live {
         if is_live {
@@ -229,7 +229,7 @@ fn insert_arc_terminator(
     | TailCallDirect(_, _, _, _)
     | TailCallPackedDirect(_, _, _, _)
     | TailCallValue(_, _, _)
-    | Fatal(_)
+    | Fatal
     | Unreachable => {
       let plan = arc_terminal_plan(terminator).unwrap()
       let operands = []

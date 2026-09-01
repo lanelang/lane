@@ -189,15 +189,6 @@ fn PhysicalProgramVerifier::verify_terminator(
         tail_result=Some(body.result),
       )
     }
-    Fatal(message) =>
-      self.expect_value_shape(
-        site,
-        body,
-        message,
-        I32,
-        OwnedRef,
-        ByteSequenceValue,
-      )
-    Unreachable => ()
+    Fatal | Unreachable => ()
   }
 }

@@ -594,9 +594,10 @@ _Avoid_: WAT parsing, sampled costs, heuristic attribution
 
 **Fatal Instance Abort**:
 The WebAssembly target rule that a fatal failure terminates and discards the
-current single-shot instance. The private Wasm exception carries structured
-failure to Wasmoon but creates no generated catch, frame liveness, or recovery
-cleanup. Normal ARC and successful Instance Global shutdown remain explicit.
+current single-shot instance. Intentional source terminal control is represented
+by fieldless `Fatal` and emitted as WebAssembly `unreachable`; it creates no
+generated catch, frame liveness, recovery cleanup, import, or private outcome.
+Normal ARC and successful Instance Global shutdown remain explicit.
 _Avoid_: inferred exceptional edges, per-frame unwind state, post-fatal reuse
 
 **Callable ABI Guard Helper**:
