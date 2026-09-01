@@ -1,3 +1,4 @@
+///|
 fn main raise {
   let bytes = @fs.read_file_to_bytes("lane_ryu.wasm")
   let module_ = @parser.parse_module(bytes)
@@ -6,7 +7,9 @@ fn main raise {
     module_.imports.all(import_ => import_.desc is Memory(_)) &&
     module_.globals.length() == 1 &&
     module_.datas.length() == 1 else {
-    fail("the pinned Ryū build no longer has the certified five-function shape")
+    fail(
+      "the pinned Ryū build no longer has the certified five-function shape",
+    )
   }
   guard module_.exports.length() == 2 &&
     module_.exports.any(export_ => {
@@ -24,7 +27,9 @@ fn main raise {
   println("// Generated from Ulf Adams' Ryū implementation (Apache-2.0).")
   println("// Copyright 2018 Ulf Adams.")
   println("// Source revision: 4c0618b0e44f7ef027ebae05d2cc7812048f7c8f.")
-  println("// Do not edit by hand; regenerate with tools/generate-guest-float-runtime.sh.")
+  println(
+    "// Do not edit by hand; regenerate with tools/generate-guest-float-runtime.sh.",
+  )
   println("")
   println("///|")
   println("fn guest_float_codes() -> Array[@wasm_types.FunctionCode] {")
