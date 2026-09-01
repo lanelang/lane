@@ -18,14 +18,14 @@ test "I64 and F64 conversion intrinsics execute consistently across backends" {
   assert_eq(actual, [
     {
       backend: WasmInterpreter,
-      result: Ok(()),
+      result: Ok(Returned),
       i64_values: [42L],
       f64_bits: [0x4045000000000000UL],
       callback_calls: 0,
     },
     {
       backend: WasmJit,
-      result: Ok(()),
+      result: Ok(Returned),
       i64_values: [42L],
       f64_bits: [0x4045000000000000UL],
       callback_calls: 0,

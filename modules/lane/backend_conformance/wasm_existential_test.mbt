@@ -22,7 +22,7 @@ fn execute_callable_image_in_both_backends(
     Ok(value) => value
     Err(error) => fail("interpreter load failed: \{Repr(error)}")
   }
-  assert_eq(interpreted.execute(), Ok(()))
+  assert_eq(interpreted.execute(), Ok(Returned))
   assert_eq(interpreted_observed, [expected])
   let wasm_observed = []
   let wasm = match
@@ -34,7 +34,7 @@ fn execute_callable_image_in_both_backends(
     Ok(value) => value
     Err(error) => fail("Wasm instantiate failed: \{Repr(error)}")
   }
-  assert_eq(instance.execute(), Ok(()))
+  assert_eq(instance.execute(), Ok(Returned))
   assert_eq(wasm_observed, [expected])
 }
 
@@ -131,7 +131,7 @@ test "existential lowering executes through Wasm with opened ARC witnesses" {
     Ok(value) => value
     Err(error) => fail("Wasm instantiate failed: \{Repr(error)}")
   }
-  assert_eq(instance.execute(), Ok(()))
+  assert_eq(instance.execute(), Ok(Returned))
 }
 
 ///|

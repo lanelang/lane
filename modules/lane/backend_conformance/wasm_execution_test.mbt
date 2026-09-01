@@ -96,6 +96,7 @@ fn load_physical(
   image : @physical.PhysicalProgram,
   mode? : @lane_wasm_runtime.ExecutionMode = Jit,
   wasi_stdout? : ((Bytes) -> Unit)? = None,
+  wasi_stderr? : ((Bytes) -> Unit)? = None,
   host? : TestHostBindings = TestHostBindings::new(),
 ) -> Result[@lane_wasm_runtime.LoadedImage, BackendLoadError] {
   let verified = match @physical.verify_physical_program_for_execution(image) {
@@ -109,7 +110,7 @@ fn load_physical(
   let encoded = @wasm_encoder.encode(module_)
   let wasm = Bytes::from_iter(encoded.iter().map(value => value.to_byte()))
   match
-    @lane_wasm_runtime.load_wasm(wasm, mode~, wasi_stdout~, configure_host=linker => {
+    @lane_wasm_runtime.load_wasm(wasm, mode~, wasi_stdout~, wasi_stderr~, configure_host=linker => {
       for function in host.functions {
         linker.add_host_func_with_caller(
           function.module_name,

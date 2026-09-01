@@ -326,7 +326,7 @@ test "pure scalar Buslane lowers through ANF into executable Physical Program" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
 }
 
 ///|
@@ -497,7 +497,7 @@ test "scalar intrinsics materialize as deduplicated first-class wrappers" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -645,7 +645,7 @@ test "lexical handlers and resume lower before the Physical Program" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -711,7 +711,7 @@ test "primitive external functions become runtime imports" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -1028,7 +1028,7 @@ test "Bool matches lower to explicit CFG branches" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 1L)
 }
 
@@ -1145,7 +1145,7 @@ test "non-generic data construction and matching lower through object shapes" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 7L)
 }
 
@@ -1247,7 +1247,7 @@ test "capture-free functions lower as callable values for higher-order calls" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -1343,7 +1343,7 @@ test "single-use nonescaping nested functions beta-reduce before closure convers
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -1464,7 +1464,7 @@ test "tail-recursive local functions become local join points" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -1586,7 +1586,7 @@ test "generic identity calls cross explicit representation erasure bridges" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -1770,14 +1770,14 @@ test "closed generic calls specialize without changing the canonical fallback" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
   observed = 0L
   let generic_loaded = match load_physical_interpreted(generic_image, host~) {
     Ok(value) => value
     Err(error) => fail("generic load failed: \{Repr(error)}")
   }
-  assert_eq(generic_loaded.execute(), Ok(()))
+  assert_eq(generic_loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -1936,12 +1936,12 @@ test "closed worker preserves a generic nominal callable field contract" {
     Ok(loaded) => loaded
     Err(error) => fail("specialized load failed: \{Repr(error)}")
   }
-  assert_eq(specialized_loaded.execute(), Ok(()))
+  assert_eq(specialized_loaded.execute(), Ok(Returned))
   let generic_loaded = match load_physical_interpreted(generic, host~) {
     Ok(loaded) => loaded
     Err(error) => fail("generic load failed: \{Repr(error)}")
   }
-  assert_eq(generic_loaded.execute(), Ok(()))
+  assert_eq(generic_loaded.execute(), Ok(Returned))
   assert_eq(observations, [42L, 42L])
 }
 
@@ -2032,7 +2032,7 @@ test "single-constructor matches keep owned captures in the current block" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_true(observed)
 }
 
@@ -2167,7 +2167,7 @@ test "generic data stores layout witnesses beside erased payloads" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 7L)
 }
 
@@ -2314,7 +2314,7 @@ test "existential data opens hidden witnesses beside erased payloads" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -2430,7 +2430,7 @@ test "payload-free existential evidence disappears when no runtime use remains" 
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 9L)
 }
 
@@ -2512,7 +2512,7 @@ test "unused effect-kind existential evidence disappears from runtime ANF" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
 }
 
 ///|
@@ -2622,7 +2622,7 @@ test "natural Unit parameters and data fields occupy no runtime slots" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }
 
@@ -2716,7 +2716,7 @@ test "primitive literal matches lower to comparison decision chains" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 2L)
 }
 
@@ -2814,6 +2814,6 @@ test "single-use generic nested functions beta-reduce before representation lowe
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, 42L)
 }

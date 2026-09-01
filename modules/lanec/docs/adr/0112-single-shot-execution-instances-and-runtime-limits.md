@@ -1,8 +1,9 @@
 # Single-shot execution instances and runtime limits
 
 > **Partially superseded.** Execution remains single-shot, but linked inputs are
-> raw WebAssembly modules and host imports are supplied through WASI or the
-> Wasmoon linker rather than a semantic Runtime Registry.
+> raw WebAssembly modules, host imports are supplied through WASI or the
+> Wasmoon linker, and the private `ExecutionConfig`/named-global resource-limit
+> protocol has been removed. Engine resource policy is not an artifact ABI.
 
 Lane execution separates a reusable Loaded Executable Image from a single-shot
 Execution Instance. A loaded image contains a validated WebAssembly module and

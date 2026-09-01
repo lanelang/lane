@@ -131,14 +131,14 @@ test "rounded F32 operations agree across execution backends" {
   assert_eq(actual, [
     {
       backend: WasmInterpreter,
-      result: Ok(()),
+      result: Ok(Returned),
       i64_values: [],
       f64_bits: [0x3ff0000020000000UL],
       callback_calls: 0,
     },
     {
       backend: WasmJit,
-      result: Ok(()),
+      result: Ok(Returned),
       i64_values: [],
       f64_bits: [0x3ff0000020000000UL],
       callback_calls: 0,

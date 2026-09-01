@@ -148,7 +148,7 @@ pub(all) enum ExploreFunctionRole {
     module_name~ : String,
     field_name~ : String
   )
-  InternalRuntimeImport(name~ : String)
+  WasmBuiltinFunction(name~ : String)
   WasiPreview1Import(module_name~ : String, field_name~ : String)
   PhysicalRuntimeImport(module_name~ : String, field_name~ : String)
   WasmPhysicalFunction

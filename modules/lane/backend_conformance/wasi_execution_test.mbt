@@ -15,7 +15,10 @@ fn compile_wasi_fd_write_fixture() -> @physical.PhysicalProgram raise {
 ///|
 fn execute_wasi_fd_write_fixture(
   mode : @lane_wasm_runtime.ExecutionMode,
-) -> (Result[Unit, @lane_runtime.ExecutionError], Bytes) raise {
+) -> (
+  Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError],
+  Bytes,
+) raise {
   let output : Array[Byte] = []
   let loaded = match
     load_physical(
@@ -36,6 +39,6 @@ test "Basic's narrow fd_write bridge reaches WASI in both engines" {
       execute_wasi_fd_write_fixture(Interpreter),
       execute_wasi_fd_write_fixture(Jit),
     ],
-    [(Ok(()), b"hello\n"), (Ok(()), b"hello\n")],
+    [(Ok(Returned), b"hello\n"), (Ok(Returned), b"hello\n")],
   )
 }

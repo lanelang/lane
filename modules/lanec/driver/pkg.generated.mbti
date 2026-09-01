@@ -117,7 +117,7 @@ pub(all) enum ExploreFunctionRole {
   CallableAdapter(contract~ : @physical_lowering.CallableAdapterWorkerContractId, reason~ : @physical_lowering.CallableAdapterReason)
   LayoutConstructor
   RuntimeImport(value~ : Int, name~ : String?, module_name~ : String, field_name~ : String)
-  InternalRuntimeImport(name~ : String)
+  WasmBuiltinFunction(name~ : String)
   WasiPreview1Import(module_name~ : String, field_name~ : String)
   PhysicalRuntimeImport(module_name~ : String, field_name~ : String)
   WasmPhysicalFunction

@@ -303,7 +303,7 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
       }
       "runtime import \{module_name}.\{field_name} for \{source}"
     }
-    InternalRuntimeImport(name~) => "internal runtime import \{name}"
+    WasmBuiltinFunction(name~) => "Wasm builtin function \{name}"
     WasiPreview1Import(module_name~, field_name~) =>
       "WASI Preview 1 import \{module_name}.\{field_name}"
     PhysicalRuntimeImport(module_name~, field_name~) =>

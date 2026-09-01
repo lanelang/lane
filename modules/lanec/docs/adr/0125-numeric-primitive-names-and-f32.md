@@ -59,13 +59,13 @@ Arithmetic uses the target IEEE width rather than widening F32 operations throug
 
 `%f32_to_f64` is exact. `%f64_to_f32`, `%i64_to_f32`, and F32 arithmetic may produce signed zero or infinity according to IEEE rounding; only source-literal elaboration applies the additional finite-nonzero underflow and overflow diagnostics.
 
-`%f32_to_string` and `%f64_to_string` format finite values with a deterministic Ryū-family shortest-round-trip conversion. F32 is formatted directly at binary32 width rather than after promotion to F64. The canonical special spellings are `NaN`, `inf`, and `-inf`; zero preserves its sign as `0.0` or `-0.0`; and a finite fixed-form result that would otherwise look integral keeps `.0`. LoisVM's direct interpreter, Wasm interpreter, and JIT consume the same formatter implementation.
+`%f32_to_string` and `%f64_to_string` format finite values with a deterministic Ryū-family shortest-round-trip conversion. F32 is formatted directly at binary32 width rather than after promotion to F64. The canonical special spellings are `NaN`, `inf`, and `-inf`; zero preserves its sign as `0.0` or `-0.0`; and a finite fixed-form result that would otherwise look integral keeps `.0`. The Wasm target emits the pinned formatter as guest builtin functions, so Wasmoon interpreter and JIT execute the same definitions without a host formatting import.
 
 Buslane canonical text writes F64 and F32 literals as fixed-width lowercase hexadecimal IEEE bit patterns: `f64(0x0000000000000000)` and `f32(0x00000000)`. This representation round-trips signed zero, infinities, subnormals, and every NaN payload exactly. Human-oriented Buslane Pretty output remains decimal and is not a persistence format.
 
 ## Semantic and runtime representation
 
-Buslane represents I64, I32, F64, and F32 primitive types and literals independently. LoisVM uses `I64 + Trivial`, `I32 + Trivial`, `F64 + Trivial`, and `F32 + Trivial`, with dedicated arithmetic, comparison, conversion, constant, layout, host-ABI, and representation-erasure cases. F32 values are never widened to F64 merely to cross a compiler, artifact, runtime, or host boundary.
+Buslane represents I64, I32, F64, and F32 primitive types and literals independently. The Physical Program uses `I64 + Trivial`, `I32 + Trivial`, `F64 + Trivial`, and `F32 + Trivial`, with dedicated arithmetic, comparison, conversion, constant, layout, host-ABI, and representation-erasure cases. F32 values are never widened to F64 merely to cross a compiler, artifact, runtime, or host boundary.
 
 Generic representation erasure stores the raw 32 bits of F32 in the low half of the erased I64 carrier and reconstructs those exact bits. This representation choice does not make F32 definitionally equal to I32.
 

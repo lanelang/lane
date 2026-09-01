@@ -421,8 +421,8 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
       }
       fields.to_json()
     }
-    InternalRuntimeImport(name~) =>
-      { "kind": "internalRuntimeImport", "name": name }
+    WasmBuiltinFunction(name~) =>
+      { "kind": "wasmBuiltinFunction", "name": name }
     WasiPreview1Import(module_name~, field_name~) =>
       {
         "kind": "wasiPreview1Import",

@@ -1,7 +1,5 @@
 import {
-  "Milky2018/lane_runtime/float_format",
   "Milky2018/lane_runtime",
-  "Milky2018/lane_runtime/wasm_abi" @internal_abi,
   "Milky2018/lane_wasm_abi" @wasm_abi,
   "Milky2018/milkir",
   "Milky2018/wasm_core/encoder" @wasm_encoder,
@@ -17,7 +15,6 @@ import {
   "Milky2018/wasmoon/wasi",
   "Milky2018/wasmoon_jit",
   "Milky2018/wasmoon_jit/artifact" @wasmoon_artifact,
-  "moonbitlang/core/encoding/utf8",
 }
 
 supported_targets = "native"

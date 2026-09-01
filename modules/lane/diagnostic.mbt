@@ -297,16 +297,9 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
 fn execution_failure_report(
   error : @lane_runtime.ExecutionError,
 ) -> CommandReport {
-  match error {
-    Fatal(message~) =>
-      command_report(code="E6017", title="Lane program panicked", fields=[
-        command_report_field("message", message),
-      ])
-    error =>
-      command_report(code="E6013", title="WebAssembly execution failed", fields=[
-        command_report_field("reason", "\{Repr(error)}"),
-      ])
-  }
+  command_report(code="E6013", title="WebAssembly execution failed", fields=[
+    command_report_field("reason", "\{Repr(error)}"),
+  ])
 }
 
 ///|

@@ -38,8 +38,17 @@ pub(all) enum WasmHelperFunctionRole {
 } derive(Debug, Eq)
 
 ///|
+pub(all) enum WasmBuiltinFunctionRole {
+  FloatMemcpy
+  FormatF32
+  CanonicalizeFloatText
+  FormatF64
+  FloatMulShift
+} derive(Debug, Eq)
+
+///|
 pub(all) enum WasmFunctionOrigin {
-  InternalRuntimeImport(@internal_abi.InternalRuntimeFunction)
+  BuiltinFunction(WasmBuiltinFunctionRole)
   WasiPreview1Import(@wasm_abi.WasiPreview1Import)
   PhysicalRuntimeImport(
     function~ : @physical.FunctionId,

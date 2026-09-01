@@ -203,8 +203,16 @@ fn @wasm_compiler.WasmFunctionOrigin::physical_function(
 ///|
 fn wasm_role(origin : @wasm_compiler.WasmFunctionOrigin) -> ExploreFunctionRole {
   match origin {
-    InternalRuntimeImport(function) =>
-      InternalRuntimeImport(name=function.name())
+    BuiltinFunction(role) =>
+      WasmBuiltinFunction(
+        name=match role {
+          FloatMemcpy => "float_memcpy"
+          FormatF32 => "f32_to_string"
+          CanonicalizeFloatText => "canonicalize_float_text"
+          FormatF64 => "f64_to_string"
+          FloatMulShift => "float_mul_shift"
+        },
+      )
     WasiPreview1Import(import_) => {
       let contract = import_.contract()
       WasiPreview1Import(

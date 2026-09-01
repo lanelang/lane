@@ -291,7 +291,7 @@ test "phantom generic call plans its effect-parameterized nominal argument" {
   )
   let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
-    result: Ok(()),
+    result: Ok(Returned),
     i64_values: [],
     f64_bits: [],
     callback_calls: 0,
@@ -384,7 +384,7 @@ test "inlined nonempty arguments execute once in source order" {
   )
   let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
-    result: Ok(()),
+    result: Ok(Returned),
     i64_values: [1L, 2L],
     f64_bits: [],
     callback_calls: 0,
@@ -416,7 +416,7 @@ test "inlining preserves a pure callable parameter adaptation" {
   )
   let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
-    result: Ok(()),
+    result: Ok(Returned),
     i64_values: [42L],
     f64_bits: [],
     callback_calls: 0,
@@ -463,7 +463,7 @@ test "direct and symbolically forwarded effect applications agree" {
   )
   let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
-    result: Ok(()),
+    result: Ok(Returned),
     i64_values: [42L, 42L],
     f64_bits: [],
     callback_calls: 2,
@@ -588,7 +588,7 @@ test "direct and forwarded elaboration agree across effect representations" {
   )
   let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
-    result: Ok(()),
+    result: Ok(Returned),
     i64_values: [42L, 42L, 42L, 42L, 42L, 42L, 42L, 42L, 42L, 42L],
     f64_bits: [],
     callback_calls: 6,

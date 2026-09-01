@@ -32,6 +32,18 @@ pub fn wasi_preview1_imports() -> Array[WasiPreview1Import] {
 }
 
 ///|
+pub fn ImportContract::wasi_preview1_import(
+  self : ImportContract,
+) -> WasiPreview1Import? {
+  for import_ in wasi_preview1_imports() {
+    if import_.contract() == self {
+      return Some(import_)
+    }
+  }
+  None
+}
+
+///|
 pub fn wasi_preview1_contract(field_name : String) -> ImportContract? {
   for import_ in wasi_preview1_imports() {
     let contract = import_.contract()

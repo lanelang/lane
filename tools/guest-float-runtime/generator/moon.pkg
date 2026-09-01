@@ -1,0 +1,7 @@
+import {
+  "Milky2018/wasmoon/parser",
+  "moonbitlang/core/debug",
+  "moonbitlang/x/fs",
+}
+
+pkgtype(kind: "executable")

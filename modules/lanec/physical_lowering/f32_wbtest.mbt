@@ -117,6 +117,6 @@ test "generic F32 calls cross explicit representation erasure bridges" {
     Ok(value) => value
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.execute(), Ok(()))
+  assert_eq(loaded.execute(), Ok(Returned))
   assert_eq(observed, expected)
 }

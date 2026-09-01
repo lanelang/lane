@@ -89,7 +89,7 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.wasm_module().globals.length(), 8)
+  assert_eq(loaded.wasm_module().globals.length(), 6)
   let instance = match loaded.new_instance() {
     Ok(instance) => instance
     Err(error) => fail("instantiate failed: \{Repr(error)}")
@@ -97,7 +97,7 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
   let heap_base = instance.store
     .get_global(instance.instance.global_addrs[1])
     .get()
-  assert_eq(instance.execute(), Ok(()))
+  assert_eq(instance.execute(), Ok(Returned))
   assert_eq(observed, 42L)
   guard heap_base is I32(heap_base) else { fail("expected I32 heap base") }
   let memory = instance.store.get_mem(instance.instance.mem_addrs[0])
@@ -265,13 +265,12 @@ fn wasm_lifecycle_image() -> @physical.PhysicalProgram {
 ///|
 fn wasm_global_instance(
   image : @physical.PhysicalProgram,
-  config? : @lane_runtime.ExecutionConfig = @lane_runtime.ExecutionConfig::defaults(),
 ) -> @lane_wasm_runtime.ExecutionInstance raise {
   let loaded = match load(image) {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  match loaded.new_instance(config~) {
+  match loaded.new_instance() {
     Ok(instance) => instance
     Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
@@ -280,24 +279,15 @@ fn wasm_global_instance(
 ///|
 test "Wasm global cleanup releases reference callable and erased roots" {
   let instance = wasm_global_instance(wasm_lifecycle_image())
-  assert_eq(instance.execute(), Ok(()))
+  assert_eq(instance.execute(), Ok(Returned))
   assert_eq(
     instance.store.get_global(instance.instance.global_addrs[4]).get(),
     I32(0),
   )
   assert_eq(
-    instance.store.get_global(instance.instance.global_addrs[7]).get(),
+    instance.store.get_global(instance.instance.global_addrs[5]).get(),
     I32(0),
   )
-}
-
-///|
-test "Wasm initializer failure terminates the single-shot instance" {
-  let instance = wasm_global_instance(wasm_lifecycle_image(), config={
-    max_live_heap_bytes: Some(16),
-  })
-  assert_eq(instance.execute(), Err(ExecutionResourceLimit(kind=LiveHeapBytes)))
-  assert_eq(instance.execute(), Err(InstanceNotReady))
 }
 
 ///|
@@ -312,7 +302,7 @@ test "Wasm fatal control terminates the instance without recovery cleanup" {
   entry.blocks[0].instructions.push(ConstString({ value: 5, }, { value: 0, }))
   entry.blocks[0] = { ..entry.blocks[0], terminator: Fatal({ value: 5, }), }
   let instance = wasm_global_instance(image)
-  assert_eq(instance.execute(), Err(Fatal(message="a")))
+  assert_eq(instance.execute(), Ok(ProcessExit(code=1)))
   assert_eq(instance.execute(), Err(InstanceNotReady))
 }
 

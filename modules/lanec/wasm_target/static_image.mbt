@@ -18,6 +18,8 @@ priv struct StaticImage {
   callable_table_size : Int
   global_lifecycle : @physical.GlobalLifecyclePlan
   global_cleanup_table_base : Int
+  fatal_io_frame_base : Int
+  guest_float_stack_pointer : Int
 }
 
 ///|
@@ -213,6 +215,17 @@ fn image_requires_byte_sequence_layout(
 }
 
 ///|
+fn image_has_fatal_terminator(image : @physical.PhysicalProgram) -> Bool {
+  for function in image.functions {
+    if function is PhysicalBody(body) &&
+      body.blocks.any(block => block.terminator is Fatal(_)) {
+      return true
+    }
+  }
+  false
+}
+
+///|
 fn build_static_image(
   image : @physical.PhysicalProgram,
   global_lifecycle : @physical.GlobalLifecyclePlan,
@@ -221,6 +234,16 @@ fn build_static_image(
   let writer = @bytecodec.ByteWriter::new()
   let shape_layouts = image.object_shapes.map(object_shape_layout)
   let shape_layout_ids = Array::make(image.object_shapes.length(), 0)
+  let guest_float_stack_pointer = if function_catalog.requires(
+      BuiltinFunction(FloatMemcpy),
+    ) {
+    write_zeroes(writer, guest_float_data_base())
+    writer.write_raw_bytes(guest_float_data())
+    write_zeroes(writer, guest_float_stack_top() - writer.length())
+    guest_float_stack_top()
+  } else {
+    0
+  }
   write_zeroes(writer, 8)
   let layout_table_base = writer.length()
   write_zeroes(writer, 32)
@@ -373,6 +396,12 @@ fn build_static_image(
     }
     writer.write_i32_le((root.global.value << 2) | cleanup_tag)
   }
+  let mut fatal_io_frame_base = 0
+  if image_has_fatal_terminator(image) {
+    pad_to(writer, 4)
+    fatal_io_frame_base = writer.length()
+    write_zeroes(writer, 12)
+  }
   pad_to(writer, 8)
   let heap_base = writer.length()
   {
@@ -394,6 +423,8 @@ fn build_static_image(
     callable_table_size,
     global_lifecycle,
     global_cleanup_table_base,
+    fatal_io_frame_base,
+    guest_float_stack_pointer,
   }
 }
 
