@@ -1,5 +1,7 @@
 module Examples.Valid61
 
+import Basic.Io.{ println }
+
 pub offer fn offered_identity(value : I64) -> I64 {
   accept_identity()
   value
@@ -31,3 +33,18 @@ offer fn[A] identity(value : A) -> A {
 pub let top_level_answer : I64 = offered_identity(42)
 
 pub let polymorphic_answer : I64 = use_polymorphic()
+
+pub fn answer() -> Unit ! Io {
+  match local_answer() {
+    42 =>
+      match top_level_answer {
+        42 =>
+          match polymorphic_answer {
+            42 => println("offered functions=42")
+            _ => println("polymorphic offer failed")
+          }
+        _ => println("top-level offer failed")
+      }
+    _ => println("local offer failed")
+  }
+}

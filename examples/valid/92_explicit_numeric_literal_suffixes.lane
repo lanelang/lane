@@ -1,6 +1,8 @@
 module Examples.Valid.ExplicitNumericLiteralSuffixes
 
-import Basic.Data.List.{ List }
+import Basic.Data.List.*
+import Basic.Data.Tuple
+import Basic.Io.{ println }
 
 fn[T] identity(value : T) -> T {
   value
@@ -39,4 +41,22 @@ pub fn wide_float() -> F64 {
 
 pub fn values() -> List[I32] {
   [1i32, 2i32]
+}
+
+pub fn answer() -> Unit ! Io {
+  match
+    (
+      narrow_integer(),
+      narrow_float(),
+      narrow_argument(),
+      classify(42i32),
+      wide_integer(),
+      wide_float(),
+      values()
+    ) {
+    (42i32, 1f32, 7i32, true, 42i64, 1.25e-3f64, cons(1i32, cons(2i32, empty()))) => println(
+      "explicit numeric suffixes=ok"
+    )
+    _ => println("explicit numeric suffixes failed")
+  }
 }

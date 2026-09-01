@@ -55,9 +55,13 @@
       }
     },
     {
-      "name": "07 extern expected types compile",
+      "name": "07 extern expected types",
       "file": "examples/valid/07_builtin_expected_type.lane",
-      "mode": "check"
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "extern bindings typed"
+      }
     },
     {
       "name": "08 explicit equality offer value",
@@ -1453,12 +1457,20 @@
     {
       "name": "61 offered function definitions",
       "file": "examples/valid/61_offered_function_definitions.lane",
-      "mode": "check"
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "offered functions=42"
+      }
     },
     {
       "name": "62 else-omitting conditionals",
       "file": "examples/valid/62_else_omitting_conditionals.lane",
-      "mode": "check"
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "run\nchain second\nsequence first\nsequence second"
+      }
     },
     {
       "name": "63 nominal tuple sugar",
@@ -1906,7 +1918,11 @@
     {
       "name": "92 explicit numeric literal suffixes",
       "file": "examples/valid/92_explicit_numeric_literal_suffixes.lane",
-      "mode": "check"
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "explicit numeric suffixes=ok"
+      }
     },
     {
       "name": "93 higher kinded identity representations",
@@ -2439,7 +2455,11 @@
     {
       "name": "115 canonical WASI fd_write contract",
       "file": "examples/valid/115_wasi_fd_write_contract.lane",
-      "mode": "check"
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "canonical wasi fd_write contract"
+      }
     },
     {
       "name": "invalid 116 WASI fd_write signature mismatch",

@@ -1,24 +1,34 @@
 module Examples.Valid.ElseOmittingConditionals
 
-pub fn run(flag : Bool) -> Unit {
+import Basic.Io.{ println }
+
+pub fn run(flag : Bool) -> Unit ! Io {
   if flag {
-    ()
+    println("run")
   }
 }
 
-pub fn run_chain(first : Bool, second : Bool) -> Unit {
+pub fn run_chain(first : Bool, second : Bool) -> Unit ! Io {
   if first {
-    ()
+    println("chain first")
   } else if second {
-    ()
+    println("chain second")
   }
 }
 
-pub fn run_sequence(first : Bool, second : Bool) -> Unit {
+pub fn run_sequence(first : Bool, second : Bool) -> Unit ! Io {
   if first {
-    ()
+    println("sequence first")
   }
   if second {
-    ()
+    println("sequence second")
   }
+}
+
+pub fn answer() -> Unit ! Io {
+  run(true)
+  run(false)
+  run_chain(false, true)
+  run_chain(false, false)
+  run_sequence(true, true)
 }
