@@ -63,13 +63,16 @@ fn compile_or_raise(
   let static_image = build_static_image(
     image, global_lifecycle, function_catalog,
   )
-  let fatal_tag_type = intern_function_type(wasm_module, [], [])
-  wasm_module.tags.push({ type_idx: fatal_tag_type, })
   for catalog_entry in function_catalog.entries {
     match catalog_entry.declaration {
       Import(_) => emitter.append_import(catalog_entry)
       Defined => {
         let compiled = match catalog_entry.origin {
+          BuiltinFunction(role) =>
+            account_whole_function(
+              compile_builtin_function(role, function_catalog),
+              RuntimeSupport,
+            )
           PhysicalFunction(function~) => {
             guard image.functions[function.value - 1] is PhysicalBody(body) else {
               raise InvalidFunctionCatalog(
@@ -124,9 +127,7 @@ fn compile_or_raise(
               },
               EntryLifecycle,
             )
-          InternalRuntimeImport(_)
-          | WasiPreview1Import(_)
-          | PhysicalRuntimeImport(_) =>
+          WasiPreview1Import(_) | PhysicalRuntimeImport(_) =>
             raise InvalidFunctionCatalog(
               detail="catalog import was classified as a definition",
             )

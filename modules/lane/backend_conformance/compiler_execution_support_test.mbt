@@ -14,7 +14,7 @@ priv struct CompilerExecutionObservations {
 ///|
 priv struct CompilerExecutionOutcome {
   backend : CompilerExecutionBackend
-  result : Result[Unit, @lane_runtime.ExecutionError]
+  result : Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
   i64_values : Array[Int64]
   f64_bits : Array[UInt64]
   callback_calls : Int
@@ -89,7 +89,7 @@ fn expected_i64_execution_matrix(
 ) -> Array[CompilerExecutionOutcome] {
   [WasmInterpreter, WasmJit].map(backend => {
     backend,
-    result: Ok(()),
+    result: Ok(Returned),
     i64_values: [value],
     f64_bits: [],
     callback_calls,

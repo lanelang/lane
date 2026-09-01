@@ -653,7 +653,7 @@ test "nested effect companion forwarding executes on every backend" {
   )
   let expected = [WasmInterpreter, WasmJit].map(backend => {
     backend,
-    result: Ok(()),
+    result: Ok(Returned),
     i64_values: [],
     f64_bits: [],
     callback_calls: 0,

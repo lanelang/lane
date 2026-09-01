@@ -46,6 +46,7 @@ pub fn ImportContract::op_le(Self, Self) -> Bool
 pub fn ImportContract::op_lt(Self, Self) -> Bool
 pub fn ImportContract::snapshot(Self) -> Self
 pub fn ImportContract::to_repr(Self) -> @debug.Repr
+pub fn ImportContract::wasi_preview1_import(Self) -> WasiPreview1Import?
 
 pub(all) enum ImportParameter {
   ErasedUnit

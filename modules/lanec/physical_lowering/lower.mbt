@@ -90,14 +90,13 @@ fn lower_executable_program_to_physical_or_raise(
   observe : (PhysicalLoweringStage) -> Unit,
   representation_specialization_enabled : Bool,
 ) -> @physical.VerifiedPhysicalProgram raise PhysicalLoweringError {
-  let program = executable.program
+  let cps_core = executable.cps_core
   let externals = executable.externals
   let entry = executable.entry
   let anf = match
     @anf.lower_cps_core_to_runtime_anf({
-      program,
+      cps_core,
       retained_values: executable.retained_values,
-      function_origins: executable.function_origins,
     }) {
     Ok(anf) => anf
     Err(error) => raise RuntimeAnfCompilerDefect(error)

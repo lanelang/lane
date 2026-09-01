@@ -25,7 +25,7 @@ test "effect lowering exposes snapshots without transitional IR" {
   let lowered = lower_effects_observed(verified, snapshot => {
     snapshots.push(snapshot)
   }).unwrap()
-  assert_true(@buslane.verify_program(lowered.program.program()).is_ok())
+  assert_true(@buslane.verify_program(lowered.program().program()).is_ok())
   assert_eq(lower_effects(verified), Ok(lowered))
   debug_inspect(
     snapshots,

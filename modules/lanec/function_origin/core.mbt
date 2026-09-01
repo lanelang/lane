@@ -29,6 +29,16 @@ pub fn FunctionOriginCatalog::new() -> FunctionOriginCatalog {
 }
 
 ///|
+/// Returns an isolated catalog with the same transformation-owned facts.
+/// Consumers may extend the snapshot while rewriting functions without
+/// mutating the certificate or phase result that supplied it.
+pub fn FunctionOriginCatalog::snapshot(
+  self : FunctionOriginCatalog,
+) -> FunctionOriginCatalog {
+  { entries: self.entries.copy(), }
+}
+
+///|
 pub fn FunctionOriginCatalog::origin(
   self : FunctionOriginCatalog,
   function : @buslane.FunctionExpr,

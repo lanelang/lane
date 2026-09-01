@@ -142,7 +142,8 @@ fn execute_wasm_with_wasi_stdout(
       )
   }
   match instance.execute() {
-    Ok(_) => Succeeded
+    Ok(Returned) => Succeeded
+    Ok(ProcessExit(code~)) => ProcessExited(code~)
     Err(error) => LaneCommandOutcome::user_error(ExecutionFailed(error))
   }
 }

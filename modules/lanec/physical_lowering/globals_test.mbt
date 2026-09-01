@@ -269,17 +269,13 @@ test "executable initializer materializes function-valued data fields" {
     name: "main",
     value: main,
   }
-  let (verified, function_origins) = @function_origin.certify_uniform_program(
-    program,
-    SourceWritten,
-  ).unwrap()
+  let cps_core = @effect_lowering.lower_effects(program.certify().unwrap()).unwrap()
   let image = match
     lower_executable_program_to_physical({
-      program: verified,
+      cps_core,
       externals: { builtins: [], runtime_imports: [], },
       entry,
       retained_values: [helper, consume, stored, main],
-      function_origins,
     }) {
     Ok(image) => image.image()
     Err(error) => fail("lowering failed: \{Repr(error)}")

@@ -51,8 +51,6 @@ fn compile_runtime_import_adapter(
     locals.push(result_type)
     instructions.push(LocalSet(parameters.length()))
   }
-  instructions.push(GlobalGet(failure_code_global_index))
-  instructions.push(If(Empty, [Throw(0)], []))
   if !results.is_empty() {
     instructions.push(LocalGet(parameters.length()))
   }

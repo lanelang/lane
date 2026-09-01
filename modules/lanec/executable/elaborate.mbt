@@ -19,8 +19,8 @@ pub(all) enum ExecutableElaborationStage {
   EffectSpecialized(@buslane.VerifiedProgram)
   CoreOptimized(@buslane.VerifiedProgram)
   EffectLowering(@effect_lowering.EffectLoweringSnapshot)
-  MonadicContinuationsLifted(@buslane.VerifiedProgram)
-  CpsCoreOptimized(@buslane.VerifiedProgram)
+  MonadicContinuationsLifted(@effect_lowering.CpsCoreProgram)
+  CpsCoreOptimized(@effect_lowering.CpsCoreProgram)
 }
 
 ///|
@@ -73,22 +73,15 @@ fn elaborate_or_raise(
     Err(error) => raise CoreOptimizationError(error)
   }
   observe_executable_stage(observe, CoreOptimized(program))
-  let lowered = lower_effects(program, entry.value, observe)
-  let program = lowered.program
-  let raw_program = program.program()
+  let cps_core = lower_effects(program, entry.value, observe)
+  let raw_program = cps_core.program().program()
   let initializer_roots = collect_initializer_roots(raw_program)
   let retained_values = collect_retained_values(
     raw_program,
     entry.value,
     initializer_roots,
   )
-  {
-    program,
-    externals,
-    entry,
-    retained_values,
-    function_origins: lowered.function_origins,
-  }
+  { cps_core, externals, entry, retained_values, }
 }
 
 ///|
@@ -132,7 +125,7 @@ fn lower_effects(
   program : @buslane.VerifiedProgram,
   entry : @buslane.ValueId,
   observe : ((ExecutableElaborationStage) -> Unit)?,
-) -> @effect_lowering.EffectLoweringResult raise ExecutableElaborationError {
+) -> @effect_lowering.CpsCoreProgram raise ExecutableElaborationError {
   let lifted = match observe {
     None => unwrap_effect_lowering(@effect_lowering.lower_effects(program))
     Some(emit) =>
@@ -142,21 +135,18 @@ fn lower_effects(
         }),
       )
   }
-  observe_executable_stage(observe, MonadicContinuationsLifted(lifted.program))
+  observe_executable_stage(observe, MonadicContinuationsLifted(lifted))
   let initializer_roots = collect_reachable_initializer_roots(
-    lifted.program.program(),
+    lifted.program().program(),
     entry,
   )
   let optimized = match
-    @core_opt.optimize_preserving_function_origins(
-      { program: lifted.program, entry, roots: initializer_roots, },
-      lifted.function_origins,
-    ) {
+    @core_opt.optimize_cps_core(lifted, entry, initializer_roots) {
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
   observe_executable_stage(observe, CpsCoreOptimized(optimized))
-  { ..lifted, program: optimized, }
+  optimized
 }
 
 ///|

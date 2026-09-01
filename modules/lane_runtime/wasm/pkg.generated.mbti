@@ -9,7 +9,7 @@ import {
 }
 
 // Values
-pub fn load_wasm(Bytes, mode? : ExecutionMode, wasi_stdout? : ((Bytes) -> Unit)?, configure_host? : (@runtime.Linker) -> Unit raise @runtime.RuntimeError) -> Result[LoadedImage, WasmLoadError]
+pub fn load_wasm(Bytes, mode? : ExecutionMode, wasi_stdout? : ((Bytes) -> Unit)?, wasi_stderr? : ((Bytes) -> Unit)?, configure_host? : (@runtime.Linker) -> Unit raise @runtime.RuntimeError) -> Result[LoadedImage, WasmLoadError]
 
 // Errors
 pub(all) suberror WasmLoadError {
@@ -27,7 +27,7 @@ pub struct ExecutionInstance {
   mut ready : Bool
   // private fields
 }
-pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[Unit, @lane_runtime.ExecutionError]
+pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
 
 pub(all) enum ExecutionMode {
   Jit
@@ -43,16 +43,11 @@ type LoadedExecutionBackend
 
 pub struct LoadedImage {
   wasm_module : @types.Module
-  control_globals : RuntimeControlGlobals
   // private fields
 }
-pub fn LoadedImage::execute(Self, config? : @lane_runtime.ExecutionConfig) -> Result[Unit, @lane_runtime.ExecutionError]
-pub fn LoadedImage::new_instance(Self, config? : @lane_runtime.ExecutionConfig) -> Result[ExecutionInstance, @lane_runtime.ExecutionError]
+pub fn LoadedImage::execute(Self) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
+pub fn LoadedImage::new_instance(Self) -> Result[ExecutionInstance, @lane_runtime.ExecutionError]
 pub fn LoadedImage::wasm_module(Self) -> @types.Module
-
-type RuntimeControlGlobals
-
-type RuntimeFailureState
 
 // Type aliases
 pub type HostLinkerConfiguration = (@runtime.Linker) -> Unit raise @runtime.RuntimeError

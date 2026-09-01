@@ -10,11 +10,12 @@ fn runtime_anf_test_input(program : @buslane.Program) -> RuntimeAnfInput {
         }
     }
   }
-  let (program, function_origins) = @function_origin.certify_uniform_program(
-    program,
-    SourceWritten,
-  ).unwrap()
-  { program, retained_values, function_origins, }
+  let cps_core = match
+    @effect_lowering.lower_effects(program.certify().unwrap()) {
+    Ok(cps_core) => cps_core
+    Err(error) => abort("unexpected CPS Core failure: \{Repr(error)}")
+  }
+  { cps_core, retained_values, }
 }
 
 ///|
@@ -161,68 +162,6 @@ test "ANF binds a match before applying its continuation" {
       #|  ),
       #|)
     ),
-  )
-}
-
-///|
-test "runtime ANF rejects residual handlers" {
-  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let effect = metadata.define_effect("Effect", [])
-  let operation = metadata.define_operation(
-    "op",
-    effect,
-    [],
-    [],
-    Primitive(I64),
-  )
-  let result = metadata.define_value("value", Value, Primitive(I64))
-  let result_binder = metadata.define_value("value", Local, Primitive(I64))
-  let resume_value = metadata.define_value(
-    "value",
-    Parameter,
-    Function([Primitive(I64)], Primitive(I64), Empty),
-  )
-  let first_resume = metadata.define_value("value", Local, Primitive(I64))
-  let program = @buslane.Program::{
-    metadata,
-    terms: [
-      Let(
-        result,
-        Handle({
-          body: Perform({
-            operation,
-            effect_arguments: [],
-            hidden_witnesses: [],
-            payloads: [],
-          }),
-          result_binder,
-          result_type: Primitive(I64),
-          final_body: Ref(result_binder),
-          handlers: [
-            {
-              handled_effect: Singleton(effect, []),
-              operations: [
-                {
-                  operation,
-                  type_binders: [],
-                  payload_binders: [],
-                  resume_binder: resume_value,
-                  body: Let(
-                    first_resume,
-                    Call(Ref(resume_value), [Literal(I64(1L))]),
-                    Call(Ref(resume_value), [Ref(first_resume)]),
-                  ),
-                },
-              ],
-            },
-          ],
-        }),
-      ),
-    ],
-  }
-  assert_true(
-    lower_cps_core_to_runtime_anf(runtime_anf_test_input(program))
-    is Err(ResidualHandle),
   )
 }
 

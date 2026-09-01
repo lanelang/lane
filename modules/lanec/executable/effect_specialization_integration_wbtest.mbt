@@ -72,10 +72,12 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
     entry,
     Some(stage => {
       if stage is MonadicContinuationsLifted(lifted) {
-        lifted_generic_type = lifted.program().metadata
+        lifted_generic_type = lifted.program().program().metadata
           .value_info(generic)
           .map(info => info.type_)
-        lifted_verification = Some(@buslane.verify_program(lifted.program()))
+        lifted_verification = Some(
+          @buslane.verify_program(lifted.program().program()),
+        )
       }
     }),
   )
@@ -86,7 +88,7 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
   if !verified_lifted.is_ok() {
     fail("monadic-lift program did not verify: \{Repr(verified_lifted)}")
   }
-  let verified = @buslane.verify_program(lowered.program.program())
+  let verified = @buslane.verify_program(lowered.program().program())
   if !verified.is_ok() {
     fail("lowered program did not verify: \{Repr(verified)}")
   }
@@ -341,12 +343,12 @@ fn assert_cps_stage_entry_effect(
         match stage {
           MonadicContinuationsLifted(program) =>
             lifted_actual = synthesized_top_function_type(
-              program.program(),
+              program.program().program(),
               entry,
             )
           CpsCoreOptimized(program) =>
             optimized_actual = synthesized_top_function_type(
-              program.program(),
+              program.program().program(),
               entry,
             )
           _ => ()

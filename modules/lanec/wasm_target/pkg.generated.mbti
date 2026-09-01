@@ -2,7 +2,6 @@
 package "Milky2018/lanec/wasm_target"
 
 import {
-  "Milky2018/lane_runtime/wasm_abi",
   "Milky2018/lane_wasm_abi",
   "Milky2018/lanec/physical",
   "Milky2018/wasm_core/types",
@@ -13,10 +12,6 @@ import {
 pub fn compile(@physical.VerifiedPhysicalProgram) -> Result[@types.Module, WasmCompileError]
 
 pub fn compile_observed(@physical.VerifiedPhysicalProgram) -> Result[WasmCompileObservation, WasmCompileError]
-
-pub fn failure_code_global() -> Int
-
-pub fn max_live_heap_bytes_global() -> Int
 
 pub fn maximum_function_control_depth(@types.Module) -> Int
 
@@ -41,6 +36,17 @@ pub fn WasmCompileError::not_equal(Self, Self) -> Bool
 pub fn WasmCompileError::to_repr(Self) -> @debug.Repr
 
 // Types and methods
+pub(all) enum WasmBuiltinFunctionRole {
+  FloatMemcpy
+  FormatF32
+  CanonicalizeFloatText
+  FormatF64
+  FloatMulShift
+} derive(Eq, @debug.Debug)
+pub fn WasmBuiltinFunctionRole::equal(Self, Self) -> Bool
+pub fn WasmBuiltinFunctionRole::not_equal(Self, Self) -> Bool
+pub fn WasmBuiltinFunctionRole::to_repr(Self) -> @debug.Repr
+
 pub(all) struct WasmCompileObservation {
   module_ : @types.Module
   functions : Array[WasmFunctionProvenance]
@@ -74,7 +80,7 @@ pub fn WasmExpansionScale::not_equal(Self, Self) -> Bool
 pub fn WasmExpansionScale::to_repr(Self) -> @debug.Repr
 
 pub(all) enum WasmFunctionOrigin {
-  InternalRuntimeImport(@wasm_abi.InternalRuntimeFunction)
+  BuiltinFunction(WasmBuiltinFunctionRole)
   WasiPreview1Import(@lane_wasm_abi.WasiPreview1Import)
   PhysicalRuntimeImport(function~ : @physical.FunctionId, module_name~ : String, field_name~ : String)
   PhysicalFunction(function~ : @physical.FunctionId)

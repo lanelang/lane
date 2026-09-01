@@ -70,7 +70,7 @@ test "core Wasm host imports execute under both engines" {
       Ok(value) => value
       Err(error) => fail("instantiate failed: \{Repr(error)}")
     }
-    assert_eq(instance.execute(), Ok(()))
+    assert_eq(instance.execute(), Ok(Returned))
     assert_eq(observed, 42L)
   }
 }

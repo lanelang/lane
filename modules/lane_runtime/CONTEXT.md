@@ -37,11 +37,11 @@ _Avoid_: active execution state, partially resolved semantic manifest
 
 ### WebAssembly Execution
 
-**Lane Wasm Internal Runtime ABI**:
-The compiler-private named contract shared by Wasm emission and the matching
-runtime adapter for deterministic float formatting, fatal control, and runtime
-control globals.
-_Avoid_: public host ABI, numeric function or global offsets
+**Guest Runtime Function**:
+A compiler-selected Wasm function definition statically emitted into the
+module for a builtin operation such as deterministic float formatting. It is
+neither imported nor exported and therefore creates no host ABI.
+_Avoid_: host callback, source extern, named runtime service
 
 **Execution Mode**:
 The engine selection for the same WebAssembly module: Wasmoon interpreter or
@@ -50,16 +50,18 @@ format.
 _Avoid_: separate compiler backend, fallback execution language
 
 **Execution Instance**:
-The single-shot Wasm instance and resource limits used by one execution
-attempt.
+The single-shot Wasm instance used by one execution attempt.
 _Avoid_: Loaded Wasm Executable, reusable failed instance
 
-**Fatal Outcome**:
-Compiler-owned terminal control carrying a validated UTF-8 message after Lane
-cleanup has run.
-_Avoid_: handleable Lane effect, host import error
+**Process Exit**:
+A `wasi_snapshot_preview1.proc_exit` status observed consistently from the
+interpreter or JIT. Lane panic writes its message to standard error and exits
+with status 1. It is an Execution Outcome, not an Execution Error; status zero
+therefore remains distinct from ordinary `_start` return without becoming a
+failure.
+_Avoid_: engine trap, handleable Lane effect, recoverable exception
 
 **Engine Trap**:
 A WebAssembly engine failure outside portable Lane execution semantics,
 reported with best-effort engine detail.
-_Avoid_: Fatal Outcome, source diagnostic
+_Avoid_: Process Exit, source diagnostic

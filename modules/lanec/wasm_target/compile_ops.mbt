@@ -534,7 +534,7 @@ fn compile_instruction(
       unary(locals, destination, source, F32DemoteF64)
     F32ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
-        I32Const(@internal_abi.float_text_capacity()),
+        I32Const(float_text_capacity()),
         function_catalog.runtime(ByteSequenceNew).call(),
         LocalSet(locals.slot_local(destination)),
         LocalGet(locals.slot_local(destination)),
@@ -542,14 +542,14 @@ fn compile_instruction(
         LocalGet(locals.slot_local(destination)),
         I32Const(12),
         I32Add,
-        function_catalog.internal_import(F32ToString).call(),
+        function_catalog.builtin(FormatF32).call(),
         I32Store(0, 2, 8L),
       ]
       result
     }
     F64ToString(destination, source) => {
       let result : Array[@wasm_types.Instruction] = [
-        I32Const(@internal_abi.float_text_capacity()),
+        I32Const(float_text_capacity()),
         function_catalog.runtime(ByteSequenceNew).call(),
         LocalSet(locals.slot_local(destination)),
         LocalGet(locals.slot_local(destination)),
@@ -557,7 +557,7 @@ fn compile_instruction(
         LocalGet(locals.slot_local(destination)),
         I32Const(12),
         I32Add,
-        function_catalog.internal_import(F64ToString).call(),
+        function_catalog.builtin(FormatF64).call(),
         I32Store(0, 2, 8L),
       ]
       result
@@ -939,15 +939,30 @@ fn compile_terminator(
       instructions
     }
     Fatal(message) => {
+      let frame = static_image.fatal_io_frame_base
       let instructions : Array[@wasm_types.Instruction] = [
+        I32Const(frame),
         LocalGet(locals.slot_local(message)),
         I32Const(12),
         I32Add,
+        I32Store(0, 2, 0L),
+        I32Const(frame),
         LocalGet(locals.slot_local(message)),
         I32Load(0, 2, 8L),
-        function_catalog.internal_import(FatalString).call(),
+        I32Store(0, 2, 4L),
+        I32Const(frame),
+        I32Const(0),
+        I32Store(0, 2, 8L),
+        I32Const(2),
+        I32Const(frame),
+        I32Const(1),
+        I32Const(frame + 8),
+        function_catalog.wasi_preview1(FdWrite).call(),
+        Drop,
+        I32Const(1),
+        function_catalog.wasi_preview1(ProcExit).call(),
+        Unreachable,
       ]
-      instructions.push(Throw(0))
       instructions
     }
     Unreachable => [Unreachable]

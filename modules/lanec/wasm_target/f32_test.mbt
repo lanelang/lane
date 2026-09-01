@@ -128,6 +128,6 @@ test "F32 host ABI agrees across interpreter and Wasm backends" {
   }
   assert_eq(
     (direct, execute_wasm(Interpreter), execute_wasm(Jit)),
-    (Ok(()), Ok(()), Ok(())),
+    (Ok(Returned), Ok(Returned), Ok(Returned)),
   )
 }

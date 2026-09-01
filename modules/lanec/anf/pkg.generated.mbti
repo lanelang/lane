@@ -3,6 +3,7 @@ package "Milky2018/lanec/anf"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/function_origin",
   "moonbit-community/prettyprinter",
   "moonbitlang/core/debug",
@@ -27,8 +28,6 @@ pub(all) suberror RuntimeAnfLoweringError {
   MissingFunctionOrigin
   InvalidRuntimeProjection(detail~ : String)
   InvalidRuntimeAnf(RuntimeAnfVerificationFailure)
-  ResidualPerform(@buslane.OperationId)
-  ResidualHandle
 } derive(Eq, @debug.Debug)
 pub fn RuntimeAnfLoweringError::equal(Self, Self) -> Bool
 pub fn RuntimeAnfLoweringError::not_equal(Self, Self) -> Bool
@@ -198,9 +197,8 @@ pub fn AnfTopTerm::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for AnfTopTerm
 
 pub(all) struct RuntimeAnfInput {
-  program : @buslane.VerifiedProgram
+  cps_core : @effect_lowering.CpsCoreProgram
   retained_values : Array[@buslane.ValueId]
-  function_origins : @function_origin.FunctionOriginCatalog
 }
 
 pub(all) enum RuntimeAnfVerificationError {

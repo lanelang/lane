@@ -2,8 +2,8 @@
 
 ## Status
 
-Implemented and release-qualified on 2026-08-28 against Basic revision
-`807f78b4bd31` and the Wasmoon dependency family at `0.12.6`. Native compiler
+Implemented and release-qualified on 2026-08-31 against Basic revision
+`11e13e923b9e` and the Wasmoon dependency family at `0.12.6`. Native compiler
 tests, the complete example corpus, Basic under both Wasmoon interpreter and
 JIT modes, the complete Lane WebAssembly Profile probes, and the raw WASI
 command-module contract pass at this baseline.
@@ -189,15 +189,17 @@ how one synchronous core-Wasm import borrows Lane-owned guest memory.
 ## Panic and process termination
 
 Source `panic` remains distinct from recoverable exceptions and from ordinary
-I/O. It is compiler-owned terminal control. The Wasm backend may use private
-Exception Handling constructs to run ARC cleanup before termination, but those
-tags are not a public effect handler interface.
+I/O. It is compiler-owned terminal control. The Wasm backend writes the panic
+message to standard error with `wasi_snapshot_preview1.fd_write`, then calls
+`wasi_snapshot_preview1.proc_exit(1)`. The runtime reports that standard WASI
+termination as `ExecutionOutcome::ProcessExit(code=1)`; it does not reconstruct a second typed
+panic channel from a private import, export, tag, or global.
 
-Diagnostic output for a panic may use `wasi_snapshot_preview1.fd_write` when a
-WASI environment is available. The terminal outcome does not depend on that
-write succeeding. Process termination may use the appropriate Preview 1
-facility or a standards-defined trap after cleanup; the execution adapter owns
-the mapping to the Lane command's process status.
+Deterministic F32/F64 shortest-round-trip formatting is also guest code. The
+compiler statically emits the reachable Ryū-derived Wasm functions and their
+tables; `%f32_to_string` and `%f64_to_string` introduce no host import. Together
+with the canonical WASI catalog, this keeps the module import section the only
+host-contract owner.
 
 ## Artifact and build consequences
 

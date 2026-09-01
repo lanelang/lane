@@ -119,6 +119,11 @@ fn runtime_function_order() -> Array[WasmRuntimeFunctionRole] {
 }
 
 ///|
+fn builtin_function_order() -> Array[WasmBuiltinFunctionRole] {
+  [FloatMemcpy, FormatF32, CanonicalizeFloatText, FormatF64, FloatMulShift]
+}
+
+///|
 fn helper_function_order(
   image : @physical.PhysicalProgram,
 ) -> Array[WasmHelperFunctionRole] {
@@ -235,24 +240,6 @@ fn WasmFunctionCatalog::add_entry(
 }
 
 ///|
-fn WasmFunctionCatalog::declare_internal_import(
-  self : WasmFunctionCatalog,
-  wasm_module : @wasm_types.Module,
-  function : @internal_abi.InternalRuntimeFunction,
-) -> Unit raise WasmCompileError {
-  let type_ = function.type_()
-  ignore(
-    self.add_entry(
-      wasm_module,
-      InternalRuntimeImport(function),
-      wasm_function_type(type_.params, type_.results),
-      Import(module_name=@internal_abi.module_name(), name=function.name()),
-      false,
-    ),
-  )
-}
-
-///|
 fn WasmFunctionCatalog::declare_wasi_preview1_import(
   self : WasmFunctionCatalog,
   wasm_module : @wasm_types.Module,
@@ -308,7 +295,7 @@ fn WasmFunctionCatalog::unreachable_support_role_count(
 ) -> Int {
   self.entries.fold(init=0, fn(count, entry) {
     let is_support = match entry.origin {
-      RuntimeFunction(_) | HelperFunction(_) => true
+      BuiltinFunction(_) | RuntimeFunction(_) | HelperFunction(_) => true
       _ => false
     }
     let delta = if is_support && !self.requires(entry.origin) { 1 } else { 0 }
@@ -341,11 +328,19 @@ fn WasmFunctionCatalog::helper(
 }
 
 ///|
-fn WasmFunctionCatalog::internal_import(
+fn WasmFunctionCatalog::wasi_preview1(
   self : WasmFunctionCatalog,
-  function : @internal_abi.InternalRuntimeFunction,
+  import_ : @wasm_abi.WasiPreview1Import,
 ) -> WasmFunctionHandle {
-  self.require(InternalRuntimeImport(function))
+  self.require(WasiPreview1Import(import_))
+}
+
+///|
+fn WasmFunctionCatalog::builtin(
+  self : WasmFunctionCatalog,
+  role : WasmBuiltinFunctionRole,
+) -> WasmFunctionHandle {
+  self.require(BuiltinFunction(role))
 }
 
 ///|
@@ -406,10 +401,13 @@ fn expected_function_type(
   origin : WasmFunctionOrigin,
 ) -> WasmFunctionType raise WasmCompileError {
   match origin {
-    InternalRuntimeImport(function) => {
-      let type_ = function.type_()
-      wasm_function_type(type_.params, type_.results)
-    }
+    BuiltinFunction(FloatMemcpy) => wasm_function_type([I32, I32, I32], [])
+    BuiltinFunction(FormatF32) => wasm_function_type([F32, I32], [I32])
+    BuiltinFunction(CanonicalizeFloatText) =>
+      wasm_function_type([I32, I32], [I32])
+    BuiltinFunction(FormatF64) => wasm_function_type([F64, I32], [I32])
+    BuiltinFunction(FloatMulShift) =>
+      wasm_function_type([I64, I32, I32, I32, I32, I32], [I64])
     WasiPreview1Import(import_) => {
       let contract = import_.contract()
       wasm_function_type(
@@ -578,7 +576,16 @@ fn WasmFunctionCatalog::validate(
             detail="physical function mapping is inconsistent",
           )
         }
-      RuntimeImport(import_) =>
+      RuntimeImport(import_) => {
+        let import_origin = match import_.wasi_preview1_import() {
+          Some(import_) => WasiPreview1Import(import_)
+          None =>
+            PhysicalRuntimeImport(
+              function~,
+              module_name=import_.module_name,
+              field_name=import_.field_name,
+            )
+        }
         if self.entry(handle).origin !=
           RuntimeImportAdapter(
             function~,
@@ -587,15 +594,12 @@ fn WasmFunctionCatalog::validate(
           ) ||
           self.physical_imports[index] is None ||
           self.entry(self.physical_imports[index].unwrap()).origin !=
-          PhysicalRuntimeImport(
-            function~,
-            module_name=import_.module_name,
-            field_name=import_.field_name,
-          ) {
+          import_origin {
           raise InvalidFunctionCatalog(
             detail="runtime import mapping is inconsistent",
           )
         }
+      }
     }
   }
   let cleanup = self.find(RuntimeFunction(InstanceGlobalCleanup))
@@ -648,11 +652,6 @@ fn plan_wasm_function_catalog(
   let requirements = plan_wasm_function_requirements(image, global_lifecycle)
   let runtime_layouts = wasm_runtime_layout_ids(image)
   let catalog = WasmFunctionCatalog::new(image, requirements, runtime_layouts)
-  for function in @internal_abi.functions() {
-    if catalog.requires(InternalRuntimeImport(function)) {
-      catalog.declare_internal_import(wasm_module, function)
-    }
-  }
   for import_ in @wasm_abi.wasi_preview1_imports() {
     if catalog.requires(WasiPreview1Import(import_)) {
       catalog.declare_wasi_preview1_import(wasm_module, import_)
@@ -661,6 +660,12 @@ fn plan_wasm_function_catalog(
   for index, entry in image.functions {
     if entry is RuntimeImport(import_) {
       let function : @physical.FunctionId = { value: index + 1, }
+      if import_.wasi_preview1_import() is Some(wasi_import) {
+        catalog.physical_imports[index] = Some(
+          catalog.require(WasiPreview1Import(wasi_import)),
+        )
+        continue
+      }
       let origin = PhysicalRuntimeImport(
         function~,
         module_name=import_.module_name,
@@ -702,6 +707,18 @@ fn plan_wasm_function_catalog(
       ),
       Defined,
       address_taken[index],
+    )
+  }
+  for role in builtin_function_order() {
+    guard catalog.requires(BuiltinFunction(role)) else { continue }
+    ignore(
+      catalog.add_entry(
+        wasm_module,
+        BuiltinFunction(role),
+        expected_function_type(image, BuiltinFunction(role)),
+        Defined,
+        false,
+      ),
     )
   }
   for role in runtime_function_order() {

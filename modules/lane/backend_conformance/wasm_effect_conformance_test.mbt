@@ -101,7 +101,7 @@ fn run_effect_conformance(
   mode : @lane_wasm_runtime.ExecutionMode,
 ) -> Array[String] raise {
   let (result, output) = execute_effect_conformance(image, mode)
-  assert_eq(result, Ok(()))
+  assert_eq(result, Ok(Returned))
   output
 }
 
@@ -109,18 +109,40 @@ fn run_effect_conformance(
 fn execute_effect_conformance(
   image : @physical.PhysicalProgram,
   mode : @lane_wasm_runtime.ExecutionMode,
-) -> (Result[Unit, @lane_runtime.ExecutionError], Array[String]) raise {
+) -> (
+  Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError],
+  Array[String],
+) raise {
+  let (result, stdout, _) = execute_effect_conformance_with_stderr(image, mode)
+  (result, stdout)
+}
+
+///|
+fn execute_effect_conformance_with_stderr(
+  image : @physical.PhysicalProgram,
+  mode : @lane_wasm_runtime.ExecutionMode,
+) -> (
+  Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError],
+  Array[String],
+  Array[String],
+) raise {
   let output : Array[Byte] = []
+  let error_output : Array[Byte] = []
   let loaded = match
     load_physical(
       image,
       mode~,
       wasi_stdout=Some(bytes => output.append(bytes.to_array())),
+      wasi_stderr=Some(bytes => error_output.append(bytes.to_array())),
     ) {
     Ok(value) => value
     Err(error) => fail("WebAssembly load failed: \{Repr(error)}")
   }
-  (loaded.execute(), effect_conformance_output(output))
+  (
+    loaded.execute(),
+    effect_conformance_output(output),
+    effect_conformance_output(error_output),
+  )
 }
 
 ///|
@@ -541,15 +563,27 @@ test "statement-position panic is fatal and does not continue on either backend"
       #|}
     ),
   )
-  let (interpreter, interpreter_output) = execute_effect_conformance(
+  let (interpreter, interpreter_output, interpreter_error) = execute_effect_conformance_with_stderr(
     image,
     Interpreter,
   )
-  let (wasm, wasm_output) = execute_effect_conformance(image, Jit)
+  let (wasm, wasm_output, wasm_error) = execute_effect_conformance_with_stderr(
+    image,
+    Jit,
+  )
   debug_inspect(
-    (interpreter, interpreter_output, wasm, wasm_output),
+    (
+      interpreter, interpreter_output, interpreter_error, wasm, wasm_output, wasm_error,
+    ),
     content=(
-      #|(Err(Fatal(message="boom")), [], Err(Fatal(message="boom")), [])
+      #|(
+      #|  Ok(ProcessExit(code=1)),
+      #|  [],
+      #|  ["boom"],
+      #|  Ok(ProcessExit(code=1)),
+      #|  [],
+      #|  ["boom"],
+      #|)
     ),
   )
 }
@@ -571,14 +605,26 @@ test "first-class panic preserves fatal control on either backend" {
       #|}
     ),
   )
-  let (interpreter, interpreter_output) = execute_effect_conformance(
+  let (interpreter, interpreter_output, interpreter_error) = execute_effect_conformance_with_stderr(
     image,
     Interpreter,
   )
-  let (wasm, wasm_output) = execute_effect_conformance(image, Jit)
+  let (wasm, wasm_output, wasm_error) = execute_effect_conformance_with_stderr(
+    image,
+    Jit,
+  )
   assert_eq(
-    (interpreter, interpreter_output, wasm, wasm_output),
-    (Err(Fatal(message="forwarded")), [], Err(Fatal(message="forwarded")), []),
+    (
+      interpreter, interpreter_output, interpreter_error, wasm, wasm_output, wasm_error,
+    ),
+    (
+      Ok(ProcessExit(code=1)),
+      [],
+      ["forwarded"],
+      Ok(ProcessExit(code=1)),
+      [],
+      ["forwarded"],
+    ),
   )
 }
 

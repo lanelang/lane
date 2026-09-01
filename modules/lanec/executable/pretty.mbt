@@ -5,23 +5,18 @@ using @prettyprinter {type Document, space, string, text}
 pub impl @prettyprinter.Pretty for ExecutableProgram with fn pretty(
   executable : ExecutableProgram,
 ) {
+  let program = executable.cps_core.program().program()
   text("executable") +
   space +
   @lanec_pretty.braced_block([
-    executable_entry_doc(
-      executable.program.program().metadata,
-      executable.entry,
-    ),
-    executable_externals_doc(
-      executable.program.program().metadata,
-      executable.externals,
-    ),
+    executable_entry_doc(program.metadata, executable.entry),
+    executable_externals_doc(program.metadata, executable.externals),
     executable_order_doc(
-      executable.program.program(),
+      program,
       executable.retained_values,
       executable.entry.value,
     ),
-    @lanec_pretty.section("program", [executable.program.program().pretty()]),
+    @lanec_pretty.section("program", [program.pretty()]),
   ])
 }
 

@@ -386,23 +386,22 @@ not introduce a root effect dictionary.
 1. reads one owned String from the terminal instance;
 2. has no CFG successor;
 3. abandons the remaining owners with that single-shot instance;
-4. produces a typed panic outcome.
+4. writes the message to WASI standard error;
+5. invokes `wasi_snapshot_preview1.proc_exit(1)`.
 
-The execution interface distinguishes intentional Lane panic from other
-failure classes. Conceptually:
+The public execution interface reports the standard process outcome rather
+than recreating a private panic channel:
 
 ```text
 ExecutionOutcome =
   | Returned
-  | Panicked(PanicReport)
+  | ProcessExit(Status)
   | RuntimeFailed(RuntimeFailure)
 ```
 
-`PanicReport` owns the source panic message and may later carry stable source
-location or Lane stack information. `RuntimeFailure` retains typed host-link,
-runtime-import, resource, engine, and trap failures. A command adapter may map
-these outcomes to diagnostics and process statuses, but it must not flatten
-them into constructor debug text or infer one class from a message or symbol.
+The panic message belongs to standard error. `RuntimeFailure` retains engine
+and trap failures. A command adapter maps `ProcessExit` to its process status;
+it does not infer panic identity from output text.
 
 The Wasm interpreter and JIT may use different internal unwind
 mechanisms, but they must agree on:

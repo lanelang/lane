@@ -3,7 +3,6 @@ import {
   "Milky2018/lanec/physical",
   "Milky2018/lane_wasm_abi" @wasm_abi,
   "Milky2018/lane_runtime/float_format",
-  "Milky2018/lane_runtime/wasm_abi" @internal_abi,
   "Milky2018/wasm_core/types" @wasm_types,
   "moonbitlang/core/encoding/utf8",
 }

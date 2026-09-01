@@ -23,7 +23,6 @@ fn wasm_bytes_owned_slot() -> @physical.SlotMetadata {
 ///|
 enum BytesExecutionOutcome {
   Completed
-  LiveHeapLimit
   Fatal
 } derive(Debug, Eq)
 
@@ -66,12 +65,11 @@ fn wasm_bytes_image(
 
 ///|
 fn classify_bytes_execution(
-  result : Result[Unit, @lane_runtime.ExecutionError],
+  result : Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError],
 ) -> BytesExecutionOutcome raise {
   match result {
     Ok(_) => Completed
-    Err(ExecutionResourceLimit(kind=LiveHeapBytes)) => LiveHeapLimit
-    Err(EngineTrap(detail=_)) | Err(InternalRuntimeFailure(detail=_)) => Fatal
+    Err(EngineTrap(detail=_)) => Fatal
     Err(error) => fail("unexpected execution result: \{Repr(error)}")
   }
 }
@@ -79,14 +77,13 @@ fn classify_bytes_execution(
 ///|
 fn execute_bytes_wasm(
   image : @physical.PhysicalProgram,
-  config : @lane_runtime.ExecutionConfig,
   mode : @lane_wasm_runtime.ExecutionMode,
 ) -> BytesExecutionOutcome raise {
   let loaded = match load(image, mode~) {
     Ok(value) => value
     Err(error) => fail("Wasm load failed: \{Repr(error)}")
   }
-  let instance = match loaded.new_instance(config~) {
+  let instance = match loaded.new_instance() {
     Ok(value) => value
     Err(error) => return classify_bytes_execution(Err(error))
   }
@@ -96,20 +93,18 @@ fn execute_bytes_wasm(
 ///|
 fn execute_bytes_backends(
   body : @physical.FunctionBody,
-  config? : @lane_runtime.ExecutionConfig = @lane_runtime.ExecutionConfig::defaults(),
   constants? : Array[Bytes] = [],
 ) -> BytesBackendOutcomes raise {
-  execute_bytes_image_backends(wasm_bytes_image(body, constants~), config~)
+  execute_bytes_image_backends(wasm_bytes_image(body, constants~))
 }
 
 ///|
 fn execute_bytes_image_backends(
   image : @physical.PhysicalProgram,
-  config? : @lane_runtime.ExecutionConfig = @lane_runtime.ExecutionConfig::defaults(),
 ) -> BytesBackendOutcomes raise {
   {
-    wasm_interpreter: execute_bytes_wasm(image, config, Interpreter),
-    wasm_jit: execute_bytes_wasm(image, config, Jit),
+    wasm_interpreter: execute_bytes_wasm(image, Interpreter),
+    wasm_jit: execute_bytes_wasm(image, Jit),
   }
 }
 
@@ -117,10 +112,9 @@ fn execute_bytes_image_backends(
 fn assert_bytes_backends(
   body : @physical.FunctionBody,
   expected : BytesExecutionOutcome,
-  config? : @lane_runtime.ExecutionConfig = @lane_runtime.ExecutionConfig::defaults(),
   constants? : Array[Bytes] = [],
 ) -> Unit raise {
-  assert_eq(execute_bytes_backends(body, config~, constants~), {
+  assert_eq(execute_bytes_backends(body, constants~), {
     wasm_interpreter: expected,
     wasm_jit: expected,
   })
@@ -433,38 +427,6 @@ test "ByteSequence slice overflow and addressability failures agree across backe
 }
 
 ///|
-test "ByteSequence concat and slice resource failures agree across backends" {
-  let i64 = wasm_bytes_trivial_slot(I64)
-  let owned = wasm_bytes_owned_slot()
-  let config : @lane_runtime.ExecutionConfig = {
-    max_live_heap_bytes: Some(15),
-  }
-  assert_bytes_backends(
-    wasm_bytes_trapping_block([owned, owned, owned], [
-      ConstString({ value: 0, }, { value: 0, }),
-      ConstString({ value: 1, }, { value: 1, }),
-      ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
-    ]),
-    LiveHeapLimit,
-    config~,
-    constants=[b"a", b"b"],
-  )
-  assert_bytes_backends(
-    wasm_bytes_trapping_block([owned, i64, i64, owned], [
-      ConstString({ value: 0, }, { value: 0, }),
-      ConstI64({ value: 1, }, 0L),
-      ConstI64({ value: 2, }, 1L),
-      ByteSequenceSlice({ value: 3, }, { value: 0, }, { value: 1, }, {
-        value: 2,
-      }),
-    ]),
-    LiveHeapLimit,
-    config~,
-    constants=[b"ab"],
-  )
-}
-
-///|
 fn wasm_bytes_single_block(
   slots : Array[@physical.SlotMetadata],
   instructions : Array[@physical.Instruction],
@@ -750,78 +712,6 @@ test "Bytes unique update reuses its allocation across backends" {
       Release({ value: 4, }),
     ]),
     Completed,
-    config={ max_live_heap_bytes: Some(16), },
-  )
-}
-
-///|
-test "Bytes shared update needs a second allocation across backends" {
-  let i32 = wasm_bytes_trivial_slot(I32)
-  let i64 = wasm_bytes_trivial_slot(I64)
-  let owned = wasm_bytes_owned_slot()
-  assert_bytes_backends(
-    wasm_bytes_trapping_block([i64, i32, owned, owned, i64, owned], [
-      ConstI64({ value: 0, }, 1L),
-      I64ToByte({ value: 1, }, { value: 0, }),
-      ByteSequenceMake({ value: 2, }, { value: 0, }, { value: 1, }),
-      RetainCopy({ value: 3, }, { value: 2, }),
-      ConstI64({ value: 4, }, 0L),
-      ByteSequenceSet({ value: 5, }, { value: 2, }, { value: 4, }, { value: 1, }),
-    ]),
-    LiveHeapLimit,
-    config={ max_live_heap_bytes: Some(16), },
-  )
-}
-
-///|
-test "Bytes allocation exhaustion agrees across interpreter and Wasm backends" {
-  let i32 = wasm_bytes_trivial_slot(I32)
-  let i64 = wasm_bytes_trivial_slot(I64)
-  let owned = wasm_bytes_owned_slot()
-  assert_bytes_backends(
-    wasm_bytes_trapping_block([i64, i32, owned], [
-      ConstI64({ value: 0, }, 1L),
-      I64ToByte({ value: 1, }, { value: 0, }),
-      ByteSequenceMake({ value: 2, }, { value: 0, }, { value: 1, }),
-    ]),
-    LiveHeapLimit,
-    config={ max_live_heap_bytes: Some(15), },
-  )
-}
-
-///|
-test "Bytes allocation accounting follows the aligned object size" {
-  let i32 = wasm_bytes_trivial_slot(I32)
-  let i64 = wasm_bytes_trivial_slot(I64)
-  let owned = wasm_bytes_owned_slot()
-  let body = fn(length : Int64) {
-    wasm_bytes_single_block([i64, i32, owned], [
-      ConstI64({ value: 0, }, length),
-      I64ToByte({ value: 1, }, { value: 0, }),
-      ByteSequenceMake({ value: 2, }, { value: 0, }, { value: 1, }),
-      Release({ value: 2, }),
-    ])
-  }
-  let config : @lane_runtime.ExecutionConfig = {
-    max_live_heap_bytes: Some(16),
-  }
-  assert_bytes_backends(body(4L), Completed, config~)
-  assert_bytes_backends(body(5L), LiveHeapLimit, config~)
-}
-
-///|
-test "large Bytes allocation is rejected before materialization across backends" {
-  let i32 = wasm_bytes_trivial_slot(I32)
-  let i64 = wasm_bytes_trivial_slot(I64)
-  let owned = wasm_bytes_owned_slot()
-  assert_bytes_backends(
-    wasm_bytes_trapping_block([i64, i32, owned], [
-      ConstI64({ value: 0, }, 2147483636L),
-      I64ToByte({ value: 1, }, { value: 0, }),
-      ByteSequenceMake({ value: 2, }, { value: 0, }, { value: 1, }),
-    ]),
-    LiveHeapLimit,
-    config={ max_live_heap_bytes: Some(15), },
   )
 }
 
@@ -836,7 +726,6 @@ test "unaddressable Bytes allocation is safely rejected across backends" {
       I64ToByte({ value: 1, }, { value: 0, }),
       ByteSequenceMake({ value: 2, }, { value: 0, }, { value: 1, }),
     ]),
-    config={ max_live_heap_bytes: Some(15), },
   )
   assert_eq(outcomes, { wasm_interpreter: Fatal, wasm_jit: Fatal, })
 }

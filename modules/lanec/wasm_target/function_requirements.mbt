@@ -141,11 +141,11 @@ fn require_physical_instruction_dependencies(
         RuntimeFunction(ByteSequenceIsValidUtf8),
       )
     F32ToString(_, _) => {
-      require_wasm_function(dependencies, InternalRuntimeImport(F32ToString))
+      require_wasm_function(dependencies, BuiltinFunction(FormatF32))
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceNew))
     }
     F64ToString(_, _) => {
-      require_wasm_function(dependencies, InternalRuntimeImport(F64ToString))
+      require_wasm_function(dependencies, BuiltinFunction(FormatF64))
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceNew))
     }
     _ => ()
@@ -170,8 +170,10 @@ fn require_physical_terminator_dependencies(
     }
     TailCallValue(_, _, _, _) =>
       require_wasm_function(dependencies, HelperFunction(CallableAbiGuard))
-    Fatal(_) =>
-      require_wasm_function(dependencies, InternalRuntimeImport(FatalString))
+    Fatal(_) => {
+      require_wasm_function(dependencies, WasiPreview1Import(FdWrite))
+      require_wasm_function(dependencies, WasiPreview1Import(ProcExit))
+    }
     _ => ()
   }
 }
@@ -205,14 +207,17 @@ fn runtime_import_adapter_dependencies(
   function : @physical.FunctionId,
   import_ : @wasm_abi.ImportContract,
 ) -> Array[WasmFunctionOrigin] {
-  let dependencies : Array[WasmFunctionOrigin] = [
-    PhysicalRuntimeImport(
-      function~,
-      module_name=import_.module_name,
-      field_name=import_.field_name,
-    ),
-  ]
-  dependencies
+  match import_.wasi_preview1_import() {
+    Some(import_) => [WasiPreview1Import(import_)]
+    None =>
+      [
+        PhysicalRuntimeImport(
+          function~,
+          module_name=import_.module_name,
+          field_name=import_.field_name,
+        ),
+      ]
+  }
 }
 
 ///|
@@ -318,7 +323,17 @@ fn wasm_function_dependencies(
 ) -> Array[WasmFunctionOrigin] raise WasmCompileError {
   match origin {
     WasiPreview1Import(_) => []
-    InternalRuntimeImport(_) => []
+    BuiltinFunction(FormatF32) =>
+      [BuiltinFunction(FloatMemcpy), BuiltinFunction(CanonicalizeFloatText)]
+    BuiltinFunction(FormatF64) =>
+      [
+        BuiltinFunction(FloatMemcpy),
+        BuiltinFunction(CanonicalizeFloatText),
+        BuiltinFunction(FloatMulShift),
+      ]
+    BuiltinFunction(FloatMemcpy)
+    | BuiltinFunction(CanonicalizeFloatText)
+    | BuiltinFunction(FloatMulShift) => []
     PhysicalRuntimeImport(function~, ..) =>
       match image.functions[function.value - 1] {
         RuntimeImport(_) => []

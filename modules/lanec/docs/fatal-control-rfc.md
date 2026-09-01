@@ -81,10 +81,12 @@ Unit context.
 
 ## Backend and persistence contract
 
-Both Wasm interpreter and JIT execution preserve the message, perform fatal
-cleanup, skip the normal continuation, and return the typed
-`ExecutionError::Fatal(message)` outcome. Failures in direct core Wasm host
-imports are engine traps at the Wasmoon linkage or execution boundary.
+Both Wasm interpreter and JIT execution write the message to WASI standard
+error, skip the normal continuation, invoke `proc_exit(1)`, and return
+`ExecutionOutcome::ProcessExit(code=1)`. The message is observable on standard
+error rather than duplicated in a private runtime outcome. Failures in direct
+core Wasm host imports are engine traps at the Wasmoon linkage or execution
+boundary.
 
 The Void-result migration advances module-interface schema 12 to 13,
 module-object schema 19 to 20, and linked-program schema 15 to 16. Persisting

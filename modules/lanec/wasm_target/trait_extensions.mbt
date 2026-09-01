@@ -14,6 +14,12 @@ pub extend WasmFunctionOrigin with Debug::{to_repr}
 pub extend WasmFunctionOrigin with Eq::{not_equal, equal}
 
 ///|
+pub extend WasmBuiltinFunctionRole with Debug::{to_repr}
+
+///|
+pub extend WasmBuiltinFunctionRole with Eq::{not_equal, equal}
+
+///|
 pub extend WasmFunctionProvenance with Debug::{to_repr}
 
 ///|

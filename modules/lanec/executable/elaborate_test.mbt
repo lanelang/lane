@@ -150,8 +150,10 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
     (
       executable.entry,
       executable.externals,
-      executable.program.program().metadata.value_info(println).unwrap().type_,
-      executable.program.program().metadata.value_info(main).unwrap().type_,
+      executable.cps_core.program().program().metadata
+      .value_info(println)
+      .unwrap().type_,
+      executable.cps_core.program().program().metadata.value_info(main).unwrap().type_,
     ),
     content=(
       #|(
@@ -175,7 +177,9 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
       #|)
     ),
   )
-  assert_true(@buslane.verify_program(executable.program.program()).is_ok())
+  assert_true(
+    @buslane.verify_program(executable.cps_core.program().program()).is_ok(),
+  )
 }
 
 ///|
@@ -201,13 +205,13 @@ test "whole-program elaboration accepts a closed external effect entry" {
   debug_inspect(
     (
       @buslane_lowering.source_value_type(
-        executable.program.program().metadata,
+        executable.cps_core.program().program().metadata,
         executable.entry.value,
       ),
-      executable.program.program().metadata
+      executable.cps_core.program().program().metadata
       .effect_info(host_effect)
       .map(info => info.flavor),
-      executable.program.program().metadata
+      executable.cps_core.program().program().metadata
       .value_info(main)
       .map(info => info.type_),
     ),

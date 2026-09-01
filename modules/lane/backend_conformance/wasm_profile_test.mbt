@@ -9,19 +9,6 @@ fn encode_profile_probe(source : String) -> Bytes raise {
   let module_ = @wasmoon_wat.parse(source) catch {
     error => fail(@wasmoon_wat.format_wat_error(error, source))
   }
-  for control in @internal_abi.runtime_control_globals() {
-    let index = module_.globals.length()
-    let initial = match control {
-      MaxLiveHeapBytes => -1
-      FailureCode => 0
-    }
-    let global : @wasm_types.Global = {
-      type_: { value_type: I32, mutable: true, },
-      init: [I32Const(initial)],
-    }
-    module_.globals.push(global)
-    module_.exports.push({ name: control.name(), desc: Global(index), })
-  }
   encode_test_wasm_module(module_)
 }
 
@@ -41,7 +28,7 @@ fn execute_profile_probe(
     Err(error) =>
       fail("profile probe did not instantiate in \{Repr(mode)}: \{Repr(error)}")
   }
-  assert_eq(instance.execute(), Ok(()))
+  assert_eq(instance.execute(), Ok(Returned))
 }
 
 ///|
@@ -169,6 +156,29 @@ fn wasm_export_kind(desc : @wasm_types.ExportDesc) -> String {
 }
 
 ///|
+test "WASI proc_exit remains distinct from normal return on both engines" {
+  for mode in [@lane_wasm_runtime.ExecutionMode::Interpreter, Jit] {
+    for status in [0, 7] {
+      let source = (
+        #|(module
+        #|  (type (func (param i32)))
+        #|  (import "wasi_snapshot_preview1" "proc_exit" (func (type 0)))
+        #|  (func (export "_start")
+        #|    i32.const $STATUS
+        #|    call 0)
+        #|  (memory (export "memory") 1))
+      ).replace(old="$STATUS", new=status.to_string())
+      let wasm = encode_profile_probe(source)
+      let loaded = match @lane_wasm_runtime.load_wasm(wasm, mode~) {
+        Ok(loaded) => loaded
+        Err(error) => fail("Wasm load failed: \{Repr(error)}")
+      }
+      assert_eq(loaded.execute(), Ok(ProcessExit(code=status)))
+    }
+  }
+}
+
+///|
 test "linked executable is a raw WASI command module" {
   let image = compile_effect_conformance_image(
     (
@@ -196,12 +206,49 @@ test "linked executable is a raw WASI command module" {
       #|(
       #|  [0x00, 0x61, 0x73, 0x6d],
       #|  [("wasi_snapshot_preview1", "fd_write")],
+      #|  [("_start", "function"), ("memory", "memory")],
+      #|)
+    ),
+  )
+}
+
+///|
+test "float and panic builtins preserve the WASI-only module contract" {
+  let image = compile_effect_conformance_image(
+    (
+      #|module Main
+      #|import Basic.Io.{ panic, println }
+      #|import Basic.Data.Void.{ absurd }
+      #|let f32_to_string : (F32) -> String = builtin("%f32_to_string")
+      #|let f64_to_string : (F64) -> String = builtin("%f64_to_string")
+      #|pub fn main() -> Unit ! { Io, Panic } {
+      #|  println(f32_to_string(0.1f32))
+      #|  println(f64_to_string(0.1f64))
+      #|  absurd[Unit](panic("boom"))
+      #|}
+    ),
+  )
+  let verified = match @physical.verify_physical_program_for_execution(image) {
+    Ok(verified) => verified
+    Err(error) => fail("physical verification failed: \{Repr(error)}")
+  }
+  let module_ = match @wasm_target.compile(verified) {
+    Ok(module_) => module_
+    Err(error) => fail("Wasm compilation failed: \{Repr(error)}")
+  }
+  let imports = module_.imports.map(import_ => (import_.mod_name, import_.name))
+  let exports = module_.exports.map(export_ => {
+    (export_.name, wasm_export_kind(export_.desc))
+  })
+  debug_inspect(
+    (imports, exports),
+    content=(
+      #|(
       #|  [
-      #|    ("lane.runtime.control.max_live_heap_bytes", "global"),
-      #|    ("lane.runtime.control.failure_code", "global"),
-      #|    ("_start", "function"),
-      #|    ("memory", "memory"),
+      #|    ("wasi_snapshot_preview1", "fd_write"),
+      #|    ("wasi_snapshot_preview1", "proc_exit"),
       #|  ],
+      #|  [("_start", "function"), ("memory", "memory")],
       #|)
     ),
   )

@@ -14,23 +14,7 @@ let free_list_head_global_index = 3
 let live_heap_bytes_global_index = 4
 
 ///|
-let max_live_heap_bytes_global_index = 5
-
-///|
-let failure_code_global_index = 6
-
-///|
-let initialized_owned_root_count_global_index = 7
-
-///|
-pub fn max_live_heap_bytes_global() -> Int {
-  max_live_heap_bytes_global_index
-}
-
-///|
-pub fn failure_code_global() -> Int {
-  failure_code_global_index
-}
+let initialized_owned_root_count_global_index = 5
 
 ///|
 fn append_runtime_globals(
@@ -69,30 +53,18 @@ fn append_runtime_globals(
   )
   append_i32_global(
     wasm_module,
-    index=max_live_heap_bytes_global_index,
-    is_mutable=true,
-    initial=-1,
-  )
-  append_i32_global(
-    wasm_module,
-    index=failure_code_global_index,
-    is_mutable=true,
-    initial=0,
-  )
-  append_i32_global(
-    wasm_module,
     index=initialized_owned_root_count_global_index,
     is_mutable=true,
     initial=0,
   )
-  wasm_module.exports.push({
-    name: @internal_abi.RuntimeControlGlobal::MaxLiveHeapBytes.name(),
-    desc: Global(max_live_heap_bytes_global_index),
-  })
-  wasm_module.exports.push({
-    name: @internal_abi.RuntimeControlGlobal::FailureCode.name(),
-    desc: Global(failure_code_global_index),
-  })
+  if static_image.guest_float_stack_pointer != 0 {
+    append_i32_global(
+      wasm_module,
+      index=guest_float_stack_global_index,
+      is_mutable=true,
+      initial=static_image.guest_float_stack_pointer,
+    )
+  }
 }
 
 ///|

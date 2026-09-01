@@ -41,6 +41,7 @@ fn load(
     @lane_wasm_runtime.load_wasm(
       encode_wasm_module(module_),
       mode~,
+      wasi_stderr=Some(_ => ()),
       configure_host~,
     ) {
     Ok(loaded) => Ok(loaded)

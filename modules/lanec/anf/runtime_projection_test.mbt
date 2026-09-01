@@ -24,11 +24,12 @@ fn uniform_runtime_anf_input(
   program : @buslane.Program,
   retained_values : Array[@buslane.ValueId],
 ) -> @anf.RuntimeAnfInput {
-  let (program, function_origins) = @function_origin.certify_uniform_program(
-    program,
-    SourceWritten,
-  ).unwrap()
-  { program, retained_values, function_origins, }
+  let cps_core = match
+    @effect_lowering.lower_effects(program.certify().unwrap()) {
+    Ok(cps_core) => cps_core
+    Err(error) => abort("unexpected CPS Core failure: \{Repr(error)}")
+  }
+  { cps_core, retained_values, }
 }
 
 ///|
@@ -322,25 +323,16 @@ test "runtime ANF removes effect-only binders and applications atomically" {
 ///|
 test "runtime ANF preserves a used higher-kinded companion" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
-  let companion = metadata.define_type_parameter(
-    "Companion",
-    Function([Type, Effect], Type),
+  let effect = metadata.define_type_parameter("E", Effect)
+  let action_type = @buslane.Type::Function(
+    [],
+    Primitive(I64),
+    Parameter(effect),
   )
-  let residual = metadata.define_type_parameter("Residual", Effect)
   let callable = metadata.define_value(
     "callable",
     External,
-    Forall(
-      [companion, residual],
-      Function(
-        [],
-        Apply(Parameter(companion), [
-          TypeArgument(Primitive(I64)),
-          EffectArgument(Parameter(residual)),
-        ]),
-        Empty,
-      ),
-    ),
+    Forall([effect], Function([action_type], Primitive(I64), Parameter(effect))),
   )
   let source : @buslane.Program = { metadata, terms: [External(callable)], }
   assert_true(@buslane.verify_program(source).is_ok())
@@ -350,10 +342,32 @@ test "runtime ANF preserves a used higher-kinded companion" {
     content=(
       #|Some(
       #|  Forall(
-      #|    [{ id: Projected(0), arity: 1 }],
-      #|    Callable(
-      #|      [],
-      #|      Erased({ index: 2 }, Apply(Parameter(Projected(0)), [Static(I64)])),
+      #|    [{ id: Projected(1), arity: 1 }],
+      #|    Forall(
+      #|      [{ id: Projected(5), arity: 0 }],
+      #|      Callable(
+      #|        [
+      #|          Erased(
+      #|            { index: 2 },
+      #|            Apply(Parameter(Projected(1)), [Parameter(Projected(5))]),
+      #|          ),
+      #|          Forall(
+      #|            [{ id: Projected(3), arity: 0 }],
+      #|            Callable(
+      #|              [
+      #|                Erased(
+      #|                  { index: 4 },
+      #|                  Apply(Parameter(Projected(1)), [Parameter(Projected(3))]),
+      #|                ),
+      #|                Callable([Scalar(I64)], Erased({ index: 3 }, Parameter(Projected(3)))),
+      #|              ],
+      #|              Erased({ index: 3 }, Parameter(Projected(3))),
+      #|            ),
+      #|          ),
+      #|          Callable([Scalar(I64)], Erased({ index: 1 }, Parameter(Projected(5)))),
+      #|        ],
+      #|        Erased({ index: 1 }, Parameter(Projected(5))),
+      #|      ),
       #|    ),
       #|  ),
       #|)

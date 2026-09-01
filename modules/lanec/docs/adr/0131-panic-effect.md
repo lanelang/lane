@@ -10,7 +10,8 @@ terminates execution through compiler-owned fatal control. `Panic` is not
 algebraic, cannot be handled, carries no dictionary, and remains a static
 residual effect until runtime ANF projection. The corresponding execution
 path ends in the verified `Fatal(message)` terminator and produces
-`ExecutionError::Fatal(message)` on every backend.
+WASI standard-error output followed by `ExecutionOutcome::ProcessExit(code=1)`
+on every backend.
 
 `panic` has the canonical source type:
 
