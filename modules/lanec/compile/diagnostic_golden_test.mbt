@@ -194,6 +194,30 @@ test "golden Lane Runtime V1 rejects forged run-command effects" {
 }
 
 ///|
+test "golden WASI Preview 1 rejects forged effects" {
+  for
+    case in [
+      (
+        "fd_close", "(I32) -> I32 ! Panic", "the declaration must use the canonical WASI `Io` effect",
+      ),
+      (
+        "proc_exit", "(I32) -> Unit ! Io", "the declaration must use the canonical WASI `Panic` effect",
+      ),
+    ] {
+    let (field_name, signature, reason) = case
+    let diagnostic = single_check_diagnostic(
+      "module Test\nlet bad : \{signature} = extern(\"wasi_snapshot_preview1\", \"\{field_name}\")",
+    )
+    assert_diagnostic_headline(
+      diagnostic,
+      "E3029",
+      "extern `wasi_snapshot_preview1.\{field_name}` has an unsupported type",
+    )
+    assert_eq(diagnostic.labels.map(fn(label) { label.message }), [reason])
+  }
+}
+
+///|
 test "golden function literal parameter diagnostic is specific" {
   let diagnostic = single_check_diagnostic(
     (

@@ -14,7 +14,7 @@ import {
 }
 
 // Values
-pub fn lower_runtime_contract(@checked.CheckedCanonicalBasicAbi, (@symbol.TypeSymbolId) -> @buslane.TypeId) -> CanonicalBasicAbiRuntimeContract
+pub fn lower_runtime_contract(@checked.CheckedCanonicalBasicAbi, Array[@abi.BasicTypeProvider], (@symbol.TypeSymbolId) -> @buslane.TypeId) -> CanonicalBasicAbiRuntimeContract
 
 // Errors
 

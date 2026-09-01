@@ -175,11 +175,20 @@ fn SemanticChecker::validate_extern_contract(
         result: result_contract,
       }
       if module_name == "wasi_snapshot_preview1" {
-        guard @wasm_abi.wasi_preview1_contract(field_name) is Some(canonical) else {
+        guard @wasm_abi.wasi_preview1_import(field_name) is Some(import_) else {
           return Err(UnknownWasiPreview1Import(field_name~))
         }
+        let canonical = import_.contract()
         if contract != canonical {
           return Err(WasiPreview1ContractMismatch(expected=canonical))
+        }
+        let canonical_effect = effect.canonicalize()
+        let effect_matches = match import_.effect() {
+          Io => canonical_effect is Builtin(Io)
+          Panic => canonical_effect is Builtin(Panic)
+        }
+        if !effect_matches {
+          return Err(WasiPreview1EffectRequired(expected=import_.effect()))
         }
       } else if module_name == "lane_runtime_v1" {
         guard @wasm_abi.lane_runtime_v1_contract(field_name) is Some(canonical) else {

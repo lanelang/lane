@@ -25,10 +25,11 @@ core-Wasm signature. It erases only compiler-owned guest-address carriers to
 _Avoid_: second import catalog, backend signature guess, platform policy
 
 **WASI Preview 1 Catalog**:
-The canonical identities, source-facing guest-address roles, and exact core
-function types of the Preview 1 operations Lane currently emits. Adding a
-standardized operation extends this catalog rather than restating its signature
-in a consumer.
+The canonical identities, source-facing guest-address roles, source effects,
+and exact core function types of the complete Snapshot Preview 1 surface
+implemented by the pinned Wasmoon runtime. Basic exposes raw declarations from
+this catalog; compiler and runtime consumers only validate, project, or resolve
+those certified entries.
 _Avoid_: Wasmoon callback registration, Basic function type
 
 **Lane Runtime V1 Catalog**:

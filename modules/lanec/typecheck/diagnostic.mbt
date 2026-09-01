@@ -80,6 +80,8 @@ fn extern_type_restriction_message(
       "WASI Preview 1 has no supported import named `\{field_name}`"
     WasiPreview1ContractMismatch(expected~) =>
       "the declaration must use the canonical WASI core signature `\{Repr(expected.parameters)} -> \{Repr(expected.result)}`"
+    WasiPreview1EffectRequired(expected~) =>
+      "the declaration must use the canonical WASI `\{Repr(expected)}` effect"
     UnknownLaneRuntimeV1Import(field_name~) =>
       "Lane Runtime V1 has no supported import named `\{field_name}`"
     LaneRuntimeV1ContractMismatch(expected~) =>

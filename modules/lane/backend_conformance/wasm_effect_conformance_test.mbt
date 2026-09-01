@@ -169,7 +169,9 @@ fn assert_effect_erased_host_boundary(
       imports.push(import_)
     }
   }
-  assert_eq(imports, [@wasm_abi.WasiPreview1Import::FdWrite.contract()])
+  assert_eq(imports, [
+    @wasm_abi.wasi_preview1_import("fd_write").unwrap().contract(),
+  ])
   let adapter_bodies = image.functions.filter_map(function => {
     if function is PhysicalBody(body) &&
       body.blocks.any(block => {

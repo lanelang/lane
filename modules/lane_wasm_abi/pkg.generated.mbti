@@ -16,6 +16,8 @@ pub fn run_command_response_size() -> Int
 
 pub fn wasi_preview1_contract(String) -> ImportContract?
 
+pub fn wasi_preview1_import(String) -> WasiPreview1Import?
+
 pub fn wasi_preview1_imports() -> Array[WasiPreview1Import]
 
 // Errors
@@ -139,12 +141,21 @@ pub fn RunCommandTermination::not_equal(Self, Self) -> Bool
 pub fn RunCommandTermination::response_words(Self) -> (Int, Int)
 pub fn RunCommandTermination::to_repr(Self) -> @debug.Repr
 
-pub(all) enum WasiPreview1Import {
-  FdWrite
-  ProcExit
+pub(all) enum WasiPreview1Effect {
+  Io
+  Panic
+} derive(Eq, @debug.Debug)
+pub fn WasiPreview1Effect::equal(Self, Self) -> Bool
+pub fn WasiPreview1Effect::not_equal(Self, Self) -> Bool
+pub fn WasiPreview1Effect::to_repr(Self) -> @debug.Repr
+
+pub struct WasiPreview1Import {
+  // private fields
 } derive(Eq, @debug.Debug)
 pub fn WasiPreview1Import::contract(Self) -> ImportContract
+pub fn WasiPreview1Import::effect(Self) -> WasiPreview1Effect
 pub fn WasiPreview1Import::equal(Self, Self) -> Bool
+pub fn WasiPreview1Import::field_name(Self) -> String
 pub fn WasiPreview1Import::not_equal(Self, Self) -> Bool
 pub fn WasiPreview1Import::to_repr(Self) -> @debug.Repr
 

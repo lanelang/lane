@@ -84,23 +84,23 @@ pub fn lower_checked_source_files_to_buslane_objects(
     )
     external_terms.append(terms)
     let module_path_text = checked_module_path_text(source)
+    let builtins = buslane_builtins_from(
+      lowerer.builtin_externals,
+      builtin_start,
+    )
+    let runtime_imports = buslane_runtime_imports_from(
+      lowerer.runtime_imports,
+      runtime_import_start,
+    )
     objects.push({
       module_path_text,
       canonical_basic_abi: @canonical_basic_abi.lower_runtime_contract(
         source.canonical_basic_abi,
+        canonical_basic_runtime_providers(builtins, runtime_imports),
         fn(symbol) { lowerer.type_id(symbol) },
       ),
       program: { metadata: lowerer.metadata, terms: external_terms, },
-      externals: {
-        builtins: buslane_builtins_from(
-          lowerer.builtin_externals,
-          builtin_start,
-        ),
-        runtime_imports: buslane_runtime_imports_from(
-          lowerer.runtime_imports,
-          runtime_import_start,
-        ),
-      },
+      externals: { builtins, runtime_imports, },
       entries: find_module_entries(module_entries, module_path_text),
       exports: lowerer.module_exports(source),
       imports: [],
@@ -149,20 +149,20 @@ fn lower_checked_source_file_to_buslane_object_with_imports_or_raise(
     external_start,
   )
   external_terms.append(terms)
+  let builtins = buslane_builtins_from(lowerer.builtin_externals, builtin_start)
+  let runtime_imports = buslane_runtime_imports_from(
+    lowerer.runtime_imports,
+    runtime_import_start,
+  )
   {
     module_path_text: checked_module_path_text(source),
     canonical_basic_abi: @canonical_basic_abi.lower_runtime_contract(
       source.canonical_basic_abi,
+      canonical_basic_runtime_providers(builtins, runtime_imports),
       fn(symbol) { lowerer.type_id(symbol) },
     ),
     program: { metadata: lowerer.metadata, terms: external_terms, },
-    externals: {
-      builtins: buslane_builtins_from(lowerer.builtin_externals, builtin_start),
-      runtime_imports: buslane_runtime_imports_from(
-        lowerer.runtime_imports,
-        runtime_import_start,
-      ),
-    },
+    externals: { builtins, runtime_imports, },
     entries: lowerer.entries,
     exports: lowerer.module_exports(source),
     imports: lowerer.imports,
@@ -233,6 +233,34 @@ fn buslane_runtime_imports_from(
     result.push(imports[index])
   }
   result
+}
+
+///|
+fn intrinsic_uses_canonical_void(intrinsic : @abi.Intrinsic) -> Bool {
+  match intrinsic.signature() {
+    Value(CanonicalBasicVoid) => true
+    Value(_) => false
+    Function(parameters~, result~, ..) =>
+      result is CanonicalBasicVoid ||
+      parameters.any(parameter => parameter is CanonicalBasicVoid)
+  }
+}
+
+///|
+fn canonical_basic_runtime_providers(
+  builtins : Array[BuslaneBuiltinExternal],
+  runtime_imports : Array[BuslaneRuntimeImport],
+) -> Array[@abi.BasicTypeProvider] {
+  let providers : Array[@abi.BasicTypeProvider] = []
+  if builtins.any(builtin => intrinsic_uses_canonical_void(builtin.intrinsic())) {
+    providers.push(Void)
+  }
+  if runtime_imports.any(import_ => {
+      import_.contract.parameters.any(parameter => parameter is GuestAddress)
+    }) {
+    providers.push(WasmAddress)
+  }
+  providers
 }
 
 ///|

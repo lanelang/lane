@@ -171,8 +171,14 @@ fn require_physical_terminator_dependencies(
     TailCallValue(_, _, _, _) =>
       require_wasm_function(dependencies, HelperFunction(CallableAbiGuard))
     Fatal(_) => {
-      require_wasm_function(dependencies, WasiPreview1Import(FdWrite))
-      require_wasm_function(dependencies, WasiPreview1Import(ProcExit))
+      require_wasm_function(
+        dependencies,
+        WasiPreview1Import(@wasm_abi.wasi_preview1_import("fd_write").unwrap()),
+      )
+      require_wasm_function(
+        dependencies,
+        WasiPreview1Import(@wasm_abi.wasi_preview1_import("proc_exit").unwrap()),
+      )
     }
     _ => ()
   }

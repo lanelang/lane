@@ -75,3 +75,9 @@ pub extend RunCommandHostStatus with Eq::{equal, not_equal}
 
 ///|
 pub extend WasiPreview1Import with Eq::{not_equal, equal}
+
+///|
+pub extend WasiPreview1Effect with Debug::{to_repr}
+
+///|
+pub extend WasiPreview1Effect with Eq::{not_equal, equal}

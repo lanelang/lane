@@ -58,11 +58,20 @@ pub fn CanonicalBasicAbiRuntimeContract::wasm_address_type(
 ///|
 pub fn lower_runtime_contract(
   checked : @checked.CheckedCanonicalBasicAbi,
+  providers : Array[@abi.BasicTypeProvider],
   lower_type : (@symbol.TypeSymbolId) -> @buslane.TypeId,
 ) -> CanonicalBasicAbiRuntimeContract {
   {
-    void_type: checked.type_symbol(Void).map(lower_type),
-    wasm_address_type: checked.type_symbol(WasmAddress).map(lower_type),
+    void_type: if providers.contains(Void) {
+      checked.type_symbol(Void).map(lower_type)
+    } else {
+      None
+    },
+    wasm_address_type: if providers.contains(WasmAddress) {
+      checked.type_symbol(WasmAddress).map(lower_type)
+    } else {
+      None
+    },
   }
 }
 
