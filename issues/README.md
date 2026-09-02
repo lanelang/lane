@@ -452,6 +452,7 @@ graph TD
   ISS_430["ISS-430: Make the WebAssembly host contract truthful"]
   ISS_431["ISS-431: Plan representation specialization before physical emission"]
   ISS_432["ISS-432: Establish the dependency boundary for Lane-authored builds"]
+  ISS_433["ISS-433: Make contextual constructor inference linear in payload depth"]
   ISS_005 --> ISS_006
   ISS_006 --> ISS_007
   ISS_006 --> ISS_008

@@ -288,6 +288,13 @@ fn GenericArgumentInference::has_exact_binding(
 }
 
 ///|
+fn GenericArgumentInference::has_all_exact_bindings(
+  self : GenericArgumentInference,
+) -> Bool {
+  self.parameters.all(parameter => self.has_exact_binding(parameter.id))
+}
+
+///|
 /// A callback shape is ground for this inference when it contains neither
 /// errors nor parameters quantified by this call. Rigid outer parameters are
 /// already known to the caller and therefore remain admissible.
@@ -1428,13 +1435,7 @@ fn SemanticChecker::infer_application_generic_arguments(
   } else {
     evidence.argument_expressions.length()
   }
-  let argument_types : Array[@types.Type?] = []
-  for index in 0..<count {
-    let argument = evidence.argument_expressions[index]
-    argument_types.push(
-      self.synthesize_argument_for_generic_arguments(scope, argument),
-    )
-  }
+  let argument_types : Array[@types.Type?] = Array::make(count, None)
   if evidence.collect_result_first &&
     evidence.result_template is Some(template) &&
     evidence.expected_result is Some(expected) {
@@ -1443,8 +1444,17 @@ fn SemanticChecker::infer_application_generic_arguments(
       inference.set_failure_loc_if_missing(evidence.loc)
     }
   }
+  // Once a contextual construction has fixed its owner arguments, payloads
+  // are checked against that owner below instead of re-synthesized as further
+  // inference evidence. Ordinary calls still collect every argument here.
   for index in 0..<count {
-    if argument_types[index] is Some(actual) &&
+    if evidence.collect_result_first && inference.has_all_exact_bindings() {
+      break
+    }
+    let argument = evidence.argument_expressions[index]
+    let actual = self.synthesize_argument_for_generic_arguments(scope, argument)
+    argument_types[index] = actual
+    if actual is Some(actual) &&
       !inference.collect(
         evidence.parameter_templates[index],
         actual,
@@ -1473,7 +1483,21 @@ fn SemanticChecker::infer_application_generic_arguments(
     }
   }
   for index in 0..<count {
-    if argument_types[index] is Some(actual) {
+    if evidence.collect_result_first && inference.has_all_exact_bindings() {
+      break
+    }
+    let actual = match argument_types[index] {
+      Some(actual) => Some(actual)
+      None => {
+        let actual = self.synthesize_argument_for_generic_arguments(
+          scope,
+          evidence.argument_expressions[index],
+        )
+        argument_types[index] = actual
+        actual
+      }
+    }
+    if actual is Some(actual) {
       if !inference.collect(evidence.parameter_templates[index], actual) {
         inference_failed = true
         inference.set_failure_loc_if_missing(
@@ -1498,6 +1522,9 @@ fn SemanticChecker::infer_application_generic_arguments(
     }
   }
   for index in 0..<count {
+    if evidence.collect_result_first && inference.has_all_exact_bindings() {
+      break
+    }
     if argument_types[index] is None &&
       !self.collect_function_literal_effect_evidence(
         inference,
