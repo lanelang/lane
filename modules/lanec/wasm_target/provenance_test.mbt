@@ -35,7 +35,7 @@ test "Wasm compilation records every function at its emission boundary" {
     result: Unit,
   }
   let image : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
@@ -91,7 +91,7 @@ test "Wasm compilation records every function at its emission boundary" {
       #|  { index: 12, origin: HelperFunction(ReleaseReferenceErased) },
       #|  { index: 13, origin: HelperFunction(DestroyNoop) },
       #|  { index: 14, origin: HelperFunction(ByteStorageSizer) },
-      #|  { index: 15, origin: EntryWrapper },
+      #|  { index: 15, origin: ExportWrapper(function={ value: 1 }) },
       #|]
     ),
   )
@@ -125,7 +125,7 @@ test "Wasm compilation emits only required byte-buffer support" {
     erased_companion: None,
   }
   let image : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
@@ -177,7 +177,7 @@ test "Wasm compilation emits only required byte-buffer support" {
       #|  HelperFunction(ReleaseReferenceErased),
       #|  HelperFunction(DestroyNoop),
       #|  HelperFunction(ByteStorageSizer),
-      #|  EntryWrapper,
+      #|  ExportWrapper(function={ value: 1 }),
       #|]
     ),
   )

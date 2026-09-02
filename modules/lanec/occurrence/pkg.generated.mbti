@@ -18,7 +18,6 @@ pub fn retain_reachable_top_terms(@buslane.Program, Array[@buslane.ValueId]) -> 
 // Types and methods
 pub(all) struct OccurrenceInput {
   program : @buslane.Program
-  entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
 } derive(Eq, @debug.Debug)
 pub fn OccurrenceInput::equal(Self, Self) -> Bool
@@ -26,7 +25,6 @@ pub fn OccurrenceInput::not_equal(Self, Self) -> Bool
 pub fn OccurrenceInput::to_repr(Self) -> @debug.Repr
 
 pub(all) struct OccurrenceSummary {
-  entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
   facts : Array[ValueOccurrenceFact]
 } derive(Eq, @debug.Debug)
@@ -42,7 +40,7 @@ pub(all) struct ValueOccurrenceFact {
   escapes : Bool
   used_in_effectful_context : Bool
   has_incomplete_type_application : Bool
-  reachable_from_entry : Bool
+  reachable : Bool
 } derive(Eq, @debug.Debug)
 pub fn ValueOccurrenceFact::equal(Self, Self) -> Bool
 pub fn ValueOccurrenceFact::not_equal(Self, Self) -> Bool

@@ -47,7 +47,7 @@ fn verification_image(
     }
   }
   {
-    entry: { value: 1, },
+    exports: [physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     callable_abis,
     data_family_count,
@@ -64,6 +64,25 @@ test "physical verifier accepts a complete minimal image" {
   assert_eq(
     verify_physical_program(verification_image(verification_body())),
     Ok(()),
+  )
+}
+
+///|
+test "physical verifier reserves the canonical memory export name" {
+  let image = {
+    ..verification_image(verification_body()),
+    exports: [physical_export(function={ value: 1, }, name="memory")],
+  }
+  debug_inspect(
+    verify_physical_program(image),
+    content=(
+      #|Err(
+      #|  InvalidPhysicalProgram(
+      #|    site=Image,
+      #|    detail="physical export name `memory` is reserved",
+      #|  ),
+      #|)
+    ),
   )
 }
 

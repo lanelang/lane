@@ -72,7 +72,6 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
     ByteBufferWriteI32 => wasm_function_type([I32, I64, I32], [])
     ByteBufferWriteAddress => wasm_function_type([I32, I64, I32, I32], [])
     ByteBufferReadI32 => wasm_function_type([I32, I64], [I32])
-    InstanceGlobalCleanup => wasm_function_type([], [])
   }
 }
 
@@ -114,7 +113,6 @@ fn runtime_function_order() -> Array[WasmRuntimeFunctionRole] {
     ByteBufferWriteI32,
     ByteBufferWriteAddress,
     ByteBufferReadI32,
-    InstanceGlobalCleanup,
   ]
 }
 
@@ -418,15 +416,42 @@ fn expected_function_type(
     }
     RuntimeFunction(role) => runtime_function_type(role)
     HelperFunction(role) => helper_function_type(role)
-    EntryWrapper => wasm_function_type([], [])
+    InitializerWrapper => wasm_function_type([], [])
+    ExportWrapper(function~) => {
+      guard physical_export(image, function) is Some(_) else {
+        raise InvalidFunctionCatalog(
+          detail="export wrapper does not name a physical export",
+        )
+      }
+      wasm_function_type(
+        image.function_callable_abi(function).unwrap().parameters.map(parameter => {
+          wasm_representation(parameter.representation)
+        }),
+        wasm_function_results(
+          image.function_callable_abi(function).unwrap().result,
+        ),
+      )
+    }
   }
+}
+
+///|
+fn physical_export(
+  image : @physical.PhysicalProgram,
+  function : @physical.FunctionId,
+) -> @physical.PhysicalExport? {
+  for export_ in image.exports {
+    if export_.function() == function {
+      return Some(export_)
+    }
+  }
+  None
 }
 
 ///|
 fn WasmFunctionCatalog::validate(
   self : WasmFunctionCatalog,
   image : @physical.PhysicalProgram,
-  global_lifecycle : @physical.GlobalLifecyclePlan,
   wasm_module : @wasm_types.Module,
 ) -> Unit raise WasmCompileError {
   let actual_layouts = wasm_runtime_layout_ids(image)
@@ -450,8 +475,7 @@ fn WasmFunctionCatalog::validate(
         detail="required function is absent from the catalog: \{Repr(origin)}",
       )
     }
-    for
-      dependency in wasm_function_dependencies(image, global_lifecycle, origin) {
+    for dependency in wasm_function_dependencies(image, origin) {
       if !self.requires(dependency) {
         raise InvalidFunctionCatalog(
           detail="function dependency is absent from the closure: \{Repr(origin)} -> \{Repr(dependency)}",
@@ -459,7 +483,7 @@ fn WasmFunctionCatalog::validate(
       }
     }
   }
-  let closed = close_wasm_function_roots(image, global_lifecycle, self.roots)
+  let closed = close_wasm_function_roots(image, self.roots)
   for origin in self.required {
     if !closed.contains(origin) {
       raise InvalidFunctionCatalog(
@@ -563,12 +587,6 @@ fn WasmFunctionCatalog::validate(
         }
     }
   }
-  let cleanup = self.find(RuntimeFunction(InstanceGlobalCleanup))
-  if (cleanup is Some(_)) != !global_lifecycle.owned_roots.is_empty() {
-    raise InvalidFunctionCatalog(
-      detail="instance-global cleanup does not match lifecycle plan",
-    )
-  }
   for role in helper_function_order(image) {
     guard self.find(HelperFunction(role)) is Some(handle) else { continue }
     let is_layout_helper = helper_is_layout_callback(role)
@@ -578,8 +596,13 @@ fn WasmFunctionCatalog::validate(
       )
     }
   }
-  if self.find(EntryWrapper) is None {
-    raise InvalidFunctionCatalog(detail="missing entry wrapper")
+  if image.initializer is Some(_) && self.find(InitializerWrapper) is None {
+    raise InvalidFunctionCatalog(detail="missing initializer wrapper")
+  }
+  for export_ in image.exports {
+    if self.find(ExportWrapper(function=export_.function())) is None {
+      raise InvalidFunctionCatalog(detail="missing export wrapper")
+    }
   }
 }
 
@@ -607,10 +630,9 @@ fn WasmFunctionHandle::ref_func(
 ///|
 fn plan_wasm_function_catalog(
   image : @physical.PhysicalProgram,
-  global_lifecycle : @physical.GlobalLifecyclePlan,
   wasm_module : @wasm_types.Module,
 ) -> WasmFunctionCatalog raise WasmCompileError {
-  let requirements = plan_wasm_function_requirements(image, global_lifecycle)
+  let requirements = plan_wasm_function_requirements(image)
   let runtime_layouts = wasm_runtime_layout_ids(image)
   let catalog = WasmFunctionCatalog::new(image, requirements, runtime_layouts)
   for origin in catalog.required {
@@ -685,15 +707,30 @@ fn plan_wasm_function_catalog(
       ),
     )
   }
-  ignore(
-    catalog.add_entry(
-      wasm_module,
-      EntryWrapper,
-      wasm_function_type([], []),
-      Defined,
-      false,
-    ),
-  )
-  catalog.validate(image, global_lifecycle, wasm_module)
+  if image.initializer is Some(_) {
+    ignore(
+      catalog.add_entry(
+        wasm_module,
+        InitializerWrapper,
+        wasm_function_type([], []),
+        Defined,
+        false,
+      ),
+    )
+  }
+  for export_ in image.exports {
+    let origin = ExportWrapper(function=export_.function())
+    guard catalog.find(origin) is None else { continue }
+    ignore(
+      catalog.add_entry(
+        wasm_module,
+        origin,
+        expected_function_type(image, origin),
+        Defined,
+        false,
+      ),
+    )
+  }
+  catalog.validate(image, wasm_module)
   catalog
 }

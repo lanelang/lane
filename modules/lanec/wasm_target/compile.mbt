@@ -54,15 +54,10 @@ fn compile_or_raise(
   observe : ((Array[WasmFunctionProvenance], WasmModuleScale) -> Unit)?,
 ) -> @wasm_types.Module raise WasmCompileError {
   let image = verified.image()
-  let global_lifecycle = verified.global_lifecycle()
   let wasm_module = @wasm_types.Module::empty()
-  let function_catalog = plan_wasm_function_catalog(
-    image, global_lifecycle, wasm_module,
-  )
+  let function_catalog = plan_wasm_function_catalog(image, wasm_module)
   let emitter = WasmFunctionEmitter::new(wasm_module, observe is Some(_))
-  let static_image = build_static_image(
-    image, global_lifecycle, function_catalog,
-  )
+  let static_image = build_static_image(image, function_catalog)
   for catalog_entry in function_catalog.entries {
     match catalog_entry.declaration {
       Import(_) => emitter.append_import(catalog_entry)
@@ -104,9 +99,7 @@ fn compile_or_raise(
           }
           RuntimeFunction(role) =>
             account_whole_function(
-              compile_runtime_function(
-                role, function_catalog, static_image, wasm_module,
-              ),
+              compile_runtime_function(role, function_catalog, static_image),
               RuntimeSupport,
             )
           HelperFunction(role) =>
@@ -119,14 +112,28 @@ fn compile_or_raise(
                 _ => HelperSupport
               },
             )
-          EntryWrapper =>
+          InitializerWrapper =>
             account_whole_function(
               {
                 locals: [],
-                body: compile_entry_lifecycle(image, function_catalog),
+                body: compile_initializer_wrapper(image, function_catalog),
               },
-              EntryLifecycle,
+              BoundaryWrapper,
             )
+          ExportWrapper(function~) => {
+            guard physical_export(image, function) is Some(export_) else {
+              raise InvalidFunctionCatalog(
+                detail="export wrapper has no physical export",
+              )
+            }
+            account_whole_function(
+              {
+                locals: [],
+                body: compile_export_wrapper(image, export_, function_catalog),
+              },
+              BoundaryWrapper,
+            )
+          }
           CoreImport(_) =>
             raise InvalidFunctionCatalog(
               detail="catalog import was classified as a definition",
@@ -170,10 +177,17 @@ fn compile_or_raise(
     type_: FuncRef,
     init: element_initializers,
   })
-  wasm_module.exports.push({
-    name: "_start",
-    desc: Func(function_catalog.require(EntryWrapper).index),
-  })
+  if image.initializer is Some(_) {
+    wasm_module.start = Some(function_catalog.require(InitializerWrapper).index)
+  }
+  for export_ in image.exports {
+    wasm_module.exports.push({
+      name: export_.name(),
+      desc: Func(
+        function_catalog.require(ExportWrapper(function=export_.function())).index,
+      ),
+    })
+  }
   wasm_module.exports.push({ name: "memory", desc: Memory(0), })
   if observe is Some(emit) {
     emit(

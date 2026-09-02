@@ -1,7 +1,7 @@
 ///|
 async fn lane_link(
   objects : Array[String],
-  entry_name : PublicEntryName,
+  export_requests : Array[PublicExportRequest],
   output : String,
   verbose : Bool,
 ) -> LaneCommandOutcome {
@@ -22,11 +22,16 @@ async fn lane_link(
     Succeeded(program, _) => program
     Failed(_) => return internal_error("failed link had no errors")
   }
-  let entry = match find_public_entry(program.entries(), entry_name) {
-    Ok(entry) => entry
-    Err(error) => return LaneCommandOutcome::user_error(error)
+  let exports = []
+  for request in export_requests {
+    let entry = match
+      find_public_entry(program.entries(), request.entry_name()) {
+      Ok(entry) => entry
+      Err(error) => return LaneCommandOutcome::user_error(error)
+    }
+    exports.push(@compile.CompiledExport::{ entry, name: request.wasm_name, })
   }
-  let executable = match elaborate_command_entry(program, entry) {
+  let executable = match elaborate_command_exports(program, exports) {
     Ok(executable) => executable
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
@@ -38,7 +43,11 @@ async fn lane_link(
     let linked_modules = program.module_path_texts().join(",")
     println("linked WebAssembly module \{output}")
     println("linked modules \{linked_modules}")
-    println("linked entry \{display_public_entry_name(entry_name)}")
+    for request in export_requests {
+      println(
+        "exported \{display_public_entry_name(request.entry_name())} as \{request.wasm_name}",
+      )
+    }
   }
   Succeeded
 }

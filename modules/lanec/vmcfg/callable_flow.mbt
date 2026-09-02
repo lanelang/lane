@@ -79,7 +79,9 @@ fn analyze_callable_flow(image : Image) -> CallableFlowAnalysis {
     closed_callable_universe: roots_have_no_runtime_inputs(image),
     resolve_opaque_calls: false,
   }
-  initialize_root_callable_inputs(image, analysis, image.entry)
+  for export_ in image.exports {
+    initialize_root_callable_inputs(image, analysis, export_.function())
+  }
   if image.initializer is Some(initializer) {
     initialize_root_callable_inputs(image, analysis, initializer)
   }
@@ -530,7 +532,11 @@ fn complete_callable_at_callsite(
 
 ///|
 fn roots_have_no_runtime_inputs(image : Image) -> Bool {
-  guard root_has_no_runtime_inputs(image, image.entry) else { return false }
+  guard image.exports.all(export_ => {
+    root_has_no_runtime_inputs(image, export_.function())
+  }) else {
+    return false
+  }
   match image.initializer {
     Some(initializer) => root_has_no_runtime_inputs(image, initializer)
     None => true

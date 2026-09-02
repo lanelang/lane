@@ -8,7 +8,9 @@ test "finalize rejects an invalid complete physical program" {
   }
   assert_eq(
     finalize({
-      entry: { value: 2, },
+      exports: [
+        @physical.physical_export(function={ value: 2, }, name="_start"),
+      ],
       initializer: None,
       functions: [Body(body)],
       data_family_count: 0,
@@ -112,7 +114,7 @@ test "finalize derives definition and call ABIs from finalized value shapes" {
     ],
   }
   let image = finalize({
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: Some({ value: 3, }),
     functions: [Body(entry), Body(callee), Body(initializer)],
     data_family_count: 0,
@@ -239,7 +241,7 @@ test "finalize shares callable ABIs across every callable occurrence" {
     ],
   }
   let image = finalize({
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     functions: [
       Body(unit_body),

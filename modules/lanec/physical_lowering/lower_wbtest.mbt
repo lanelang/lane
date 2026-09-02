@@ -55,6 +55,18 @@ fn test_import_result(type_ : @buslane.Type) -> @wasm_abi.ImportResult {
 }
 
 ///|
+fn test_executable_export(
+  entry : @buslane_lowering.BuslaneEntry,
+) -> @executable.ExecutableExport {
+  @executable.executable_export(
+    entry~,
+    name="_start",
+    parameters=[],
+    result=Unit,
+  )
+}
+
+///|
 fn contains_instruction(
   body : @physical.FunctionBody,
   predicate : (@physical.Instruction) -> Bool,
@@ -90,7 +102,7 @@ fn lower_test_executable_to_physical_observed(
     {
       cps_core,
       externals,
-      entry,
+      exports: [test_executable_export(entry)],
       retained_values: test_retained_values(program),
     },
     observe,
@@ -108,7 +120,7 @@ fn lower_test_executable_to_physical_without_representation_specialization(
     {
       cps_core,
       externals,
-      entry,
+      exports: [test_executable_export(entry)],
       retained_values: test_retained_values(program),
     },
     _ => (),
@@ -145,7 +157,7 @@ fn lower_test_linked_program_to_physical(
         externals,
         entries: [entry],
       },
-      entry,
+      [{ entry, name: "_start", }],
       @executable.ExecutionProfile::new(
         builtin_effects=[Io, Panic],
         supports_external_effects=true,
@@ -304,7 +316,7 @@ test "pure scalar Buslane lowers through ANF into executable Physical Program" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_eq(image.entry, { value: 2, })
+  assert_eq(image.exports[0].function(), { value: 2, })
   guard image.functions is [PhysicalBody(helper_body), PhysicalBody(main_body)] else {
     fail("expected two physical bodies")
   }
@@ -536,7 +548,7 @@ test "entry admission rejects residual algebraic effects before lowering" {
         externals: { builtins: [], runtime_imports: [], },
         entries: [entry],
       },
-      entry,
+      [{ entry, name: "_start", }],
       @executable.ExecutionProfile::new(
         builtin_effects=[Io, Panic],
         supports_external_effects=true,

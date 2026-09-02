@@ -20,6 +20,12 @@ enum HostFileErrorReason {
 } derive(Debug, Eq)
 
 ///|
+enum EntryInvocationFailure {
+  HasParameters(count~ : Int)
+  ReturnsNonUnit(result~ : @buslane.Type)
+} derive(Debug, Eq)
+
+///|
 priv struct CommandReportField {
   name : String
   value : String
@@ -46,8 +52,9 @@ enum CliError {
   LaneHomeNotConfigured
   InvalidRunTarget(target~ : String)
   InvalidExploreTarget(target~ : String)
-  InvalidExecTarget(target~ : String)
-  InvalidLinkEntry(entry~ : String)
+  InvalidLinkExport(export_~ : String)
+  DuplicateLinkExportName(name~ : String)
+  ReservedLinkExportName(name~ : String)
   FileIo(action~ : CliFileAction, path~ : String, reason~ : HostFileErrorReason)
   ArtifactLoad(path~ : String, kind~ : String, message~ : String)
   ExecutionImageLowering(message~ : String)
@@ -61,6 +68,16 @@ enum CliError {
     name~ : String,
     type_~ : @buslane.Type,
     reason~ : @executable.EntryAdmissionFailure
+  )
+  ExportNotExecutable(
+    name~ : String,
+    type_~ : @buslane.Type,
+    reason~ : @executable.EntryAdmissionFailure
+  )
+  EntryNotInvocable(
+    name~ : String,
+    type_~ : @buslane.Type,
+    reason~ : EntryInvocationFailure
   )
   NotFormatted(path~ : String)
   Internal(message~ : String)
@@ -145,30 +162,42 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
           ),
         ],
       )
-    InvalidExecTarget(target~) =>
-      command_report(
-        code="E6008",
-        title="invalid exec target `\{target}`",
-        fields=[command_report_field("expected", "FILE.wasm")],
-        details=[
-          "`lane exec` executes the entry selected when the WebAssembly module was linked.",
-        ],
-        suggestions=[
-          command_suggestion("Example:", command="lane exec program.wasm"),
-        ],
-      )
-    InvalidLinkEntry(entry~) =>
+    InvalidLinkExport(export_~) =>
       command_report(
         code="E6010",
-        title="invalid link entry `\{entry}`",
-        fields=[command_report_field("expected", "Module.value")],
+        title="invalid link export `\{export_}`",
+        fields=[command_report_field("expected", "Module.value:wasm_name")],
         details=[
-          "`lane link` selects one exported entry before producing a WebAssembly module.",
+          "Repeat `--export` to expose multiple functions from one WebAssembly module.",
         ],
         suggestions=[
           command_suggestion(
             "Example:",
-            command="lane link --entry Main.main -o program.wasm Main.lmo",
+            command="lane link --export Main.main:_start -o program.wasm Main.lmo",
+          ),
+        ],
+      )
+    DuplicateLinkExportName(name~) =>
+      command_report(
+        code="E6015",
+        title="duplicate WebAssembly export name `\{name}`",
+        details=["Every public name in one WebAssembly module must be unique."],
+        suggestions=[
+          command_suggestion(
+            "Choose distinct names after `:` in the repeated `--export` arguments.",
+          ),
+        ],
+      )
+    ReservedLinkExportName(name~) =>
+      command_report(
+        code="E6016",
+        title="WebAssembly export name `\{name}` is reserved",
+        details=[
+          "Lane emits the canonical linear memory under this public name.",
+        ],
+        suggestions=[
+          command_suggestion(
+            "Choose a different name after `:` in the `--export` argument.",
           ),
         ],
       )
@@ -277,6 +306,48 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
           ),
         ],
       )
+    ExportNotExecutable(name~, type_~, reason~) =>
+      command_report(
+        code="E6017",
+        title="entry `\{name}` cannot be exported to WebAssembly",
+        fields=[
+          command_report_field("requested type", render_buslane_type(type_)),
+          command_report_field(
+            "expected", "parameters and result in Unit, I32, I64, F32, or F64",
+          ),
+        ],
+        details=[reason.to_human_note()],
+        suggestions=[
+          command_suggestion(
+            "Expose a public function with a stable Core WebAssembly scalar ABI and effects supported by the Lane CLI.",
+          ),
+          command_suggestion(
+            "Use `lane inspect <artifact>` to inspect public entries and artifact metadata.",
+          ),
+        ],
+      )
+    EntryNotInvocable(name~, type_~, reason~) =>
+      command_report(
+        code="E6009",
+        title="entry `\{name}` cannot be invoked by this command",
+        fields=[
+          command_report_field("requested type", render_buslane_type(type_)),
+          command_report_field("expected", "() -> Unit"),
+        ],
+        details=[
+          match reason {
+            HasParameters(count~) =>
+              "The selected function has \{count} source parameter(s), but this command does not supply arguments."
+            ReturnsNonUnit(result~) =>
+              "The selected function returns `\{render_buslane_type(result)}`, but this command does not consume a result value."
+          },
+        ],
+        suggestions=[
+          command_suggestion(
+            "Export a zero-parameter wrapper that returns `Unit`.",
+          ),
+        ],
+      )
     NotFormatted(path~) => command_report(title="\{path}: not formatted")
     Internal(message~) =>
       command_report(
@@ -308,10 +379,10 @@ fn @executable.EntryAdmissionFailure::to_human_note(
 ) -> String {
   match self {
     NotFunction => "The selected public entry is a value, not a function."
-    HasParameters(count~) =>
-      "The selected function expects \{count} argument(s)."
-    ReturnsNonUnit(result~) =>
-      "The selected function returns `\{render_buslane_type(result)}`, not `Unit`."
+    UnsupportedParameter(index~, type_~) =>
+      "Parameter \{index + 1} has unsupported WebAssembly export type `\{render_buslane_type(type_)}`."
+    UnsupportedResult(result~) =>
+      "The selected function returns unsupported WebAssembly export type `\{render_buslane_type(result)}`."
     HasUnsupportedEffects(effects~) =>
       "The selected function requires unsupported effect(s): " +
       effects.map(render_buslane_effect).join(", ") +

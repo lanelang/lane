@@ -154,7 +154,8 @@ pub(all) enum ExploreFunctionRole {
   RuntimeImportAdapter(module_name~ : String, field_name~ : String)
   WasmRuntimeFunction(name~ : String)
   WasmHelperFunction(name~ : String, ordinal~ : Int?)
-  EntryWrapper
+  InitializerWrapper
+  ExportWrapper
 } derive(Debug, Eq)
 
 ///|

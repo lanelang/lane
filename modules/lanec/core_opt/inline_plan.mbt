@@ -55,12 +55,10 @@ priv struct InlinePlanner {
 ///|
 fn build_inline_plan(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
 ) -> InlinePlan raise CoreOptimizeError {
-  let analysis = analyze_interprocedural(program, entry, roots)
-  let preserved_roots = roots.copy()
-  preserved_roots.push(entry)
+  let analysis = analyze_interprocedural(program, roots)
+  let preserved_roots = roots
   let planner : InlinePlanner = {
     planning_program: {
       metadata: program.metadata.snapshot(),

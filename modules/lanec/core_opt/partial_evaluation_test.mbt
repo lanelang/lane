@@ -31,11 +31,7 @@ test "core optimizer partially evaluates a known nonrecursive call" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -104,11 +100,7 @@ test "core optimizer partially evaluates a known generic call" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -216,11 +208,7 @@ test "core optimizer preserves distinct effects with different binder kinds" {
     ],
   }
   let before = @buslane.verify_program(program)
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [value],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main, value], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -329,11 +317,7 @@ test "core optimizer devirtualizes a known dictionary projection" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -390,11 +374,7 @@ test "core optimizer does not unfold a recursive call through an alias" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -473,11 +453,7 @@ test "core optimizer keeps a known call when contextual expansion is not profita
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [helper],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main, helper], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -545,11 +521,7 @@ test "core optimizer does not unfold a mutually recursive SCC" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -650,11 +622,7 @@ test "core optimizer preserves an escaping callable while specializing its direc
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [holder],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main, holder], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -775,11 +743,7 @@ test "core optimizer eliminates a single-use call with a dynamic projection" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: consumer,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [consumer], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -933,11 +897,7 @@ test "core optimizer materializes a top-level dictionary before devirtualizing i
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }

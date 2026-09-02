@@ -121,16 +121,16 @@ priv struct SpecializationPlanner {
 #warnings("-unused_value")
 fn plan_effect_specializations(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
+  roots : Array[@buslane.ValueId],
 ) -> SpecializationPlan raise SpecializationError {
   let definitions = collect_plannable_definitions(program)
-  plan_effect_specializations_with_definitions(program, entry, definitions)
+  plan_effect_specializations_with_definitions(program, roots, definitions)
 }
 
 ///|
 fn plan_effect_specializations_with_definitions(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
+  roots : Array[@buslane.ValueId],
   definitions : Array[PlannedDefinition],
 ) -> SpecializationPlan raise SpecializationError {
   let planner = SpecializationPlanner::{
@@ -144,16 +144,20 @@ fn plan_effect_specializations_with_definitions(
       retained_declarations: [],
     },
   }
-  guard planner.find_definition(entry) is Some(entry_definition) else {
-    if planner.retain_top_value(entry) {
-      planner.visit_value_type(entry, [])
+  for root in roots {
+    match planner.find_definition(root) {
+      None =>
+        if planner.retain_top_value(root) {
+          planner.visit_value_type(root, [])
+        }
+      Some(definition) => {
+        if definition.effect_parameters.is_empty() {
+          ignore(planner.retain_top_value(root))
+        }
+        planner.enqueue_visit(definition.site, [])
+      }
     }
-    return planner.plan
   }
-  if entry_definition.effect_parameters.is_empty() {
-    ignore(planner.retain_top_value(entry))
-  }
-  planner.enqueue_visit(entry_definition.site, [])
   let mut index = 0
   while index < planner.visits.length() {
     let visit = planner.visits[index]

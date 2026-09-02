@@ -56,13 +56,12 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       ),
     ],
   }
-  let summary = analyze({ program, entry: main, roots: [], })
+  let summary = analyze({ program, roots: [main], })
   debug_inspect(
     summary,
     content=(
       #|{
-      #|  entry: { index: 0 },
-      #|  roots: [],
+      #|  roots: [{ index: 0 }],
       #|  facts: [
       #|    {
       #|      value: { index: 0 },
@@ -72,7 +71,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      escapes: false,
       #|      used_in_effectful_context: false,
       #|      has_incomplete_type_application: false,
-      #|      reachable_from_entry: true,
+      #|      reachable: true,
       #|    },
       #|    {
       #|      value: { index: 1 },
@@ -82,7 +81,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      escapes: false,
       #|      used_in_effectful_context: false,
       #|      has_incomplete_type_application: false,
-      #|      reachable_from_entry: true,
+      #|      reachable: true,
       #|    },
       #|    {
       #|      value: { index: 2 },
@@ -92,7 +91,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      escapes: true,
       #|      used_in_effectful_context: false,
       #|      has_incomplete_type_application: false,
-      #|      reachable_from_entry: true,
+      #|      reachable: true,
       #|    },
       #|    {
       #|      value: { index: 3 },
@@ -102,7 +101,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      escapes: false,
       #|      used_in_effectful_context: true,
       #|      has_incomplete_type_application: false,
-      #|      reachable_from_entry: true,
+      #|      reachable: true,
       #|    },
       #|    {
       #|      value: { index: 4 },
@@ -112,7 +111,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      escapes: false,
       #|      used_in_effectful_context: false,
       #|      has_incomplete_type_application: false,
-      #|      reachable_from_entry: false,
+      #|      reachable: false,
       #|    },
       #|    {
       #|      value: { index: 5 },
@@ -122,7 +121,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      escapes: true,
       #|      used_in_effectful_context: false,
       #|      has_incomplete_type_application: false,
-      #|      reachable_from_entry: true,
+      #|      reachable: true,
       #|    },
       #|    {
       #|      value: { index: 6 },
@@ -132,7 +131,7 @@ test "occurrence summarizes calls escapes effects and selected-entry reachabilit
       #|      escapes: false,
       #|      used_in_effectful_context: false,
       #|      has_incomplete_type_application: false,
-      #|      reachable_from_entry: true,
+      #|      reachable: true,
       #|    },
       #|  ],
       #|}
@@ -157,7 +156,7 @@ test "occurrence treats explicit roots as reachable" {
       External(runtime_root),
     ],
   }
-  let summary = analyze({ program, entry: main, roots: [runtime_root], })
+  let summary = analyze({ program, roots: [main, runtime_root], })
   debug_inspect(
     summary.facts,
     content=(
@@ -170,7 +169,7 @@ test "occurrence treats explicit roots as reachable" {
       #|    escapes: false,
       #|    used_in_effectful_context: false,
       #|    has_incomplete_type_application: false,
-      #|    reachable_from_entry: true,
+      #|    reachable: true,
       #|  },
       #|  {
       #|    value: { index: 1 },
@@ -180,7 +179,7 @@ test "occurrence treats explicit roots as reachable" {
       #|    escapes: false,
       #|    used_in_effectful_context: false,
       #|    has_incomplete_type_application: false,
-      #|    reachable_from_entry: true,
+      #|    reachable: true,
       #|  },
       #|]
     ),
@@ -241,13 +240,13 @@ test "occurrence records incomplete type applications only on reachable paths" {
       Let(dead_use, Ref(dead_generic)),
     ],
   }
-  let facts = analyze({ program, entry, roots: [], }).facts
+  let facts = analyze({ program, roots: [entry], }).facts
   assert_eq(
     (
       facts[fully_applied.index].has_incomplete_type_application,
       facts[partially_applied.index].has_incomplete_type_application,
       facts[dead_generic.index].has_incomplete_type_application,
-      facts[dead_generic.index].reachable_from_entry,
+      facts[dead_generic.index].reachable,
     ),
     (false, true, false, false),
   )

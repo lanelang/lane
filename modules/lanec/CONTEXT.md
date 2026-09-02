@@ -587,7 +587,7 @@ _Avoid_: raw image plus a repeated verifier call, consumer-derived lifecycle
 The Wasm emission owner's exact attribution of every emitted instruction and
 local to function ABI setup, physical storage, a physical opcode family,
 control flow, runtime guards, runtime imports, runtime support, helpers, or
-entry lifecycle. Each emitted defined function must account for its complete
+boundary wrappers. Each emitted defined function must account for its complete
 code and locals before it enters the Wasm module. Explore aggregates these
 owned facts; it does not infer them from rendered WAT.
 _Avoid_: WAT parsing, sampled costs, heuristic attribution

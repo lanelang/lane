@@ -28,6 +28,67 @@ pub(all) struct ImportContract {
 } derive(Debug, Eq, Compare)
 
 ///|
+pub(all) enum ExportParameter {
+  ErasedUnit
+  Direct(CoreValueType)
+} derive(Debug, Eq, Compare)
+
+///|
+pub(all) enum ExportResult {
+  Unit
+  Direct(CoreValueType)
+} derive(Debug, Eq, Compare)
+
+///|
+/// The stable Core Wasm boundary exposed by one Lane export wrapper.
+pub(all) struct ExportContract {
+  name : String
+  parameters : Array[ExportParameter]
+  result : ExportResult
+} derive(Debug, Eq, Compare)
+
+///|
+pub fn ExportContract::snapshot(self : ExportContract) -> ExportContract {
+  { ..self, parameters: self.parameters.copy(), }
+}
+
+///|
+pub fn ExportParameter::core_types(
+  self : ExportParameter,
+) -> Array[CoreValueType] {
+  match self {
+    ErasedUnit => []
+    Direct(type_) => [type_]
+  }
+}
+
+///|
+pub fn ExportResult::core_types(self : ExportResult) -> Array[CoreValueType] {
+  match self {
+    Unit => []
+    Direct(type_) => [type_]
+  }
+}
+
+///|
+pub fn ExportContract::core_parameters(
+  self : ExportContract,
+) -> Array[CoreValueType] {
+  let types = []
+  for parameter in self.parameters {
+    types.append(parameter.core_types())
+  }
+  types
+}
+
+///|
+pub fn ExportContract::core_results(
+  self : ExportContract,
+) -> Array[CoreValueType] {
+  self.result.core_types()
+}
+
+///|
 /// Returns a contract whose mutable parameter storage is independent.
 pub fn ImportContract::snapshot(self : ImportContract) -> ImportContract {
   { ..self, parameters: self.parameters.copy(), }

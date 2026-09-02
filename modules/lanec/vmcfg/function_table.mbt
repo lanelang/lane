@@ -113,7 +113,12 @@ fn canonicalize_function_table(
   {
     image: {
       ..image,
-      entry: remap_function_id(image.entry, mappings),
+      exports: image.exports.map(export_ => {
+        @physical.physical_export(
+          function=remap_function_id(export_.function(), mappings),
+          name=export_.name(),
+        )
+      }),
       initializer: image.initializer.map(function => {
         remap_function_id(function, mappings)
       }),
@@ -199,7 +204,14 @@ fn reachable_functions(
 ) -> Array[Bool] raise FunctionTableCanonicalizationError {
   let reachable = Array::make(image.functions.length(), false)
   let worklist : Array[@physical.FunctionId] = []
-  mark_reachable_function(image.functions, reachable, worklist, image.entry)
+  for export_ in image.exports {
+    mark_reachable_function(
+      image.functions,
+      reachable,
+      worklist,
+      export_.function(),
+    )
+  }
   if image.initializer is Some(initializer) {
     mark_reachable_function(image.functions, reachable, worklist, initializer)
   }

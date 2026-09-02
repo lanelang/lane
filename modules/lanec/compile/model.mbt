@@ -153,6 +153,12 @@ pub struct CompiledEntry {
 } derive(Debug, Eq)
 
 ///|
+pub(all) struct CompiledExport {
+  entry : CompiledEntry
+  name : String
+} derive(Debug, Eq)
+
+///|
 /// Lists linked executable candidates in deterministic link order.
 pub fn CompiledProgram::entries(self : CompiledProgram) -> Array[CompiledEntry] {
   self.linked.entries.map(entry => { entry, })
@@ -192,7 +198,24 @@ pub fn CompiledProgram::elaborate_entry(
   @executable.ExecutableProgram,
   @executable.ExecutableElaborationError,
 ] {
-  @executable.elaborate(self.linked, entry.entry, profile)
+  self.elaborate_exports([{ entry, name: "_start", }], profile)
+}
+
+///|
+/// Elaborates all requested WebAssembly exports as one whole-program root set.
+pub fn CompiledProgram::elaborate_exports(
+  self : CompiledProgram,
+  exports : Array[CompiledExport],
+  profile : @executable.ExecutionProfile,
+) -> Result[
+  @executable.ExecutableProgram,
+  @executable.ExecutableElaborationError,
+] {
+  @executable.elaborate(
+    self.linked,
+    exports.map(export_ => { entry: export_.entry.entry, name: export_.name, }),
+    profile,
+  )
 }
 
 ///|
@@ -207,7 +230,29 @@ pub fn CompiledProgram::elaborate_entry_observed(
   @executable.ExecutableProgram,
   @executable.ExecutableElaborationError,
 ] {
-  @executable.elaborate_observed(self.linked, entry.entry, profile, observe)
+  self.elaborate_exports_observed(
+    [{ entry, name: "_start", }],
+    profile,
+    observe,
+  )
+}
+
+///|
+pub fn CompiledProgram::elaborate_exports_observed(
+  self : CompiledProgram,
+  exports : Array[CompiledExport],
+  profile : @executable.ExecutionProfile,
+  observe : (@executable.ExecutableElaborationStage) -> Unit,
+) -> Result[
+  @executable.ExecutableProgram,
+  @executable.ExecutableElaborationError,
+] {
+  @executable.elaborate_observed(
+    self.linked,
+    exports.map(export_ => { entry: export_.entry.entry, name: export_.name, }),
+    profile,
+    observe,
+  )
 }
 
 ///|
@@ -218,6 +263,11 @@ pub fn CompiledEntry::module_path_text(self : CompiledEntry) -> String {
 ///|
 pub fn CompiledEntry::name(self : CompiledEntry) -> String {
   self.entry.name
+}
+
+///|
+pub fn CompiledEntry::value_id(self : CompiledEntry) -> @buslane.ValueId {
+  self.entry.value
 }
 
 ///|

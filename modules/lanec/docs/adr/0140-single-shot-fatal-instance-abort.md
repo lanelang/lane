@@ -20,10 +20,11 @@ unwind graph, or release Instance Globals after fatal termination.
 
 Normal control flow retains the compiler-directed ARC contract. VM CFG ARC
 insertion emits every retain, transfer, and release needed by ordinary calls,
-branches, returns, and successful instance shutdown. A normal return must have
-no untransferred owner, and successful entry completion releases initialized
-Instance Globals in reverse order. Fatal and unreachable terminators instead
-abandon the current instance's remaining owners. A runtime failure that occurs
+branches, and returns. A normal return must have no untransferred local owner.
+Instance Globals are owned by the WebAssembly instance rather than an export
+call, so neither successful nor fatal export return generates global cleanup.
+Fatal and unreachable terminators abandon the current instance's remaining
+owners. A runtime failure that occurs
 inside an ordinary instruction has the same behavior without requiring an
 implicit exceptional edge from every potentially failing operation.
 
@@ -52,7 +53,7 @@ ADR 0112, and ADR 0113.
   erased-owner liveness local.
 - Fatal and unreachable VM CFG terminators may end with live owners; normal
   returns and tail calls may not.
-- The entry wrapper releases Instance Globals only after successful execution.
+- Instance Globals have instance lifetime; export wrappers never release them.
 - Private Wasm exceptions preserve structured failure classification without
   defining recovery semantics.
 - Observable cleanup after failure requires a future explicit language and IR

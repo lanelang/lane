@@ -6,7 +6,6 @@ priv struct ValueSubstitution {
 
 ///|
 priv struct CoreSimplifier {
-  entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
   function_origins : @function_origin.FunctionOriginCatalog?
   observe : (CoreOptimizationObservation) -> Unit
@@ -15,12 +14,11 @@ priv struct CoreSimplifier {
 ///|
 fn simplify_program(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
   function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
-  CoreSimplifier::{ entry, roots, function_origins, observe, }.run(program)
+  CoreSimplifier::{ roots, function_origins, observe, }.run(program)
 }
 
 ///|
@@ -28,8 +26,7 @@ fn CoreSimplifier::run(
   self : CoreSimplifier,
   program : @buslane.Program,
 ) -> @buslane.Program raise CoreOptimizeError {
-  let preserved_roots = self.roots.copy()
-  preserved_roots.push(self.entry)
+  let preserved_roots = self.roots
   for current = program {
     let analysis = analyze_core(current)
     let next = simplify_program_once(
@@ -48,7 +45,6 @@ fn CoreSimplifier::run(
 
 ///|
 priv struct CoreCleanup {
-  entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
   function_origins : @function_origin.FunctionOriginCatalog?
   observe : (CoreOptimizationObservation) -> Unit
@@ -60,12 +56,11 @@ priv struct CoreCleanup {
 /// inlining.
 fn cleanup_core(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
   function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
-  CoreCleanup::{ entry, roots, function_origins, observe, }.run(program)
+  CoreCleanup::{ roots, function_origins, observe, }.run(program)
 }
 
 ///|
@@ -76,7 +71,6 @@ fn CoreCleanup::run(
   for current = program {
     let simplified = simplify_program(
       current,
-      self.entry,
       self.roots,
       self.function_origins,
       self.observe,
@@ -86,7 +80,7 @@ fn CoreCleanup::run(
       self.function_origins,
     )
     if commoned.terms == current.terms {
-      break prune_unreachable(commoned, self.entry, self.roots)
+      break prune_unreachable(commoned, self.roots)
     }
     continue commoned
   }

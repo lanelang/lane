@@ -10,9 +10,12 @@ pub impl @prettyprinter.Pretty for PhysicalProgram with fn pretty(
 
 ///|
 pub fn physical_program_to_disassembly(image : PhysicalProgram) -> String {
+  let exports = image.exports
+    .map(export_ => "\{export_.name()}=\{render_function(export_.function())}")
+    .join(", ")
   let lines = [
     "physical program",
-    "entry: \{render_function(image.entry)}",
+    "exports: \{exports}",
     "initializer: \{render_optional_function(image.initializer)}",
     "callable ABIs: \{image.callable_abis.length()}",
     "functions: \{image.functions.length()}",

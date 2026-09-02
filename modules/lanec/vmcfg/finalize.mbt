@@ -223,7 +223,7 @@ fn finalize_without_physical_verification_or_raise(
     }
   }
   {
-    entry: image.entry,
+    exports: image.exports,
     initializer: image.initializer,
     callable_abis: callable_abis.entries,
     data_family_count: image.data_family_count,

@@ -344,8 +344,32 @@ pub(all) enum FunctionEntry {
 } derive(Debug, Eq)
 
 ///|
+pub struct PhysicalExport {
+  function : FunctionId
+  name : String
+} derive(Debug, Eq)
+
+///|
+pub fn physical_export(
+  function~ : FunctionId,
+  name~ : String,
+) -> PhysicalExport {
+  { function, name, }
+}
+
+///|
+pub fn PhysicalExport::function(self : PhysicalExport) -> FunctionId {
+  self.function
+}
+
+///|
+pub fn PhysicalExport::name(self : PhysicalExport) -> String {
+  self.name
+}
+
+///|
 pub(all) struct PhysicalProgram {
-  entry : FunctionId
+  exports : Array[PhysicalExport]
   initializer : FunctionId?
   callable_abis : Array[CallableAbi]
   data_family_count : Int

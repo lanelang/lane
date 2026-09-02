@@ -88,7 +88,6 @@ fn lower_executable_program_to_physical_or_raise(
 ) -> @physical.VerifiedPhysicalProgram raise PhysicalLoweringError {
   let cps_core = executable.cps_core
   let externals = executable.externals
-  let entry = executable.entry
   let anf = match
     @anf.lower_cps_core_to_runtime_anf({
       cps_core,
@@ -124,10 +123,13 @@ fn lower_executable_program_to_physical_or_raise(
     { contracts: { entries: [], }, workers: [], }
   }
   let lowerer = { ..planning_lowerer, representation_specialization, }
-  let entry_function = match lowerer.find_global(entry.value) {
-    Some(Function(function, _)) => function
-    _ => raise MissingEntry(value=entry.value)
-  }
+  let exports = executable.exports.map(export_ => {
+    let function = match lowerer.find_global(export_.entry().value) {
+      Some(Function(function, _)) => function
+      _ => raise MissingEntry(value=export_.entry().value)
+    }
+    @physical.physical_export(function~, name=export_.name())
+  })
   let functions : Array[@vmcfg.FunctionEntry] = []
   let mut plan_index = 0
   while plan_index < lowerer.plans.length() {
@@ -166,7 +168,7 @@ fn lower_executable_program_to_physical_or_raise(
   }
   let finalized = match
     @vmcfg.finalize_observed({
-      entry: entry_function,
+      exports,
       initializer,
       functions,
       data_family_count: lowerer.data_families.length(),
@@ -196,6 +198,21 @@ fn lower_executable_program_to_physical_or_raise(
     })
   let verified = finalized.physical_program()
   let image = verified.image()
+  for index, source_export in executable.exports {
+    let physical_export = image.exports[index]
+    guard image.function_callable_abi(physical_export.function())
+      is Some(actual) else {
+      raise RepresentationElaborationInvariant(
+        detail="physical export has no callable ABI",
+      )
+    }
+    let expected = @physical.wasm_export_callable_abi(source_export.contract())
+    guard actual == expected else {
+      raise RepresentationElaborationInvariant(
+        detail="physical export ABI does not match its admitted source contract",
+      )
+    }
+  }
   if image.functions.length() != function_provenance.length() {
     raise FunctionProvenanceCompilerDefect(
       FinalizedFunctionCountMismatch(

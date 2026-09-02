@@ -1,13 +1,13 @@
 ///|
-/// Elaborates a linked entry into the deterministic whole-program form required
-/// by physical lowering. The entry must belong to `linked`; every intermediate IR
+/// Elaborates linked exports into the deterministic whole-program form required
+/// by physical lowering. Every export must belong to `linked`; every intermediate IR
 /// is verified and no executable is returned after a failed stage.
 pub fn elaborate(
   linked : @module_link.LinkedProgram,
-  selected_entry : @buslane_lowering.BuslaneEntry,
+  requests : Array[ExportRequest],
   profile : ExecutionProfile,
 ) -> Result[ExecutableProgram, ExecutableElaborationError] {
-  Ok(elaborate_or_raise(linked, selected_entry, profile, None)) catch {
+  Ok(elaborate_or_raise(linked, requests, profile, None)) catch {
     error => Err(error)
   }
 }
@@ -28,11 +28,11 @@ pub(all) enum ExecutableElaborationStage {
 /// stops at the first failure and does not transfer ownership of compiler state.
 pub fn elaborate_observed(
   linked : @module_link.LinkedProgram,
-  selected_entry : @buslane_lowering.BuslaneEntry,
+  requests : Array[ExportRequest],
   profile : ExecutionProfile,
   observe : (ExecutableElaborationStage) -> Unit,
 ) -> Result[ExecutableProgram, ExecutableElaborationError] {
-  Ok(elaborate_or_raise(linked, selected_entry, profile, Some(observe))) catch {
+  Ok(elaborate_or_raise(linked, requests, profile, Some(observe))) catch {
     error => Err(error)
   }
 }
@@ -40,57 +40,74 @@ pub fn elaborate_observed(
 ///|
 fn elaborate_or_raise(
   linked : @module_link.LinkedProgram,
-  selected_entry : @buslane_lowering.BuslaneEntry,
+  requests : Array[ExportRequest],
   profile : ExecutionProfile,
   observe : ((ExecutableElaborationStage) -> Unit)?,
 ) -> ExecutableProgram raise ExecutableElaborationError {
-  if !linked.entries.any(entry => entry == selected_entry) {
-    raise EntryNotLinked(selected_entry.value)
+  if requests.is_empty() {
+    raise NoExports
   }
-  validate_executable_entry(
-    linked.program.program().metadata,
-    selected_entry,
-    profile,
-  )
+  let exports = []
+  let names = []
+  for request in requests {
+    if request.name == "memory" {
+      raise ReservedExportName(request.name)
+    }
+    if names.contains(request.name) {
+      raise DuplicateExportName(request.name)
+    }
+    names.push(request.name)
+    if !linked.entries.any(entry => entry == request.entry) {
+      raise EntryNotLinked(request.entry.value)
+    }
+    exports.push(
+      validate_executable_entry(
+        linked.program.program().metadata,
+        request,
+        profile,
+      ),
+    )
+  }
   let program = linked.program
   let externals = linked.externals
-  let entry = selected_entry
-  let program = @effect_specialization.specialize(program, entry.value) catch {
+  let export_roots = []
+  for export_ in exports {
+    let value = export_.entry().value
+    if !export_roots.contains(value) {
+      export_roots.push(value)
+    }
+  }
+  let program = @effect_specialization.specialize(program, export_roots) catch {
     error => raise effect_specialization_elaboration_error(error)
   }
   observe_executable_stage(observe, EffectSpecialized(program))
   let initializer_roots = collect_reachable_initializer_roots(
     program.program(),
-    entry.value,
+    export_roots,
   )
+  let optimization_roots = export_roots + initializer_roots
   let program = match
-    @core_opt.optimize({
-      program,
-      entry: entry.value,
-      roots: initializer_roots,
-    }) {
+    @core_opt.optimize({ program, roots: optimization_roots, }) {
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
   observe_executable_stage(observe, CoreOptimized(program))
-  let cps_core = lower_effects(program, entry.value, observe)
+  let cps_core = lower_effects(program, export_roots, observe)
   let raw_program = cps_core.program().program()
   let initializer_roots = collect_initializer_roots(raw_program)
   let retained_values = collect_retained_values(
     raw_program,
-    entry.value,
-    initializer_roots,
+    export_roots + initializer_roots,
   )
-  { cps_core, externals, entry, retained_values, }
+  { cps_core, externals, exports, retained_values, }
 }
 
 ///|
 fn collect_retained_values(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
 ) -> Array[@buslane.ValueId] {
-  let occurrence = @occurrence.analyze({ program, entry, roots, })
+  let occurrence = @occurrence.analyze({ program, roots, })
   let retained = []
   for term in program.terms {
     match term {
@@ -123,7 +140,7 @@ fn effect_specialization_elaboration_error(
 ///|
 fn lower_effects(
   program : @buslane.VerifiedProgram,
-  entry : @buslane.ValueId,
+  export_roots : Array[@buslane.ValueId],
   observe : ((ExecutableElaborationStage) -> Unit)?,
 ) -> @effect_lowering.CpsCoreProgram raise ExecutableElaborationError {
   let lifted = match observe {
@@ -138,10 +155,10 @@ fn lower_effects(
   observe_executable_stage(observe, MonadicContinuationsLifted(lifted))
   let initializer_roots = collect_reachable_initializer_roots(
     lifted.program().program(),
-    entry,
+    export_roots,
   )
   let optimized = match
-    @core_opt.optimize_cps_core(lifted, entry, initializer_roots) {
+    @core_opt.optimize_cps_core(lifted, export_roots + initializer_roots) {
     Ok(program) => program
     Err(error) => raise CoreOptimizationError(error)
   }
@@ -172,9 +189,9 @@ fn[T] unwrap_effect_lowering(
 ///|
 fn collect_reachable_initializer_roots(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
+  export_roots : Array[@buslane.ValueId],
 ) -> Array[@buslane.ValueId] {
-  let occurrence = @occurrence.analyze({ program, entry, roots: [], })
+  let occurrence = @occurrence.analyze({ program, roots: export_roots, })
   let roots = []
   for term in program.terms {
     match term {
@@ -205,7 +222,7 @@ fn occurrence_value_is_reachable(
   value : @buslane.ValueId,
 ) -> Bool {
   match occurrence.facts.get(value.index) {
-    Some(fact) => fact.reachable_from_entry
+    Some(fact) => fact.reachable
     None => false
   }
 }

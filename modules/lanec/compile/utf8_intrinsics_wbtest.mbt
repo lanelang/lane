@@ -49,7 +49,7 @@ test "compiler erases representation-identical Char conversion" {
     physical_program,
     content=(
       #|{
-      #|  entry: { value: 1 },
+      #|  exports: [{ function: { value: 1 }, name: "_start" }],
       #|  initializer: None,
       #|  callable_abis: [
       #|    { witnesses: [], parameters: [], result: Unit },

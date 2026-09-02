@@ -25,11 +25,7 @@ fn core_opt_test_program() -> (@buslane.Program, @buslane.ValueId) raise @buslan
 ///|
 test "core optimizer preserves a verified program and explicit roots" {
   let (program, main) = core_opt_test_program()
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [main],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main, main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -48,8 +44,7 @@ test "core optimizer rejects an unknown optimization root" {
   debug_inspect(
     optimize({
       program: program.certify().unwrap(),
-      entry: main,
-      roots: [{ index: 1, }],
+      roots: [main, { index: 1, }],
     }),
     content="Err(UnknownRoot({ index: 1 }))",
   )
@@ -79,11 +74,7 @@ test "core optimizer eliminates compatible top-level and local aliases" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -135,11 +126,7 @@ test "core optimizer removes dead pure lets but preserves effectful calls" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -185,11 +172,7 @@ test "core optimizer removes an unused empty-effect call" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -264,11 +247,7 @@ test "core optimizer reduces trivial beta calls and known constructor matches" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -337,11 +316,7 @@ test "core optimizer beta-reduces a single-use local generic callable" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -418,11 +393,7 @@ test "core optimizer reduces a constructor match through a pure binding spine" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -551,11 +522,7 @@ test "core optimizer scalar-replaces local projections without reordering payloa
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -640,11 +607,7 @@ test "core optimizer retains a local aggregate that escapes its match boundary" 
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -707,11 +670,7 @@ test "core cleanup shares identical pure local initializers" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }

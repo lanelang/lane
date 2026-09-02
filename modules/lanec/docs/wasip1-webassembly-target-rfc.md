@@ -80,9 +80,11 @@ engine-specific adapter for it.
 A linked executable is a raw WebAssembly module rather than a Lane container
 around WebAssembly bytes.
 
-The module follows the WASI Preview 1 command convention:
+The module uses explicit Core WebAssembly exports:
 
-- it exports `_start : () -> ()` as its sole program entry;
+- `lane link` assigns one or more requested public Lane functions arbitrary
+  WebAssembly export names;
+- `_start` is an ordinary requested export name and is not compiler-owned;
 - it exports canonical linear memory as `memory` when required by WASI host
   calls;
 - it imports standardized system operations from `wasi_snapshot_preview1`;
@@ -94,11 +96,17 @@ functions are implementation details. They are emitted only when reachable
 and are not an embedding interface merely because WebAssembly assigns them an
 index or a name.
 
-`_start` initializes the Lane instance, invokes the linked entry selected by
-the Lane command, releases normal execution roots, and returns normally. The
-shipped Basic panic requests WASIP1 process exit; compiler-owned abort and an
-unrecoverable runtime failure trap the current instance rather than becoming a
-recoverable WASI result.
+Retained top-level initialization executes through the standard WebAssembly
+start section exactly once per instance. Export return performs no root cleanup;
+instance globals live with the instance. The shipped Basic panic requests
+WASIP1 process exit; compiler-owned abort and an unrecoverable runtime failure
+trap the current instance rather than becoming a recoverable WASI result.
+
+The WebAssembly export ABI admits `Unit`, `I32`, `I64`, `F32`, and `F64`.
+`Unit` parameters are erased, scalar parameters and results map directly, and
+a `Unit` result produces no WebAssembly result. Residual-effect admission is a
+separate execution-target policy. ADR-0143 owns the complete multi-export and
+instantiation contract.
 
 ## Host ABI
 

@@ -55,7 +55,7 @@ fn borrowed_erased_value(companion : ValueId) -> ValueMetadata {
 ///|
 fn test_image(body : FunctionBody) -> Image {
   {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [Body(body)],

@@ -1,10 +1,14 @@
 ///|
-async fn lane_exec(path : String, no_jit? : Bool = false) -> LaneCommandOutcome {
+async fn lane_exec(
+  path : String,
+  entry : String,
+  no_jit? : Bool = false,
+) -> LaneCommandOutcome {
   let wasm = match read_wasm_executable(path) {
     Ok(wasm) => wasm
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_wasm(wasm, no_jit~)
+  execute_wasm(wasm, entry, no_jit~)
 }
 
 ///|
@@ -82,7 +86,7 @@ async fn execute_entry_with_output(
     Ok(wasm) => wasm
     Err(error) => return LaneCommandOutcome::user_error(error)
   }
-  execute_wasm_with_wasi_stdout(wasm, write_stdout, no_jit~)
+  execute_wasm_with_wasi_stdout(wasm, "_start", write_stdout, no_jit~)
 }
 
 ///|
@@ -100,6 +104,10 @@ fn elaborate_command_entry(
   program : @compile.CompiledProgram,
   entry : @compile.CompiledEntry,
 ) -> Result[@executable.ExecutableProgram, CliError] {
+  match validate_command_entry_invocation(program, entry) {
+    Ok(_) => ()
+    Err(error) => return Err(error)
+  }
   match program.elaborate_entry(entry, lane_command_execution_profile()) {
     Ok(executable) => Ok(executable)
     Err(EntryAdmissionRejected(type_~, reason~, ..)) =>
@@ -112,16 +120,85 @@ fn elaborate_command_entry(
 }
 
 ///|
+fn validate_command_entry_invocation(
+  program : @compile.CompiledProgram,
+  entry : @compile.CompiledEntry,
+) -> Result[Unit, CliError] {
+  guard program.entry_type(entry) is Some(type_) else {
+    return Err(Internal(message="selected entry has no linked type metadata"))
+  }
+  let normalized = type_.normalize() catch {
+    error =>
+      return Err(
+        Internal(
+          message="selected entry type normalization failed: \{Repr(error)}",
+        ),
+      )
+  }
+  guard normalized is Function(parameters, result, _) else {
+    return Err(
+      EntryNotExecutable(name=display_entry(entry), type_~, reason=NotFunction),
+    )
+  }
+  if !parameters.is_empty() {
+    return Err(
+      EntryNotInvocable(
+        name=display_entry(entry),
+        type_~,
+        reason=HasParameters(count=parameters.length()),
+      ),
+    )
+  }
+  if result != Primitive(Unit) {
+    return Err(
+      EntryNotInvocable(
+        name=display_entry(entry),
+        type_~,
+        reason=ReturnsNonUnit(result~),
+      ),
+    )
+  }
+  Ok(())
+}
+
+///|
+fn elaborate_command_exports(
+  program : @compile.CompiledProgram,
+  exports : Array[@compile.CompiledExport],
+) -> Result[@executable.ExecutableProgram, CliError] {
+  match program.elaborate_exports(exports, lane_command_execution_profile()) {
+    Ok(executable) => Ok(executable)
+    Err(DuplicateExportName(name)) => Err(DuplicateLinkExportName(name~))
+    Err(ReservedExportName(name)) => Err(ReservedLinkExportName(name~))
+    Err(EntryAdmissionRejected(type_~, reason~, value~)) => {
+      let mut name = "<unknown export>"
+      for export_ in exports {
+        if export_.entry.value_id() == value {
+          name = display_entry(export_.entry)
+        }
+      }
+      Err(ExportNotExecutable(name~, type_~, reason~))
+    }
+    Err(UnsupportedEffectSpecialization(detail~)) =>
+      Err(ExecutionImageLowering(message=detail))
+    Err(error) =>
+      Err(Internal(message="executable elaboration failed: \{Repr(error)}"))
+  }
+}
+
+///|
 async fn execute_wasm(
   wasm : Bytes,
+  entry : String,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
-  execute_wasm_with_wasi_stdout(wasm, None, no_jit~)
+  execute_wasm_with_wasi_stdout(wasm, entry, None, no_jit~)
 }
 
 ///|
 async fn execute_wasm_with_wasi_stdout(
   wasm : Bytes,
+  entry : String,
   wasi_stdout : ((Bytes) -> Unit)?,
   no_jit? : Bool = false,
 ) -> LaneCommandOutcome {
@@ -143,14 +220,7 @@ async fn execute_wasm_with_wasi_stdout(
         ExecutionImageLoad(message="\{Repr(error)}"),
       )
   }
-  let instance = match loaded.new_instance() {
-    Ok(instance) => instance
-    Err(error) =>
-      return LaneCommandOutcome::user_error(
-        ExecutionImageLoad(message="\{Repr(error)}"),
-      )
-  }
-  match instance.execute_async() {
+  match loaded.execute_export_async(entry) {
     Ok(Returned) => Succeeded
     Ok(ProcessExit(code~)) => ProcessExited(code~)
     Err(error) => LaneCommandOutcome::user_error(ExecutionFailed(error))

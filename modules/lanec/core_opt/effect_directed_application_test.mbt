@@ -40,7 +40,7 @@ test "core optimizer reduces a direct lambda with a complex empty argument" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -85,7 +85,7 @@ test "core optimizer preserves a pure callable adaptation boundary" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -128,7 +128,7 @@ test "core optimizer reduces a known call with a complex empty argument" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -171,7 +171,7 @@ test "core optimizer removes an unused complex empty argument" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -223,7 +223,7 @@ test "core optimizer may duplicate a complex empty argument when profitable" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -277,7 +277,7 @@ test "core optimizer evaluates nonempty arguments once in source order" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -328,7 +328,7 @@ test "core optimizer treats an operationless user effect as nonempty" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -389,7 +389,7 @@ test "core optimizer binds a multiply used nonempty argument only once" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -432,7 +432,7 @@ test "core optimizer inlines a callable with a nonempty latent effect" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -502,7 +502,7 @@ test "core optimizer freshens nested type lambda binders at every inline site" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -585,7 +585,7 @@ test "core optimizer freshens existential match binders while inlining" {
       ),
     ],
   }
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -678,7 +678,7 @@ test "core optimizer freshens handler operation type binders while inlining" {
     ],
   }
   assert_true(@buslane.verify_program(program).is_ok())
-  guard optimize({ program: program.certify().unwrap(), entry, roots: [], })
+  guard optimize({ program: program.certify().unwrap(), roots: [entry], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -737,7 +737,7 @@ test "core optimizer reports typed application reduction observations" {
   }
   let observations : Array[CoreOptimizationObservation] = []
   guard optimize_observed(
-      { program: program.certify().unwrap(), entry, roots: [], },
+      { program: program.certify().unwrap(), roots: [entry], },
       observation => observations.push(observation),
     )
     is Ok(optimized) else {

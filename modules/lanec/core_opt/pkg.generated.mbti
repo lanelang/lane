@@ -10,7 +10,7 @@ import {
 // Values
 pub fn optimize(CoreOptimizeRequest) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
 
-pub fn optimize_cps_core(@effect_lowering.CpsCoreProgram, @buslane.ValueId, Array[@buslane.ValueId]) -> Result[@effect_lowering.CpsCoreProgram, CoreOptimizeError]
+pub fn optimize_cps_core(@effect_lowering.CpsCoreProgram, Array[@buslane.ValueId]) -> Result[@effect_lowering.CpsCoreProgram, CoreOptimizeError]
 
 pub fn optimize_observed(CoreOptimizeRequest, (CoreOptimizationObservation) -> Unit) -> Result[@buslane.VerifiedProgram, CoreOptimizeError]
 
@@ -60,7 +60,6 @@ pub fn CoreOptimizationObservation::to_repr(Self) -> @debug.Repr
 
 pub(all) struct CoreOptimizeRequest {
   program : @buslane.VerifiedProgram
-  entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
 } derive(Eq, @debug.Debug)
 pub fn CoreOptimizeRequest::equal(Self, Self) -> Bool

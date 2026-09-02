@@ -95,6 +95,12 @@ pub fn CompiledEntry::module_path_text(Self) -> String
 pub fn CompiledEntry::name(Self) -> String
 pub fn CompiledEntry::not_equal(Self, Self) -> Bool
 pub fn CompiledEntry::to_repr(Self) -> @debug.Repr
+pub fn CompiledEntry::value_id(Self) -> @buslane.ValueId
+
+pub(all) struct CompiledExport {
+  entry : CompiledEntry
+  name : String
+} derive(Eq, @debug.Debug)
 
 pub struct CompiledModules {
   // private fields
@@ -113,6 +119,8 @@ pub fn CompiledProgram::buslane_scale(Self) -> @buslane.ProgramScale
 pub fn CompiledProgram::buslane_text(Self, width? : Int) -> String
 pub fn CompiledProgram::elaborate_entry(Self, CompiledEntry, @executable.ExecutionProfile) -> Result[@executable.ExecutableProgram, @executable.ExecutableElaborationError]
 pub fn CompiledProgram::elaborate_entry_observed(Self, CompiledEntry, @executable.ExecutionProfile, (@executable.ExecutableElaborationStage) -> Unit) -> Result[@executable.ExecutableProgram, @executable.ExecutableElaborationError]
+pub fn CompiledProgram::elaborate_exports(Self, Array[CompiledExport], @executable.ExecutionProfile) -> Result[@executable.ExecutableProgram, @executable.ExecutableElaborationError]
+pub fn CompiledProgram::elaborate_exports_observed(Self, Array[CompiledExport], @executable.ExecutionProfile, (@executable.ExecutableElaborationStage) -> Unit) -> Result[@executable.ExecutableProgram, @executable.ExecutableElaborationError]
 pub fn CompiledProgram::entries(Self) -> Array[CompiledEntry]
 pub fn CompiledProgram::entry_type(Self, CompiledEntry) -> @buslane.Type?
 pub fn CompiledProgram::entry_type_text(Self, CompiledEntry, width? : Int) -> String?

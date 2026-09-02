@@ -16,26 +16,19 @@ priv struct InlineExecutor {
 ///|
 fn execute_inline_pipeline(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
   function_origins : @function_origin.FunctionOriginCatalog?,
   observe : (CoreOptimizationObservation) -> Unit,
 ) -> @buslane.Program raise CoreOptimizeError {
   for current = program {
-    let plan = build_inline_plan(current, entry, roots)
+    let plan = build_inline_plan(current, roots)
     let execution = execute_inline_plan(
       current, plan, function_origins, observe,
     )
     if !execution.changed {
       return execution.program
     }
-    continue cleanup_core(
-        execution.program,
-        entry,
-        roots,
-        function_origins,
-        observe,
-      )
+    continue cleanup_core(execution.program, roots, function_origins, observe)
   }
 }
 

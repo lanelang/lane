@@ -21,8 +21,10 @@ test "argparse accepts complete Lane artifact commands" {
         "explore", "--output", "report.html", "Main.lane:main",
       ]),
       lane_subcommand_values([
-        "link", "--entry", "Main.main", "--output", "program.wasm", "Main.lmo",
+        "link", "--export", "Main.main:_start", "--export", "Main.answer:answer",
+        "--output", "program.wasm", "Main.lmo",
       ]),
+      lane_subcommand_values(["exec", "--entry", "answer", "program.wasm"]),
     ],
     content=(
       #|[
@@ -41,12 +43,23 @@ test "argparse accepts complete Lane artifact commands" {
       #|  (
       #|    "link",
       #|    {
-      #|      "entry": ["Main.main"],
+      #|      "export": ["Main.main:_start", "Main.answer:answer"],
       #|      "output": ["program.wasm"],
       #|      "objects": ["Main.lmo"],
       #|    },
       #|  ),
+      #|  ("exec", { "entry": ["answer"], "program": ["program.wasm"] }),
       #|]
     ),
+  )
+}
+
+///|
+test "exec keeps the program path independent from entry selection" {
+  assert_eq(
+    lane_subcommand_values([
+      "exec", "--entry", "answer", "C:\\lane\\program.wasm",
+    ]),
+    ("exec", { "entry": ["answer"], "program": ["C:\\lane\\program.wasm"] }),
   )
 }

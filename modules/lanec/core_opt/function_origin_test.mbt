@@ -20,7 +20,7 @@ test "CPS Core optimization preserves certification and function origins" {
     ],
   }
   let cps_core = @effect_lowering.lower_effects(program.certify().unwrap()).unwrap()
-  let optimized = @core_opt.optimize_cps_core(cps_core, entry, []).unwrap()
+  let optimized = @core_opt.optimize_cps_core(cps_core, [entry]).unwrap()
   let (snapshot, origins) = optimized.snapshot()
   assert_true(@buslane.verify_program(snapshot).is_ok())
   guard snapshot.terms is [Let(actual_entry, Function(function))] else {

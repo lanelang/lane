@@ -182,7 +182,7 @@ fn image(
     }
   }
   {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     callable_abis,
@@ -206,6 +206,48 @@ fn compile_test_image_observed(
   image : @physical.PhysicalProgram,
 ) -> Result[WasmCompileObservation, WasmCompileError] {
   @wasm_target.compile_observed(certify_physical_program_test(image))
+}
+
+///|
+test "Wasm start initializes the instance independently of named exports" {
+  let initializer = body()
+  let identity = body(
+    slots=[trivial_slot(I32)],
+    parameters=[{ value: 0, }],
+    result=Value(I32, Trivial, ScalarValue),
+    terminator=Return(Some({ value: 0, })),
+  )
+  let physical_program = image([
+    PhysicalBody(initializer),
+    PhysicalBody(identity),
+  ])
+  let physical_program = {
+    ..physical_program,
+    initializer: Some({ value: 1, }),
+    exports: [
+      @physical.physical_export(function={ value: 2, }, name="identity"),
+      @physical.physical_export(function={ value: 2, }, name="again"),
+    ],
+  }
+  let module_ = compile_test_image(physical_program).unwrap()
+  let exported_functions = module_.exports.filter_map(export_ => {
+    if export_.desc is Func(index) {
+      Some((export_.name, index))
+    } else {
+      None
+    }
+  })
+  assert_true(module_.start is Some(_))
+  assert_eq(exported_functions.map(item => item.0), ["identity", "again"])
+  assert_eq(exported_functions[0].1, exported_functions[1].1)
+  let wrapper_index = exported_functions[0].1
+  let imported_function_count = module_.imports
+    .filter(import_ => import_.desc is Func(_))
+    .length()
+  let type_index = module_.funcs[wrapper_index - imported_function_count]
+  let type_ = module_.validated_func_type_at(type_index)
+  assert_eq(type_.params, [I32])
+  assert_eq(type_.results, [I32])
 }
 
 ///|
@@ -1035,7 +1077,7 @@ test "static image materializes layout descriptors and immortal strings" {
     ],
   }
   let physical_program : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -1071,7 +1113,9 @@ test "ByteSequence instructions require the shared layout" {
   ])
   let error = match
     compile_test_image({
-      entry: { value: 1, },
+      exports: [
+        @physical.physical_export(function={ value: 1, }, name="_start"),
+      ],
       initializer: None,
       data_family_count: 0,
       callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -1097,7 +1141,7 @@ test "fieldless data construction reuses an immortal static singleton" {
     Release({ value: 0, }),
   ])
   let physical_program : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 1,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -1182,7 +1226,7 @@ test "dynamic String primitives allocate, copy, compare, and release" {
     ],
   }
   let physical_program : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -1300,7 +1344,7 @@ test "canonical Data and Environment layouts construct and project" {
     }),
   ]
   let physical_program : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 1,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -1362,7 +1406,7 @@ test "descriptor destructors preserve owners across consuming projection" {
     }),
   ]
   let physical_program : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 2,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -1413,7 +1457,7 @@ test "Wasm loads an object witness independently from members" {
     ],
   }
   let physical_program : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 1,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -1467,7 +1511,7 @@ test "OwnedErased ARC dispatches through its layout witness" {
     ],
   )
   let physical_program : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 1,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],

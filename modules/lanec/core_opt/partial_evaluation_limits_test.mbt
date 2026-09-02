@@ -64,11 +64,7 @@ test "core optimizer evaluates every profitable call to one callee" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -135,11 +131,7 @@ test "core optimizer does not impose a fixed whole-program expansion count" {
     ),
   )
   let program : @buslane.Program = { metadata, terms, }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -223,11 +215,7 @@ test "core optimizer judges profitability after contextual reduction" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -344,11 +332,7 @@ test "core optimizer revisits dependents until semantic facts stabilize" {
       ),
     ],
   }
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Ok(optimized) else {
     fail("expected core optimization to succeed")
   }
@@ -402,7 +386,7 @@ test "inline executor defers calls exposed by a clone to the next plan" {
   }
   let observations : Array[CoreOptimizationObservation] = []
   guard optimize_observed(
-      { program: program.certify().unwrap(), entry: main, roots: [], },
+      { program: program.certify().unwrap(), roots: [main], },
       observation => observations.push(observation),
     )
     is Ok(optimized) else {

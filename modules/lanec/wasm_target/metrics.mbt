@@ -34,7 +34,7 @@ pub(all) enum WasmExpansionCategory {
   RuntimeImportAdapter
   RuntimeSupport
   HelperSupport
-  EntryLifecycle
+  BoundaryWrapper
 } derive(Debug, Eq)
 
 ///|
@@ -48,7 +48,7 @@ pub fn WasmExpansionCategory::key(self : WasmExpansionCategory) -> String {
     RuntimeImportAdapter => "runtimeImportAdapter"
     RuntimeSupport => "runtimeSupport"
     HelperSupport => "helperSupport"
-    EntryLifecycle => "entryLifecycle"
+    BoundaryWrapper => "boundaryWrapper"
   }
 }
 

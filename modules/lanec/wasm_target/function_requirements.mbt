@@ -202,7 +202,6 @@ fn physical_body_dependencies(
 ///|
 fn runtime_function_dependencies(
   role : WasmRuntimeFunctionRole,
-  global_lifecycle : @physical.GlobalLifecyclePlan,
 ) -> Array[WasmFunctionOrigin] {
   let dependencies : Array[WasmFunctionOrigin] = []
   match role {
@@ -237,10 +236,6 @@ fn runtime_function_dependencies(
       ])
     ByteBufferWriteI32 | ByteBufferWriteAddress | ByteBufferReadI32 =>
       dependencies.push(RuntimeFunction(RequireByteBufferLayout))
-    InstanceGlobalCleanup =>
-      for root in global_lifecycle.owned_roots {
-        require_reference_operation(dependencies, root.cleanup, false)
-      }
   }
   dependencies
 }
@@ -275,29 +270,18 @@ fn helper_function_dependencies(
 }
 
 ///|
-fn entry_wrapper_dependencies(
+fn initializer_wrapper_dependencies(
   image : @physical.PhysicalProgram,
-  global_lifecycle : @physical.GlobalLifecyclePlan,
 ) -> Array[WasmFunctionOrigin] {
-  let dependencies : Array[WasmFunctionOrigin] = [
-    image_function_origin(image, image.entry),
-  ]
-  if image.initializer is Some(initializer) {
-    require_wasm_function(
-      dependencies,
-      image_function_origin(image, initializer),
-    )
+  match image.initializer {
+    Some(initializer) => [image_function_origin(image, initializer)]
+    None => []
   }
-  if !global_lifecycle.owned_roots.is_empty() {
-    dependencies.push(RuntimeFunction(InstanceGlobalCleanup))
-  }
-  dependencies
 }
 
 ///|
 fn wasm_function_dependencies(
   image : @physical.PhysicalProgram,
-  global_lifecycle : @physical.GlobalLifecyclePlan,
   origin : WasmFunctionOrigin,
 ) -> Array[WasmFunctionOrigin] raise WasmCompileError {
   match origin {
@@ -329,10 +313,10 @@ fn wasm_function_dependencies(
             detail="runtime adapter requirement names a physical body",
           )
       }
-    RuntimeFunction(role) =>
-      runtime_function_dependencies(role, global_lifecycle)
+    RuntimeFunction(role) => runtime_function_dependencies(role)
     HelperFunction(role) => helper_function_dependencies(image, role)
-    EntryWrapper => entry_wrapper_dependencies(image, global_lifecycle)
+    InitializerWrapper => initializer_wrapper_dependencies(image)
+    ExportWrapper(function~) => [image_function_origin(image, function)]
   }
 }
 
@@ -376,15 +360,13 @@ fn require_layout_support(
 ///|
 fn close_wasm_function_roots(
   image : @physical.PhysicalProgram,
-  global_lifecycle : @physical.GlobalLifecyclePlan,
   roots : Array[WasmFunctionOrigin],
 ) -> Array[WasmFunctionOrigin] raise WasmCompileError {
   let required = roots.copy()
   let mut cursor = 0
   while cursor < required.length() {
     let origin = required[cursor]
-    for
-      dependency in wasm_function_dependencies(image, global_lifecycle, origin) {
+    for dependency in wasm_function_dependencies(image, origin) {
       require_wasm_function(required, dependency)
     }
     cursor += 1
@@ -395,7 +377,6 @@ fn close_wasm_function_roots(
 ///|
 fn plan_wasm_function_requirements(
   image : @physical.PhysicalProgram,
-  global_lifecycle : @physical.GlobalLifecyclePlan,
 ) -> WasmFunctionRequirements raise WasmCompileError {
   let roots : Array[WasmFunctionOrigin] = []
   for index, _ in image.functions {
@@ -405,7 +386,12 @@ fn plan_wasm_function_requirements(
   for layout in image.layouts {
     require_layout_support(roots, layout)
   }
-  require_wasm_function(roots, EntryWrapper)
-  let required = close_wasm_function_roots(image, global_lifecycle, roots)
+  if image.initializer is Some(_) {
+    require_wasm_function(roots, InitializerWrapper)
+  }
+  for export_ in image.exports {
+    require_wasm_function(roots, ExportWrapper(function=export_.function()))
+  }
+  let required = close_wasm_function_roots(image, roots)
   { roots, required, }
 }

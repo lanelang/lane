@@ -14,9 +14,6 @@ let free_list_head_global_index = 3
 let live_heap_bytes_global_index = 4
 
 ///|
-let initialized_owned_root_count_global_index = 5
-
-///|
 fn append_runtime_globals(
   wasm_module : @wasm_types.Module,
   static_image : StaticImage,
@@ -48,12 +45,6 @@ fn append_runtime_globals(
   append_i32_global(
     wasm_module,
     index=live_heap_bytes_global_index,
-    is_mutable=true,
-    initial=0,
-  )
-  append_i32_global(
-    wasm_module,
-    index=initialized_owned_root_count_global_index,
     is_mutable=true,
     initial=0,
   )

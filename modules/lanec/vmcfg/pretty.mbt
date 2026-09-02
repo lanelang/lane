@@ -8,9 +8,12 @@ pub impl @prettyprinter.Pretty for Image with fn pretty(image : Image) {
 
 ///|
 fn image_to_disassembly(image : Image) -> String {
+  let exports = image.exports
+    .map(export_ => "\{export_.name()}=\{render_function(export_.function())}")
+    .join(", ")
   let lines = [
     "VM CFG",
-    "entry: \{render_function(image.entry)}",
+    "exports: \{exports}",
     "initializer: \{render_optional_function(image.initializer)}",
     "functions: \{image.functions.length()}",
     "globals: \{image.globals.length()}",

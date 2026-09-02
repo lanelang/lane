@@ -177,6 +177,21 @@ pub fn LoadedImage::new_instance(
 }
 
 ///|
+/// Instantiates the module and executes its start section through Wasmoon's
+/// asynchronous instantiation path before returning the instance.
+pub async fn LoadedImage::new_instance_async(
+  self : LoadedImage,
+) -> Result[ExecutionInstance, @lane_runtime.ExecutionError] {
+  let instance = self.new_instance_or_raise_async() catch {
+    error => return Err(EngineTrap(detail=error.to_string()))
+  }
+  match self.create_instance_backend(instance.store, instance.instance) {
+    Ok(backend) => Ok({ ..instance, backend, })
+    Err(error) => Err(error)
+  }
+}
+
+///|
 /// Executes one fresh instance. This is the ordinary single-shot interface;
 /// callers that need cancellation or instance inspection can construct the
 /// instance explicitly.
@@ -196,8 +211,20 @@ pub fn LoadedImage::execute(
 pub async fn LoadedImage::execute_async(
   self : LoadedImage,
 ) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
-  match self.new_instance() {
-    Ok(instance) => instance.execute_async()
+  self.execute_export_async("_start")
+}
+
+///|
+pub async fn LoadedImage::execute_export_async(
+  self : LoadedImage,
+  name : String,
+) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
+  match zero_argument_unit_export(self.wasm_module, name) {
+    Ok(_) => ()
+    Err(error) => return Err(error)
+  }
+  match self.new_instance_async() {
+    Ok(instance) => instance.execute_named_export_async(name)
     Err(error) => Err(error)
   }
 }
@@ -220,6 +247,31 @@ fn LoadedImage::new_instance_or_raise(
   (self.configure_host)(linker)
   let imports = linker.build_imports()
   let instance = @executor.instantiate_module_with_imports(
+    store,
+    self.wasm_module,
+    imports,
+  )
+  { store, instance, backend: Interpreter, wasi_context, ready: true, }
+}
+
+///|
+async fn LoadedImage::new_instance_or_raise_async(
+  self : LoadedImage,
+) -> ExecutionInstance raise @wasmoon_runtime.RuntimeError {
+  let store = @wasmoon_runtime.Store::Store()
+  let linker = @wasmoon_runtime.Linker::with_store(store)
+  let wasi_builder = @wasi.WasiContextBuilder::WasiContextBuilder()
+  if self.wasi_stdout is Some(write) {
+    ignore(wasi_builder.stdout(write))
+  }
+  if self.wasi_stderr is Some(write) {
+    ignore(wasi_builder.stderr(write))
+  }
+  let wasi_context = wasi_builder.build()
+  @wasi.register_wasi(linker, wasi_context)
+  (self.configure_host)(linker)
+  let imports = linker.build_imports()
+  let instance = @executor.instantiate_module_with_imports_async(
     store,
     self.wasm_module,
     imports,
@@ -347,22 +399,81 @@ pub fn ExecutionInstance::execute(
 pub async fn ExecutionInstance::execute_async(
   self : ExecutionInstance,
 ) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
+  self.execute_named_export_async("_start")
+}
+
+///|
+async fn ExecutionInstance::execute_named_export_async(
+  self : ExecutionInstance,
+  name : String,
+) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
   if !self.ready {
     return Err(InstanceNotReady)
   }
   self.ready = false
   match self.backend {
-    Interpreter => self.execute_interpreted_async()
-    Jit(_, context) => self.execute_jit_async(context)
+    Interpreter => self.execute_interpreted_async(name)
+    Jit(_, context) => self.execute_jit_async(context, name)
   }
+}
+
+///|
+fn zero_argument_unit_export(
+  module_ : @wasm_types.Module,
+  name : String,
+) -> Result[Unit, @lane_runtime.ExecutionError] {
+  let mut function_index : Int? = None
+  for export_ in module_.exports {
+    if export_.name == name {
+      guard export_.desc is Func(index) else {
+        return Err(
+          EngineTrap(detail="WebAssembly export `\{name}` is not a function"),
+        )
+      }
+      function_index = Some(index)
+      break
+    }
+  }
+  guard function_index is Some(function_index) else {
+    return Err(
+      EngineTrap(detail="WebAssembly function export `\{name}` is missing"),
+    )
+  }
+  let imported_function_types = []
+  for import_ in module_.imports {
+    if import_.desc is Func(type_index) {
+      imported_function_types.push(type_index)
+    }
+  }
+  let type_index = if function_index < imported_function_types.length() {
+    imported_function_types[function_index]
+  } else {
+    let defined_index = function_index - imported_function_types.length()
+    guard module_.funcs.get(defined_index) is Some(type_index) else {
+      return Err(
+        EngineTrap(detail="WebAssembly export has an invalid function index"),
+      )
+    }
+    type_index
+  }
+  let type_ = module_.validated_func_type_at(type_index)
+  if !type_.params.is_empty() || !type_.results.is_empty() {
+    return Err(
+      EngineTrap(
+        detail="lane exec requires a () -> () WebAssembly function export",
+      ),
+    )
+  }
+  Ok(())
 }
 
 ///|
 async fn ExecutionInstance::execute_interpreted_async(
   self : ExecutionInstance,
+  name : String,
 ) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
   let result = try
-    @executor.call_exported_func_async(self.store, self.instance, "_start", [])
+    @executor.call_exported_func_async(self.store, self.instance, name, [])
   catch {
     error => Err(error)
   } noraise {
@@ -382,16 +493,19 @@ async fn ExecutionInstance::execute_interpreted_async(
 async fn ExecutionInstance::execute_jit_async(
   self : ExecutionInstance,
   context : @wasmoon_wast.JITModuleContext,
+  name : String,
 ) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
   let mut entry : Int? = None
   for export_ in self.instance.exports {
-    if export_.name == "_start" && export_.desc is Func(function_index) {
+    if export_.name == name && export_.desc is Func(function_index) {
       entry = Some(function_index)
       break
     }
   }
   guard entry is Some(entry) else {
-    return Err(EngineTrap(detail="Wasmoon JIT entry `_start` is missing"))
+    return Err(
+      EngineTrap(detail="WebAssembly function export `\{name}` is missing"),
+    )
   }
   let result = try
     context.call_core_func_async(self.store, self.instance, entry, [])

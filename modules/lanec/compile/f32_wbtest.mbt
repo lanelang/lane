@@ -33,7 +33,7 @@ test "compiler lowers F32 literals and intrinsics to the physical program" {
     physical_program,
     content=(
       #|{
-      #|  entry: { value: 1 },
+      #|  exports: [{ function: { value: 1 }, name: "_start" }],
       #|  initializer: Some({ value: 5 }),
       #|  callable_abis: [
       #|    { witnesses: [], parameters: [], result: Unit },

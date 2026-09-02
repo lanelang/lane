@@ -21,7 +21,7 @@ test "compiler preserves I32 literal and arithmetic through executable lowering"
     physical_program,
     content=(
       #|{
-      #|  entry: { value: 1 },
+      #|  exports: [{ function: { value: 1 }, name: "_start" }],
       #|  initializer: None,
       #|  callable_abis: [
       #|    { witnesses: [], parameters: [], result: Unit },

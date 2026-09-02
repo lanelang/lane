@@ -8,7 +8,6 @@ fn compile_runtime_function(
   role : WasmRuntimeFunctionRole,
   catalog : WasmFunctionCatalog,
   static_image : StaticImage,
-  wasm_module : @wasm_types.Module,
 ) -> @wasm_types.FunctionCode {
   match role {
     Allocate =>
@@ -143,8 +142,6 @@ fn compile_runtime_function(
           catalog.runtime(RequireByteBufferLayout),
         ),
       }
-    InstanceGlobalCleanup =>
-      compile_global_cleanup_function(static_image, catalog, wasm_module)
   }
 }
 

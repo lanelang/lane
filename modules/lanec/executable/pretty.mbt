@@ -9,23 +9,29 @@ pub impl @prettyprinter.Pretty for ExecutableProgram with fn pretty(
   text("executable") +
   space +
   @lanec_pretty.braced_block([
-    executable_entry_doc(program.metadata, executable.entry),
+    @lanec_pretty.section(
+      "exports",
+      executable.exports.map(export_ => {
+        executable_export_doc(program.metadata, export_)
+      }),
+    ),
     executable_externals_doc(program.metadata, executable.externals),
     executable_order_doc(
       program,
       executable.retained_values,
-      executable.entry.value,
+      executable.exports,
     ),
     @lanec_pretty.section("program", [program.pretty()]),
   ])
 }
 
 ///|
-fn executable_entry_doc(
+fn executable_export_doc(
   metadata : @buslane.MetadataRegistry,
-  entry : @buslane_lowering.BuslaneEntry,
+  export_ : ExecutableExport,
 ) -> Document {
-  text("entry") +
+  let entry = export_.entry()
+  text(export_.name()) +
   space +
   text(entry.module_path_text) +
   text(".") +
@@ -92,7 +98,7 @@ fn source_type_doc(
 fn executable_order_doc(
   program : @buslane.Program,
   retained_values : Array[@buslane.ValueId],
-  entry : @buslane.ValueId,
+  exports : Array[ExecutableExport],
 ) -> Document {
   let steps = []
   for term in program.terms {
@@ -124,6 +130,14 @@ fn executable_order_doc(
       External(_) => ()
     }
   }
-  steps.push(text("entry") + space + entry.pretty())
+  for export_ in exports {
+    steps.push(
+      text("export") +
+      space +
+      string(export_.name()) +
+      space +
+      export_.entry().value.pretty(),
+    )
+  }
   @lanec_pretty.section("execution_order", steps)
 }

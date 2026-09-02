@@ -4,7 +4,7 @@ fn float_text_capacity() -> Int {
 }
 
 ///|
-let guest_float_stack_global_index = 6
+let guest_float_stack_global_index = 5
 
 ///|
 fn relocate_guest_float_instructions(

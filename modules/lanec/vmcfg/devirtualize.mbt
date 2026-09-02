@@ -75,7 +75,9 @@ fn build_direct_environment_plans(
     shape: None,
     invalid: false,
   })
-  reject_root_environment_plan(image, candidates, image.entry)
+  for export_ in image.exports {
+    reject_root_environment_plan(image, candidates, export_.function())
+  }
   if image.initializer is Some(initializer) {
     reject_root_environment_plan(image, candidates, initializer)
   }

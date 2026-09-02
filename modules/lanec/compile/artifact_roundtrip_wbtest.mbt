@@ -5,7 +5,7 @@ fn test_executable_program(
   match
     @executable.elaborate(
       program,
-      program.entries[0],
+      [{ entry: program.entries[0], name: "_start", }],
       @executable.ExecutionProfile::new(
         builtin_effects=[Io, Panic],
         supports_external_effects=true,

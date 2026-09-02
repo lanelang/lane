@@ -40,7 +40,7 @@ Wasmoon's WebAssembly interpreter.
 | `Milky2018/lanec/module/frontend` | Explicit source inputs, imports, and module graph construction |
 | `Milky2018/lanec/module/compile` | Module interfaces, objects, and fingerprints |
 | `Milky2018/lanec/module/link` | Target-independent linking and linked core |
-| `Milky2018/lanec/executable` | Whole-program elaboration and entry admission |
+| `Milky2018/lanec/executable` | Whole-program elaboration, export admission, and root selection |
 | `Milky2018/lanec/physical_lowering` | Runtime ANF and projection into VM CFG |
 | `Milky2018/lanec/vmcfg` | Control flow, ARC, use-definition facts, and slot planning |
 | `Milky2018/lanec/physical` | Verified physical operations, layouts, and callable ABI |
@@ -83,7 +83,7 @@ interface or object artifacts are required.
 `lanec/driver` provides the shared observation boundary for native
 `lane explore` and browser-facing `lane_wasm`. Its curated stages end with the
 verified Physical Program and emitted WebAssembly; exploration never executes
-the selected entry.
+the selected export.
 
 ## Artifacts and trust
 
@@ -97,6 +97,12 @@ Incompatible module interfaces and objects are rejected and regenerated.
 Executable loading validates the raw WebAssembly module; WASI contracts are
 certified by the shared catalog and other imports are linked by exact core Wasm
 function type.
+
+`lane link` explicitly selects one or more public Lane functions and assigns
+each a WebAssembly export name. `_start` is an ordinary export name. Retained
+top-level initialization is attached to the standard WebAssembly start section
+and runs once per instance before any export is available. ADR-0143 owns the
+complete export and initialization contract.
 
 ## Development
 

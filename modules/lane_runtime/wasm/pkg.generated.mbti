@@ -51,7 +51,9 @@ pub struct LoadedImage {
 }
 pub fn LoadedImage::execute(Self) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
 pub async fn LoadedImage::execute_async(Self) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
+pub async fn LoadedImage::execute_export_async(Self, String) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
 pub fn LoadedImage::new_instance(Self) -> Result[ExecutionInstance, @lane_runtime.ExecutionError]
+pub async fn LoadedImage::new_instance_async(Self) -> Result[ExecutionInstance, @lane_runtime.ExecutionError]
 pub fn LoadedImage::wasm_module(Self) -> @types.Module
 
 // Type aliases

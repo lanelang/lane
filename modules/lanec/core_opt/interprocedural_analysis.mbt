@@ -30,11 +30,10 @@ priv struct CallAlias {
 ///|
 fn analyze_interprocedural(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
 ) -> InterproceduralAnalysis raise CoreOptimizeError {
   let core = analyze_core(program)
-  let occurrence = @occurrence.analyze({ program, entry, roots, })
+  let occurrence = @occurrence.analyze({ program, roots, })
   let callables = []
   for definition in core.definitions {
     guard callable_parts(definition.expression)
@@ -120,7 +119,7 @@ fn empty_occurrence(
     escapes: false,
     used_in_effectful_context: false,
     has_incomplete_type_application: false,
-    reachable_from_entry: false,
+    reachable: false,
   }
 }
 

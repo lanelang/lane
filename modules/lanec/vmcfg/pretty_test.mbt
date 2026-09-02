@@ -1,7 +1,7 @@
 ///|
 test "VM CFG pretty printer exposes control flow and ownership" {
   let image : Image = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: Some({ value: 1, }),
     data_family_count: 0,
     functions: [
@@ -71,7 +71,7 @@ test "VM CFG pretty printer exposes control flow and ownership" {
     @prettyprinter.render(image, width=100),
     content=(
       #|VM CFG
-      #|entry: f1
+      #|exports: _start=f1
       #|initializer: f1
       #|functions: 2
       #|globals: 1
@@ -119,7 +119,7 @@ test "VM CFG pretty printer exposes control flow and ownership" {
 ///|
 test "VM CFG code view omits image summary" {
   let image : Image = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [

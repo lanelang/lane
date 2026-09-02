@@ -18,7 +18,7 @@ segment, has exact equal minimum and maximum sizes, and cannot grow.
 Table index zero remains invalid. Contiguous indices `1..N` name address-taken
 compiled Lane bodies or generated runtime-import adapters. Internal layout
 retain, release, destroy, and size helpers follow that range but are not valid
-callable targets. The exported entry wrapper and runtime-service helpers are not
+callable targets. Public export wrappers and runtime-service helpers are not
 table entries.
 
 Callable targets use a typed Wasm function signature whose hidden first argument is the unpacked environment `i32`. A capture-free call passes zero. `call_direct` uses a direct Wasm `call` with the statically known environment argument, while `call_value` unpacks the `i64` and invokes the indexed target through `call_indirect` with the statically known erased representation signature. Runtime-import entries use table adapters when necessary.

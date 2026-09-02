@@ -40,11 +40,7 @@ test "core optimization returns allocation failure without a partial program" {
     @buslane.BuslaneUnique::from_int(2147483647).unwrap(),
   )
   let metadata_before = metadata.snapshot()
-  guard optimize({
-      program: program.certify().unwrap(),
-      entry: main,
-      roots: [],
-    })
+  guard optimize({ program: program.certify().unwrap(), roots: [main], })
     is Err(MetadataAllocationCompilerDefect(cause)) else {
     fail("expected a metadata allocation compiler defect")
   }

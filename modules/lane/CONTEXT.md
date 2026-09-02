@@ -30,9 +30,21 @@ _Avoid_: shell execution, compiler builtin, process logic in Wasmoon
 
 **Execution Profile**:
 The execution-target-owned immutable policy admitting closed residual effects
-at an Executable Entry. The Lane Command profile admits `Io`, `Panic`, and
+at an Executable Export. The Lane Command profile admits `Io`, `Panic`, and
 closed External Effects; the compiler consumes this policy but never chooses it.
-_Avoid_: source effect semantics, compiler default, built-in wildcard admission
+It does not decide the physical WebAssembly function signature.
+_Avoid_: source effect semantics, export ABI, compiler default, built-in wildcard admission
+
+**Public Export Request**:
+An explicit `Module.value:wasm_name` mapping supplied to `lane link`. The full
+request list is the linked program's semantic root set; source visibility alone
+does not create a WebAssembly export.
+_Avoid_: implicit public export, selected executable entry
+
+**Command Invocation ABI**:
+The `() -> ()` Core WebAssembly signature currently accepted by `lane exec`.
+This is a Lane Command capability, not a restriction on valid linked exports.
+_Avoid_: WebAssembly Export ABI, source function type
 
 **Executable Explore Command**:
 The non-executing command that requests compiler-owned IR exploration for one

@@ -11,7 +11,7 @@ fn function_table_test_body(instructions : Array[Instruction]) -> FunctionEntry 
 ///|
 fn function_table_test_image(functions : Array[FunctionEntry]) -> Image {
   {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     functions,
     data_family_count: 0,
@@ -54,7 +54,7 @@ test "pre-ARC function closure consumes locally cleaned VM CFG" {
     content=(
       #|(
       #|  {
-      #|    entry: { value: 1 },
+      #|    exports: [{ function: { value: 1 }, name: "_start" }],
       #|    initializer: None,
       #|    functions: [
       #|      Body(
@@ -104,7 +104,7 @@ test "pre-ARC function table merges exact bodies and their source identities" {
     content=(
       #|(
       #|  {
-      #|    entry: { value: 1 },
+      #|    exports: [{ function: { value: 1 }, name: "_start" }],
       #|    initializer: None,
       #|    functions: [
       #|      Body(
@@ -169,7 +169,7 @@ test "pre-ARC function equivalence follows canonical callee classes" {
     content=(
       #|(
       #|  {
-      #|    entry: { value: 1 },
+      #|    exports: [{ function: { value: 1 }, name: "_start" }],
       #|    initializer: None,
       #|    functions: [
       #|      Body(
@@ -308,7 +308,7 @@ test "pre-ARC function equivalence preserves semantic data-family ABI" {
     content=(
       #|(
       #|  {
-      #|    entry: { value: 1 },
+      #|    exports: [{ function: { value: 1 }, name: "_start" }],
       #|    initializer: None,
       #|    functions: [
       #|      Body(

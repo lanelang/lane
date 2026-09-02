@@ -7,6 +7,13 @@ fn executable_test_entry(
 }
 
 ///|
+fn executable_test_export(
+  entry : @buslane_lowering.BuslaneEntry,
+) -> ExportRequest {
+  { entry, name: "_start", }
+}
+
+///|
 fn pure_function(
   result_type : @buslane.Type,
   body : @buslane.Expr,
@@ -24,7 +31,7 @@ fn executable_test_program(
 }
 
 ///|
-test "whole-program elaboration preserves the selected entry" {
+test "whole-program elaboration preserves every requested export root" {
   let metadata = @buslane.MetadataRegistry::MetadataRegistry()
   let unit_type = @buslane.Type::Primitive(Unit)
   let function_type = @buslane.Type::Function([], unit_type, Empty)
@@ -41,12 +48,119 @@ test "whole-program elaboration preserves the selected entry" {
     externals: { builtins: [], runtime_imports: [], },
     entries: [first_entry, second_entry],
   }
-  guard elaborate(linked, second_entry, test_execution_profile())
+  guard elaborate(
+      linked,
+      [
+        { entry: first_entry, name: "first", },
+        { entry: second_entry, name: "second", },
+      ],
+      test_execution_profile(),
+    )
     is Ok(executable) else {
     abort("expected executable elaboration to succeed")
   }
-  assert_eq(executable.entry, second_entry)
-  assert_eq(executable.retained_values, [second])
+  assert_eq(
+    executable.exports.map(export_ => (export_.name(), export_.entry())),
+    [("first", first_entry), ("second", second_entry)],
+  )
+  assert_eq(executable.retained_values, [first, second])
+}
+
+///|
+test "whole-program elaboration rejects duplicate Wasm export names" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let function_type = @buslane.Type::Function([], unit_type, Empty)
+  let first = metadata.define_value("first", Function, function_type)
+  let second = metadata.define_value("second", Function, function_type)
+  let first_entry = executable_test_entry("first", first)
+  let second_entry = executable_test_entry("second", second)
+  let linked : @module_link.LinkedProgram = {
+    module_path_texts: ["Main"],
+    program: executable_test_program(metadata, [
+      Let(first, pure_function(unit_type, Literal(Unit))),
+      Let(second, pure_function(unit_type, Literal(Unit))),
+    ]),
+    externals: { builtins: [], runtime_imports: [], },
+    entries: [first_entry, second_entry],
+  }
+  assert_eq(
+    elaborate(
+      linked,
+      [
+        { entry: first_entry, name: "same", },
+        { entry: second_entry, name: "same", },
+      ],
+      test_execution_profile(),
+    ),
+    Err(DuplicateExportName("same")),
+  )
+  assert_eq(
+    elaborate(
+      linked,
+      [{ entry: first_entry, name: "memory", }],
+      test_execution_profile(),
+    ),
+    Err(ReservedExportName("memory")),
+  )
+}
+
+///|
+test "whole-program elaboration rejects non-scalar Wasm export ABI" {
+  let metadata = @buslane.MetadataRegistry::MetadataRegistry()
+  let unit_type = @buslane.Type::Primitive(Unit)
+  let string_type = @buslane.Type::Primitive(String)
+  let parameter = metadata.define_value("value", Parameter, string_type)
+  let string_parameter = metadata.define_value(
+    "string_parameter",
+    Function,
+    Function([string_type], unit_type, Empty),
+  )
+  let string_result = metadata.define_value(
+    "string_result",
+    Function,
+    Function([], string_type, Empty),
+  )
+  let parameter_entry = executable_test_entry(
+    "string_parameter", string_parameter,
+  )
+  let result_entry = executable_test_entry("string_result", string_result)
+  let linked : @module_link.LinkedProgram = {
+    module_path_texts: ["Main"],
+    program: executable_test_program(metadata, [
+      Let(
+        string_parameter,
+        Function({
+          parameters: [parameter],
+          result_type: unit_type,
+          body: Literal(Unit),
+        }),
+      ),
+      Let(string_result, pure_function(string_type, Literal(String("value")))),
+    ]),
+    externals: { builtins: [], runtime_imports: [], },
+    entries: [parameter_entry, result_entry],
+  }
+  guard elaborate(
+      linked,
+      [{ entry: parameter_entry, name: "parameter", }],
+      test_execution_profile(),
+    )
+    is Err(
+      EntryAdmissionRejected(reason=UnsupportedParameter(index~, type_~), ..)
+    ) else {
+    fail("expected a String export parameter to be rejected")
+  }
+  assert_eq((index, type_), (0, string_type))
+  guard elaborate(
+      linked,
+      [{ entry: result_entry, name: "result", }],
+      test_execution_profile(),
+    )
+    is Err(EntryAdmissionRejected(reason=UnsupportedResult(result~), ..)) else {
+    fail("expected a String export result to be rejected")
+  }
+  assert_eq(result, string_type)
 }
 
 ///|
@@ -102,7 +216,12 @@ test "whole-program elaboration records ordered reachable initializer roots" {
     },
     entries: [entry],
   }
-  guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
+  guard elaborate(
+      linked,
+      [executable_test_export(entry)],
+      test_execution_profile(),
+    )
+    is Ok(executable) else {
     abort("expected executable elaboration to succeed")
   }
   assert_eq(executable.retained_values, [first, second, observe, main])
@@ -143,12 +262,17 @@ test "whole-program elaboration accepts an Io entry without a root handler" {
     },
     entries: [entry],
   }
-  guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
+  guard elaborate(
+      linked,
+      [executable_test_export(entry)],
+      test_execution_profile(),
+    )
+    is Ok(executable) else {
     abort("expected Io entry elaboration to succeed")
   }
   debug_inspect(
     (
-      executable.entry,
+      executable.exports[0].entry(),
       executable.externals,
       executable.cps_core.program().program().metadata
       .value_info(println)
@@ -199,14 +323,19 @@ test "whole-program elaboration accepts a closed external effect entry" {
     externals: { builtins: [], runtime_imports: [], },
     entries: [entry],
   }
-  guard elaborate(linked, entry, test_execution_profile()) is Ok(executable) else {
+  guard elaborate(
+      linked,
+      [executable_test_export(entry)],
+      test_execution_profile(),
+    )
+    is Ok(executable) else {
     abort("expected external-effect entry elaboration to succeed")
   }
   debug_inspect(
     (
       @buslane_lowering.source_value_type(
         executable.cps_core.program().program().metadata,
-        executable.entry.value,
+        executable.exports[0].entry().value,
       ),
       executable.cps_core.program().program().metadata
       .effect_info(host_effect)
@@ -283,7 +412,7 @@ test "whole-program elaboration rejects an algebraic entry effect" {
     entries: [entry],
   }
   debug_inspect(
-    elaborate(linked, entry, test_execution_profile()),
+    elaborate(linked, [executable_test_export(entry)], test_execution_profile()),
     content=(
       #|Err(
       #|  EntryAdmissionRejected(
@@ -374,7 +503,7 @@ fn elaborate_entry_with_effect(
       externals: { builtins: [], runtime_imports: [], },
       entries: [entry],
     },
-    entry,
+    [executable_test_export(entry)],
     profile,
   )
 }

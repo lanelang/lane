@@ -17,7 +17,7 @@ test "function catalog closes dependencies before allocating identities" {
     })
   }
   let image : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
@@ -37,16 +37,14 @@ test "function catalog closes dependencies before allocating identities" {
     object_shapes: [],
     constants: [],
   }
-  let verified = match @physical.verify_physical_program_for_execution(image) {
-    Ok(verified) => verified
-    Err(error) => fail("verification failed: \{Repr(error)}")
-  }
-  let module_ = @wasm_types.Module::empty()
-  let catalog = plan_wasm_function_catalog(
-    image,
-    verified.global_lifecycle(),
-    module_,
+  ignore(
+    match @physical.verify_physical_program_for_execution(image) {
+      Ok(verified) => verified
+      Err(error) => fail("verification failed: \{Repr(error)}")
+    },
   )
+  let module_ = @wasm_types.Module::empty()
+  let catalog = plan_wasm_function_catalog(image, module_)
   debug_inspect(
     (
       catalog.roots,
@@ -61,14 +59,14 @@ test "function catalog closes dependencies before allocating identities" {
       #|    PhysicalFunction(function={ value: 2 }),
       #|    PhysicalFunction(function={ value: 3 }),
       #|    PhysicalFunction(function={ value: 4 }),
-      #|    EntryWrapper,
+      #|    ExportWrapper(function={ value: 1 }),
       #|  ],
       #|  [
       #|    PhysicalFunction(function={ value: 1 }),
       #|    PhysicalFunction(function={ value: 2 }),
       #|    PhysicalFunction(function={ value: 3 }),
       #|    PhysicalFunction(function={ value: 4 }),
-      #|    EntryWrapper,
+      #|    ExportWrapper(function={ value: 1 }),
       #|    RuntimeFunction(ReleaseReference),
       #|    RuntimeFunction(Free),
       #|  ],
@@ -79,7 +77,7 @@ test "function catalog closes dependencies before allocating identities" {
       #|    (PhysicalFunction(function={ value: 4 }), None),
       #|    (RuntimeFunction(Free), None),
       #|    (RuntimeFunction(ReleaseReference), None),
-      #|    (EntryWrapper, None),
+      #|    (ExportWrapper(function={ value: 1 }), None),
       #|  ],
       #|  [{ index: 1 }, { index: 2 }],
       #|)
@@ -111,7 +109,7 @@ test "function catalog rejects an omitted dependency before emission" {
     ],
   }
   let image : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
@@ -121,16 +119,14 @@ test "function catalog rejects an omitted dependency before emission" {
     object_shapes: [],
     constants: [b""],
   }
-  let verified = match @physical.verify_physical_program_for_execution(image) {
-    Ok(verified) => verified
-    Err(error) => fail("verification failed: \{Repr(error)}")
-  }
-  let module_ = @wasm_types.Module::empty()
-  let catalog = plan_wasm_function_catalog(
-    image,
-    verified.global_lifecycle(),
-    module_,
+  ignore(
+    match @physical.verify_physical_program_for_execution(image) {
+      Ok(verified) => verified
+      Err(error) => fail("verification failed: \{Repr(error)}")
+    },
   )
+  let module_ = @wasm_types.Module::empty()
+  let catalog = plan_wasm_function_catalog(image, module_)
   let incomplete = {
     ..catalog,
     required: catalog.required.filter(origin => origin != RuntimeFunction(Free)),
@@ -140,7 +136,7 @@ test "function catalog rejects an omitted dependency before emission" {
   }
   debug_inspect(
     try {
-      incomplete.validate(image, verified.global_lifecycle(), module_)
+      incomplete.validate(image, module_)
       Ok(())
     } catch {
       error => Err(error)
@@ -154,7 +150,7 @@ test "function catalog rejects an omitted dependency before emission" {
 ///|
 test "function catalog authenticates the byte-buffer layout identity" {
   let image : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
@@ -173,23 +169,21 @@ test "function catalog authenticates the byte-buffer layout identity" {
     object_shapes: [],
     constants: [],
   }
-  let verified = match @physical.verify_physical_program_for_execution(image) {
-    Ok(verified) => verified
-    Err(error) => fail("verification failed: \{Repr(error)}")
-  }
-  let module_ = @wasm_types.Module::empty()
-  let catalog = plan_wasm_function_catalog(
-    image,
-    verified.global_lifecycle(),
-    module_,
+  ignore(
+    match @physical.verify_physical_program_for_execution(image) {
+      Ok(verified) => verified
+      Err(error) => fail("verification failed: \{Repr(error)}")
+    },
   )
+  let module_ = @wasm_types.Module::empty()
+  let catalog = plan_wasm_function_catalog(image, module_)
   let invalid = {
     ..catalog,
     runtime_layouts: { ..catalog.runtime_layouts, byte_buffer: 0, },
   }
   debug_inspect(
     try {
-      invalid.validate(image, verified.global_lifecycle(), module_)
+      invalid.validate(image, module_)
       Ok(())
     } catch {
       error => Err(error)

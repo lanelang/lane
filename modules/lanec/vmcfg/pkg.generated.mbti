@@ -140,7 +140,7 @@ pub fn FunctionInputs::not_equal(Self, Self) -> Bool
 pub fn FunctionInputs::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Image {
-  entry : @physical.FunctionId
+  exports : Array[@physical.PhysicalExport]
   initializer : @physical.FunctionId?
   functions : Array[FunctionEntry]
   data_family_count : Int

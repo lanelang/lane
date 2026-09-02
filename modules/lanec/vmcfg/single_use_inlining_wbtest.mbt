@@ -43,7 +43,9 @@ test "single-use direct inlining moves a body without cloning it" {
   }
   let inlined = inline_single_use_direct_functions(
     {
-      entry: { value: 1, },
+      exports: [
+        @physical.physical_export(function={ value: 1, }, name="_start"),
+      ],
       initializer: None,
       data_family_count: 0,
       functions: [Body(caller), Body(callee)],
@@ -122,7 +124,7 @@ test "direct inlining does not clone a multiply used function" {
     ],
   }
   let image : Image = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [Body(caller), Body(callee)],

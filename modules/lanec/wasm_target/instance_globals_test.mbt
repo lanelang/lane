@@ -27,7 +27,7 @@ fn wasm_global_body(
 }
 
 ///|
-test "Wasm entry wrapper runs initializer before entry using linear roots" {
+test "Wasm start initializes instance globals before an export is called" {
   let mut observed = 0L
   let initializer = wasm_global_body([wasm_global_slot(I64)], [
     ConstI64({ value: 0, }, 42L),
@@ -38,7 +38,7 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
     CallDirect({ value: 3, }, None, [], [{ value: 0, }], None),
   ])
   let image : @physical.PhysicalProgram = {
-    entry: { value: 2, },
+    exports: [@physical.physical_export(function={ value: 2, }, name="_start")],
     initializer: Some({ value: 1, }),
     data_family_count: 0,
     callable_abis: [
@@ -89,177 +89,19 @@ test "Wasm entry wrapper runs initializer before entry using linear roots" {
     Ok(loaded) => loaded
     Err(error) => fail("load failed: \{Repr(error)}")
   }
-  assert_eq(loaded.wasm_module().globals.length(), 6)
   let instance = match loaded.new_instance() {
     Ok(instance) => instance
     Err(error) => fail("instantiate failed: \{Repr(error)}")
   }
-  let heap_base = instance.store
-    .get_global(instance.instance.global_addrs[1])
-    .get()
+  guard instance.store.get_global(instance.instance.global_addrs[1]).get()
+    is I32(heap_base) else {
+    fail("expected I32 heap base")
+  }
+  let memory = instance.store.get_mem(instance.instance.mem_addrs[0])
+  assert_eq(memory.load_i64(heap_base - 8), 42L)
+  assert_eq(observed, 0L)
   assert_eq(instance.execute(), Ok(Returned))
   assert_eq(observed, 42L)
-  guard heap_base is I32(heap_base) else { fail("expected I32 heap base") }
-  let memory = instance.store.get_mem(instance.instance.mem_addrs[0])
-  assert_eq(memory.load_i32(heap_base - 16), 0)
-}
-
-///|
-fn wasm_lifecycle_initializer() -> @physical.FunctionBody {
-  let owned_ref = wasm_global_slot(I32, cleanup=OwnedRef)
-  wasm_global_body(
-    [
-      owned_ref,
-      owned_ref,
-      owned_ref,
-      wasm_global_slot(
-        I32,
-        cleanup=OwnedRef,
-        kind=EnvironmentValue({ value: 0, }),
-      ),
-      wasm_global_slot(I64, cleanup=OwnedCallable),
-      wasm_global_slot(I32, kind=LayoutValue),
-      wasm_global_slot(
-        I64,
-        cleanup=OwnedErased,
-        erased_companion=Some({ value: 5, }),
-      ),
-      wasm_global_slot(I64),
-    ],
-    [
-      ConstI64({ value: 7, }, 42L),
-      InitGlobal({ value: 0, }, { value: 7, }),
-      ConstString({ value: 0, }, { value: 0, }),
-      ConstString({ value: 1, }, { value: 1, }),
-      ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
-      InitGlobal({ value: 1, }, { value: 2, }),
-      ConstString({ value: 0, }, { value: 0, }),
-      ConstString({ value: 1, }, { value: 1, }),
-      ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
-      MakeEnv({ value: 3, }, { value: 0, }, Immediate({ value: 2, }), [], [
-        { value: 2, },
-      ]),
-      MakeClosure({ value: 4, }, { value: 3, }, { value: 3, }),
-      InitGlobal({ value: 2, }, { value: 4, }),
-      ConstString({ value: 0, }, { value: 0, }),
-      ConstString({ value: 1, }, { value: 1, }),
-      ByteSequenceConcat({ value: 2, }, { value: 0, }, { value: 1, }),
-      ConstLayout({ value: 5, }, { value: 1, }),
-      EraseI32({ value: 6, }, { value: 2, }),
-      InitGlobal({ value: 4, }, { value: 6, }),
-    ],
-  )
-}
-
-///|
-fn wasm_lifecycle_entry() -> @physical.FunctionBody {
-  wasm_global_body(
-    [
-      wasm_global_slot(I64),
-      wasm_global_slot(I32, kind=ByteSequenceValue),
-      wasm_global_slot(I64, kind=CallableValue),
-      wasm_global_slot(I32, kind=LayoutValue),
-      wasm_global_slot(
-        I64,
-        cleanup=OwnedErased,
-        erased_companion=Some({ value: 3, }),
-      ),
-    ],
-    [
-      BorrowGlobal({ value: 0, }, { value: 0, }),
-      BorrowGlobal({ value: 1, }, { value: 1, }),
-      BorrowGlobal({ value: 2, }, { value: 2, }),
-      BorrowGlobal({ value: 4, }, { value: 4, }),
-    ],
-  )
-}
-
-///|
-fn wasm_lifecycle_closure_body() -> @physical.FunctionBody {
-  {
-    slots: [
-      wasm_global_slot(
-        I32,
-        cleanup=OwnedRef,
-        kind=EnvironmentValue({ value: 0, }),
-      ),
-    ],
-    inputs: {
-      environment: Some({ value: 0, }),
-      witnesses: [],
-      user_parameters: [],
-    },
-    result: Unit,
-    blocks: [
-      {
-        parameters: [],
-        instructions: [Release({ value: 0, })],
-        terminator: Return(None),
-      },
-    ],
-  }
-}
-
-///|
-fn wasm_lifecycle_image() -> @physical.PhysicalProgram {
-  {
-    entry: { value: 2, },
-    initializer: Some({ value: 1, }),
-    data_family_count: 0,
-    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
-    functions: [
-      PhysicalBody(wasm_lifecycle_initializer()),
-      PhysicalBody(wasm_lifecycle_entry()),
-      PhysicalBody(wasm_lifecycle_closure_body()),
-    ],
-    globals: [
-      {
-        representation: I64,
-        cleanup: Trivial,
-        kind: ScalarValue,
-        erased_companion: None,
-      },
-      {
-        representation: I32,
-        cleanup: OwnedRef,
-        kind: ByteSequenceValue,
-        erased_companion: None,
-      },
-      {
-        representation: I64,
-        cleanup: OwnedCallable,
-        kind: CallableValue,
-        erased_companion: None,
-      },
-      {
-        representation: I32,
-        cleanup: Trivial,
-        kind: LayoutValue,
-        erased_companion: None,
-      },
-      {
-        representation: I64,
-        cleanup: OwnedErased,
-        kind: ErasedValue,
-        erased_companion: Some({ value: 3, }),
-      },
-    ],
-    layouts: [ByteSequence, Environment({ value: 0, })],
-    object_shapes: [
-      Environment({
-        stored_witness_count: 0,
-        members: [
-          {
-            representation: I32,
-            cleanup: OwnedRef,
-            kind: ByteSequenceValue,
-            witness_ordinal: None,
-          },
-        ],
-      }),
-    ],
-    constants: [b"a", b"b"],
-  }
 }
 
 ///|
@@ -277,30 +119,32 @@ fn wasm_global_instance(
 }
 
 ///|
-test "Wasm global cleanup releases reference callable and erased roots" {
-  let instance = wasm_global_instance(wasm_lifecycle_image())
-  assert_eq(instance.execute(), Ok(Returned))
-  assert_eq(
-    instance.store.get_global(instance.instance.global_addrs[4]).get(),
-    I32(0),
-  )
-  assert_eq(
-    instance.store.get_global(instance.instance.global_addrs[5]).get(),
-    I32(0),
-  )
-}
-
-///|
-test "Wasm fatal control terminates the instance without recovery cleanup" {
-  let image = wasm_lifecycle_image()
-  guard image.functions[1] is PhysicalBody(entry) else {
-    fail("expected physical entry")
+test "Wasm fatal control consumes the instance" {
+  let image : @physical.PhysicalProgram = {
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
+    initializer: None,
+    data_family_count: 0,
+    callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
+    functions: [
+      PhysicalBody({
+        ..wasm_global_body(
+          [wasm_global_slot(I32, cleanup=OwnedRef, kind=ByteSequenceValue)],
+          [ConstString({ value: 0, }, { value: 0, })],
+        ),
+        blocks: [
+          {
+            parameters: [],
+            instructions: [ConstString({ value: 0, }, { value: 0, })],
+            terminator: Fatal,
+          },
+        ],
+      }),
+    ],
+    globals: [],
+    layouts: [ByteSequence],
+    object_shapes: [],
+    constants: [b"boom"],
   }
-  entry.slots.push(
-    wasm_global_slot(I32, cleanup=OwnedRef, kind=ByteSequenceValue),
-  )
-  entry.blocks[0].instructions.push(ConstString({ value: 5, }, { value: 0, }))
-  entry.blocks[0] = { ..entry.blocks[0], terminator: Fatal, }
   let instance = wasm_global_instance(image)
   assert_true(instance.execute() is Err(EngineTrap(_)))
   assert_eq(instance.execute(), Err(InstanceNotReady))
@@ -311,7 +155,9 @@ test "Wasm reports invalid instance-global initialization" {
   let trivial_i64 = wasm_global_slot(I64)
   let make_image = fn(initializer, entry) -> @physical.PhysicalProgram {
     {
-      entry: { value: 2, },
+      exports: [
+        @physical.physical_export(function={ value: 2, }, name="_start"),
+      ],
       initializer: Some({ value: 1, }),
       data_family_count: 0,
       callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -366,7 +212,7 @@ fn wasm_linear_global_image(count : Int) -> @physical.PhysicalProgram {
     })
   }
   {
-    entry: { value: 2, },
+    exports: [@physical.physical_export(function={ value: 2, }, name="_start")],
     initializer: Some({ value: 1, }),
     data_family_count: 0,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -382,22 +228,22 @@ fn wasm_linear_global_image(count : Int) -> @physical.PhysicalProgram {
 }
 
 ///|
-fn lifecycle_function_scale(count : Int) -> (Int, Int) {
+fn boundary_function_scale(count : Int) -> (Int, Int) {
   let observed = @wasm_target.compile_observed(
     certify_physical_program_test(wasm_linear_global_image(count)),
   ).unwrap()
   let scale = observed.scale
-  let mut cleanup_size = -1
-  let mut entry_size = -1
+  let mut initializer_size = -1
+  let mut export_size = -1
   for provenance in observed.functions {
     let mut selected = false
     match provenance.origin {
-      RuntimeFunction(InstanceGlobalCleanup) => {
-        cleanup_size = 0
+      InitializerWrapper => {
+        initializer_size = 0
         selected = true
       }
-      EntryWrapper => {
-        entry_size = 0
+      ExportWrapper(_) => {
+        export_size = 0
         selected = true
       }
       _ => ()
@@ -406,22 +252,21 @@ fn lifecycle_function_scale(count : Int) -> (Int, Int) {
       for function in scale.functions {
         if function.index == provenance.index {
           match provenance.origin {
-            RuntimeFunction(InstanceGlobalCleanup) =>
-              cleanup_size = function.instruction_count
-            EntryWrapper => entry_size = function.instruction_count
+            InitializerWrapper => initializer_size = function.instruction_count
+            ExportWrapper(_) => export_size = function.instruction_count
             _ => ()
           }
         }
       }
     }
   }
-  (cleanup_size, entry_size)
+  (initializer_size, export_size)
 }
 
 ///|
-test "Wasm instance-global lifecycle code is independent of global count" {
-  let one = lifecycle_function_scale(1)
-  let many = lifecycle_function_scale(64)
+test "Wasm initialization and export wrappers are independent of global count" {
+  let one = boundary_function_scale(1)
+  let many = boundary_function_scale(64)
   assert_eq(one, many)
-  debug_inspect(one, content="(65, 6)")
+  debug_inspect(one, content="(3, 3)")
 }

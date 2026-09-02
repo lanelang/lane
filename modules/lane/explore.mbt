@@ -315,7 +315,8 @@ fn function_role_label(role : @driver.ExploreFunctionRole) -> String {
         Some(ordinal) => "Wasm helper \{name} #\{ordinal}"
         None => "Wasm helper \{name}"
       }
-    EntryWrapper => "entry wrapper"
+    InitializerWrapper => "instance initializer wrapper"
+    ExportWrapper => "WebAssembly export wrapper"
   }
 }
 

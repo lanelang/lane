@@ -21,12 +21,12 @@ enum LaneCommand {
   Inspect(artifact~ : String)
   Link(
     objects~ : Array[String],
-    entry~ : PublicEntryName,
+    exports~ : Array[PublicExportRequest],
     output~ : String,
     verbose~ : Bool
   )
   Lsp(stdio~ : Bool)
-  Exec(program~ : String, no_jit~ : Bool)
+  Exec(program~ : String, entry~ : String, no_jit~ : Bool)
   Explore(
     file~ : String,
     entry~ : String,
@@ -102,7 +102,7 @@ fn lane_command_spec() -> Command {
         "link",
         about="Link compiled Lane module object artifacts.",
         options=[
-          link_entry_option(),
+          link_export_option(),
           output_option(
             "Write the linked WebAssembly module here, conventionally `.wasm`.",
           ),
@@ -112,13 +112,14 @@ fn lane_command_spec() -> Command {
           PositionArg(
             "objects",
             num_args=ValueRange(lower=1),
-            about="Supply one object artifact for every module reachable from the selected entry.",
+            about="Supply one object artifact for every module reachable from the requested exports.",
           ),
         ],
       ),
       Command(
         "exec",
         about="Run a linked Lane WebAssembly module.",
+        options=[exec_entry_option()],
         flags=[no_jit_flag()],
         positionals=[
           artifact_positional_arg("program", "WebAssembly module to run."),
@@ -215,28 +216,30 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
     Some(("inspect", child)) =>
       Ok(Inspect(artifact=single_value(child, "artifact")))
     Some(("link", child)) => {
-      let entry_text = single_value(child, "entry")
-      match parse_public_entry_name(entry_text) {
-        Ok(entry) =>
-          Ok(
-            Link(
-              objects=values(child, "objects"),
-              entry~,
-              output=single_value(child, "output"),
-              verbose=flag(child, "verbose"),
-            ),
-          )
-        Err(_) => Err(InvalidLinkEntry(entry=entry_text))
+      let exports = []
+      for export_text in values(child, "export") {
+        match parse_public_export_request(export_text) {
+          Ok(export_) => exports.push(export_)
+          Err(_) => return Err(InvalidLinkExport(export_=export_text))
+        }
       }
+      Ok(
+        Link(
+          objects=values(child, "objects"),
+          exports~,
+          output=single_value(child, "output"),
+          verbose=flag(child, "verbose"),
+        ),
+      )
     }
-    Some(("exec", child)) => {
-      let program = single_value(child, "program")
-      if program.contains(":") {
-        Err(InvalidExecTarget(target=program))
-      } else {
-        Ok(Exec(program~, no_jit=flag(child, "no-jit")))
-      }
-    }
+    Some(("exec", child)) =>
+      Ok(
+        Exec(
+          program=single_value(child, "program"),
+          entry=single_value(child, "entry"),
+          no_jit=flag(child, "no-jit"),
+        ),
+      )
     Some(("fmt", child)) =>
       Ok(Fmt(files=values(child, "files"), check=flag(child, "check")))
     Some(("lsp", child)) => Ok(Lsp(stdio=flag(child, "stdio")))
@@ -257,6 +260,20 @@ priv struct RunTarget {
 priv struct PublicEntryName {
   module_path_text : String
   value_name : String
+}
+
+///|
+priv struct PublicExportRequest {
+  module_path_text : String
+  value_name : String
+  wasm_name : String
+}
+
+///|
+fn PublicExportRequest::entry_name(
+  self : PublicExportRequest,
+) -> PublicEntryName {
+  { module_path_text: self.module_path_text, value_name: self.value_name, }
 }
 
 ///|
@@ -282,6 +299,25 @@ fn parse_public_entry_name(name : String) -> Result[PublicEntryName, Unit] {
   let value_name = parts[parts.length() - 1]
   let module_path = parts[:parts.length() - 1].join(".")
   Ok({ module_path_text: module_path, value_name, })
+}
+
+///|
+fn parse_public_export_request(
+  request : String,
+) -> Result[PublicExportRequest, Unit] {
+  let parts = request.split(":").map(StringView::to_owned).collect()
+  guard parts is [entry_text, wasm_name] && !wasm_name.is_empty() else {
+    return Err(())
+  }
+  match parse_public_entry_name(entry_text) {
+    Ok(entry) =>
+      Ok({
+        module_path_text: entry.module_path_text,
+        value_name: entry.value_name,
+        wasm_name,
+      })
+    Err(_) => Err(())
+  }
 }
 
 ///|
@@ -387,12 +423,23 @@ fn output_option(about : String) -> @argparse.OptionArg {
 }
 
 ///|
-fn link_entry_option() -> @argparse.OptionArg {
+fn link_export_option() -> @argparse.OptionArg {
+  OptionArg(
+    "export",
+    long="export",
+    action=Append,
+    required=true,
+    about="Export a public Lane value as NAME, such as Main.main:_start. Repeat for multiple exports.",
+  )
+}
+
+///|
+fn exec_entry_option() -> @argparse.OptionArg {
   OptionArg(
     "entry",
     long="entry",
     required=true,
-    about="Select the exported entry for the linked executable artifact, such as Main.main.",
+    about="Invoke this zero-argument, zero-result WebAssembly function export.",
   )
 }
 

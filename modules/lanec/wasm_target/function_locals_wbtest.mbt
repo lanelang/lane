@@ -23,7 +23,7 @@ test "trivial functions omit frame liveness locals" {
     ],
   }
   let image : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
@@ -78,7 +78,7 @@ test "CFG functions share packed liveness state across owned slots" {
     ],
   }
   let image : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],

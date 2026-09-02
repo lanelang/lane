@@ -1,6 +1,7 @@
 ///|
-/// Residual-effect admission selected by an embedding execution target. The
-/// compiler deliberately provides no default profile.
+/// Residual-effect admission selected by an embedding execution target. Export
+/// ABI admission is a separate compiler-owned check. The compiler deliberately
+/// provides no default profile.
 pub struct ExecutionProfile {
   priv builtin_effects : Array[@buslane.BuiltinEffect]
   priv supports_external_effects : Bool
@@ -17,9 +18,10 @@ pub fn ExecutionProfile::new(
 ///|
 fn validate_executable_entry(
   metadata : @buslane.MetadataRegistry,
-  entry : @buslane_lowering.BuslaneEntry,
+  request : ExportRequest,
   profile : ExecutionProfile,
-) -> Unit raise ExecutableElaborationError {
+) -> ExecutableExport raise ExecutableElaborationError {
+  let entry = request.entry
   let entry_type = @buslane_lowering.source_value_type(metadata, entry.value) catch {
     MissingValueMetadata(_) => raise EntryNotLinked(entry.value)
   }
@@ -33,19 +35,26 @@ fn validate_executable_entry(
       reason=NotFunction,
     )
   }
-  if !parameters.is_empty() {
-    raise EntryAdmissionRejected(
-      value=entry.value,
-      type_=entry_type,
-      reason=HasParameters(count=parameters.length()),
-    )
+  let export_parameters = []
+  for index, parameter in parameters {
+    match export_parameter(parameter) {
+      Some(parameter) => export_parameters.push(parameter)
+      None =>
+        raise EntryAdmissionRejected(
+          value=entry.value,
+          type_=entry_type,
+          reason=UnsupportedParameter(index~, type_=parameter),
+        )
+    }
   }
-  if result != Primitive(Unit) {
-    raise EntryAdmissionRejected(
-      value=entry.value,
-      type_=entry_type,
-      reason=ReturnsNonUnit(result~),
-    )
+  let export_result = match export_result(result) {
+    Some(result) => result
+    None =>
+      raise EntryAdmissionRejected(
+        value=entry.value,
+        type_=entry_type,
+        reason=UnsupportedResult(result~),
+      )
   }
   let unsupported = unsupported_entry_effects(metadata, effect, profile) catch {
     error => raise EntryTypeNormalizationCompilerDefect(error)
@@ -56,6 +65,36 @@ fn validate_executable_entry(
       type_=entry_type,
       reason=HasUnsupportedEffects(effects=unsupported),
     )
+  }
+  executable_export(
+    entry~,
+    name=request.name,
+    parameters=export_parameters,
+    result=export_result,
+  )
+}
+
+///|
+fn export_parameter(type_ : @buslane.Type) -> @lane_wasm_abi.ExportParameter? {
+  match type_ {
+    Primitive(Unit) => Some(ErasedUnit)
+    Primitive(I32) => Some(Direct(I32))
+    Primitive(I64) => Some(Direct(I64))
+    Primitive(F32) => Some(Direct(F32))
+    Primitive(F64) => Some(Direct(F64))
+    _ => None
+  }
+}
+
+///|
+fn export_result(type_ : @buslane.Type) -> @lane_wasm_abi.ExportResult? {
+  match type_ {
+    Primitive(Unit) => Some(Unit)
+    Primitive(I32) => Some(Direct(I32))
+    Primitive(I64) => Some(Direct(I64))
+    Primitive(F32) => Some(Direct(F32))
+    Primitive(F64) => Some(Direct(F64))
+    _ => None
   }
 }
 

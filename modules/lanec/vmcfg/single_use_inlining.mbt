@@ -43,7 +43,9 @@ fn find_single_use_inline_candidate(
     calls: [],
     first_class: false,
   })
-  mark_root_function_use(uses, image.entry)
+  for export_ in image.exports {
+    mark_root_function_use(uses, export_.function())
+  }
   if image.initializer is Some(initializer) {
     mark_root_function_use(uses, initializer)
   }

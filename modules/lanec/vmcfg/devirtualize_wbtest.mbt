@@ -3,7 +3,7 @@ fn devirtualize_test_body(
   body : FunctionBody,
 ) -> FunctionBody raise FinalizeError {
   let image = devirtualize_image({
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [Body(body)],
@@ -208,7 +208,7 @@ test "devirtualize immediate closure environment into hidden direct arguments" {
     ],
   }
   let image : Image = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [Body(caller), Body(callee)],
@@ -355,7 +355,7 @@ test "environment ABI remains packed when one target has multiple environments" 
     ],
   }
   let optimized = devirtualize_image({
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [Body(caller), Body(callee)],
@@ -568,7 +568,7 @@ test "callable flow crosses immutable aggregate globals" {
     ],
   }
   let optimized = devirtualize_image({
-    entry: { value: 2, },
+    exports: [@physical.physical_export(function={ value: 2, }, name="_start")],
     initializer: Some({ value: 1, }),
     data_family_count: 1,
     functions: [Body(initializer), Body(consumer)],
@@ -671,7 +671,7 @@ test "callable flow crosses direct function parameters" {
     blocks: [{ parameters: [], instructions: [], terminator: Return(None), }],
   }
   let optimized = devirtualize_image({
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [Body(entry), Body(apply), Body(target)],
@@ -762,7 +762,7 @@ test "exact packed callable parameter devirtualizes in tail position" {
     ],
   }
   let image : Image = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [Body(entry), Body(apply), Body(target)],
@@ -831,7 +831,7 @@ test "callable flow crosses direct function results" {
     blocks: [{ parameters: [], instructions: [], terminator: Return(None), }],
   }
   let optimized = devirtualize_image({
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [Body(entry), Body(produce), Body(target)],
@@ -913,7 +913,7 @@ test "opaque calls prevent unsound parameter devirtualization" {
     blocks: [{ parameters: [], instructions: [], terminator: Return(None), }],
   }
   let optimized = devirtualize_image({
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 0,
     functions: [Body(entry), Body(apply), Body(target)],
@@ -992,7 +992,7 @@ test "callable flow represents recursive data as a finite site graph" {
     ],
   }
   let flow = analyze_callable_flow({
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 1,
     functions: [Body(entry), Body(recursive)],
@@ -1087,7 +1087,7 @@ test "stored closures keep their packed environment owner" {
     ],
   }
   let image : Image = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 1,
     functions: [Body(caller), Body(callee)],

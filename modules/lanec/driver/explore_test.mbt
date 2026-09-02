@@ -368,7 +368,7 @@ test "Explore records selective byte-buffer Wasm support" {
       #|      ],
       #|    ),
       #|  ],
-      #|  [[WasmPhysicalFunction], [EntryWrapper]],
+      #|  [[WasmPhysicalFunction], [ExportWrapper]],
       #|  Succeeded,
       #|  [
       #|    (
@@ -406,7 +406,7 @@ test "Explore records selective byte-buffer Wasm support" {
       #|    [WasmHelperFunction(name="release reference erased", ordinal=None)],
       #|    [WasmHelperFunction(name="destroy noop", ordinal=None)],
       #|    [WasmHelperFunction(name="byte storage sizer", ordinal=None)],
-      #|    [EntryWrapper],
+      #|    [ExportWrapper],
       #|  ],
       #|)
     ),
@@ -697,7 +697,7 @@ test "explore reports deterministic typed scale metrics" {
       #|      ("wasmExpansion.physicalOpcode.controlTransfer.instructionCount", 5),
       #|      ("wasmExpansion.functionAbi.instructionCount", 2),
       #|      ("wasmExpansion.runtimeImportAdapter.instructionCount", 2),
-      #|      ("wasmExpansion.entryLifecycle.instructionCount", 3),
+      #|      ("wasmExpansion.boundaryWrapper.instructionCount", 3),
       #|    ],
       #|  ),
       #|]
@@ -1934,7 +1934,7 @@ test "explore traces a named function and preserves synthetic roots" {
     (function, roles)
   })
   let entry_wrappers = report.functions.nodes.filter(node => {
-    node.roles.contains(EntryWrapper)
+    node.roles.contains(ExportWrapper)
   })
   debug_inspect(
     (
@@ -1963,7 +1963,7 @@ test "explore traces a named function and preserves synthetic roots" {
       #|    ),
       #|    ({ stage: Wasm, index: 0 }, [[WasmPhysicalFunction]]),
       #|  ],
-      #|  [{ function: { stage: Wasm, index: 1 }, roles: [EntryWrapper] }],
+      #|  [{ function: { stage: Wasm, index: 1 }, roles: [ExportWrapper] }],
       #|  false,
       #|)
     ),

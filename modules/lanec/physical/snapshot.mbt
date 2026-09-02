@@ -1,7 +1,9 @@
 ///|
 fn PhysicalProgram::snapshot(self : PhysicalProgram) -> PhysicalProgram {
   {
-    entry: self.entry,
+    exports: self.exports.map(export_ => {
+      physical_export(function=export_.function(), name=export_.name())
+    }),
     initializer: self.initializer,
     callable_abis: self.callable_abis.map(abi => abi.snapshot()),
     data_family_count: self.data_family_count,

@@ -43,18 +43,24 @@ test "executable pretty output emphasizes execution structure" {
     },
     entries: [entry],
   }
-  let executable = elaborate(linked, entry, test_execution_profile()).unwrap()
+  let executable = elaborate(
+    linked,
+    [executable_test_export(entry)],
+    test_execution_profile(),
+  ).unwrap()
   inspect(
     @prettyprinter.render(executable, width=80),
     content=(
       #|executable {
-      #|  entry Main.main = value#2 : () -> Unit ! Io
+      #|  exports {
+      #|    _start Main.main = value#2 : () -> Unit ! Io
+      #|  }
       #|  externals {
       #|    runtime_import "lane.test"."observe" as value#0 : (I64) -> Unit ! Io
       #|  }
       #|  execution_order {
       #|    initialize value#1
-      #|    entry value#2
+      #|    export "_start" value#2
       #|  }
       #|  program {
       #|    buslane {

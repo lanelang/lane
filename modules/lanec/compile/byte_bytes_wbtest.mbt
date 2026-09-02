@@ -17,7 +17,7 @@ fn compile_test_physical_program(
   let executable = match
     @executable.elaborate(
       program,
-      entry,
+      [{ entry, name: "_start", }],
       @executable.ExecutionProfile::new(
         builtin_effects=[Io, Panic],
         supports_external_effects=true,
@@ -52,7 +52,7 @@ test "compiler removes discarded empty-effect Byte and Bytes operations" {
     physical_program,
     content=(
       #|{
-      #|  entry: { value: 1 },
+      #|  exports: [{ function: { value: 1 }, name: "_start" }],
       #|  initializer: None,
       #|  callable_abis: [{ witnesses: [], parameters: [], result: Unit }],
       #|  data_family_count: 0,
@@ -106,7 +106,7 @@ test "compiler preserves Byte and Bytes through executable lowering" {
     physical_program,
     content=(
       #|{
-      #|  entry: { value: 1 },
+      #|  exports: [{ function: { value: 1 }, name: "_start" }],
       #|  initializer: None,
       #|  callable_abis: [
       #|    { witnesses: [], parameters: [], result: Unit },
@@ -245,7 +245,7 @@ test "compiler scalar-replaces Byte and Bytes fields while preserving closures a
     physical_program,
     content=(
       #|{
-      #|  entry: { value: 1 },
+      #|  exports: [{ function: { value: 1 }, name: "_start" }],
       #|  initializer: Some({ value: 4 }),
       #|  callable_abis: [
       #|    { witnesses: [], parameters: [], result: Unit },

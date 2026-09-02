@@ -51,7 +51,7 @@ fn wasm_bytes_image(
   constants? : Array[Bytes] = [],
 ) -> @physical.PhysicalProgram {
   {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 0,
@@ -136,7 +136,7 @@ test "complete-image verification rejects Data used as ByteSequence" {
     ],
   )
   let image : @physical.PhysicalProgram = {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     data_family_count: 1,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],

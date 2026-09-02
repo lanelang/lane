@@ -52,7 +52,9 @@ test "data allocation consumes the planned constructor family" {
   let definitions = collect_effect_generic_definitions(program)
   let planned_definitions = collect_plannable_definitions(program)
   let plan = plan_effect_specializations_with_definitions(
-    program, entry, planned_definitions,
+    program,
+    [entry],
+    planned_definitions,
   )
   guard plan.data_demands is [demand] && demand.constructors == [make_box] else {
     abort("expected one planned data constructor")

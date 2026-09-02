@@ -20,7 +20,6 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteBufferWriteI32
   ByteBufferWriteAddress
   ByteBufferReadI32
-  InstanceGlobalCleanup
 } derive(Debug, Eq)
 
 ///|
@@ -58,7 +57,8 @@ pub(all) enum WasmFunctionOrigin {
   )
   RuntimeFunction(WasmRuntimeFunctionRole)
   HelperFunction(WasmHelperFunctionRole)
-  EntryWrapper
+  InitializerWrapper
+  ExportWrapper(function~ : @physical.FunctionId)
 } derive(Debug, Eq)
 
 ///|

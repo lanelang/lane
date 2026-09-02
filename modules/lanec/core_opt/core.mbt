@@ -1,7 +1,6 @@
 ///|
 pub(all) struct CoreOptimizeRequest {
   program : @buslane.VerifiedProgram
-  entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
 } derive(Debug, Eq)
 
@@ -97,13 +96,12 @@ pub fn optimize_observed(
 /// phase contract and transformation-owned function provenance.
 pub fn optimize_cps_core(
   program : @effect_lowering.CpsCoreProgram,
-  entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
 ) -> Result[@effect_lowering.CpsCoreProgram, CoreOptimizeError] {
   let function_origins = program.function_origins()
   let optimized = match
     optimize_observed_with_origins(
-      { program: program.program(), entry, roots, },
+      { program: program.program(), roots, },
       Some(function_origins),
       _ => (),
     ) {
@@ -140,9 +138,6 @@ fn optimize_or_raise(
     !catalog.transfer_clones(input_function_clones[:]) {
     raise MissingFunctionOriginCompilerDefect
   }
-  if input.metadata.value_info(request.entry) is None {
-    raise UnknownRoot(request.entry)
-  }
   for root in request.roots {
     if input.metadata.value_info(root) is None {
       raise UnknownRoot(root)
@@ -154,14 +149,12 @@ fn optimize_or_raise(
   }
   let simplified = cleanup_core(
     program,
-    request.entry,
     request.roots,
     function_origins,
     observe,
   )
   let optimized = execute_inline_pipeline(
     simplified,
-    request.entry,
     request.roots,
     function_origins,
     observe,

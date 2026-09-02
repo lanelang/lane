@@ -125,7 +125,7 @@ test "planner owns retained top terms in source order" {
       LetRec([{ id: entry, rhs: entry_rhs, }]),
     ],
   }
-  assert_eq(plan_effect_specializations(program, entry), {
+  assert_eq(plan_effect_specializations(program, [entry]), {
     callable_demands: [],
     data_demands: [],
     retained_top_terms: [
@@ -186,7 +186,7 @@ test "phantom generic type arguments contribute nominal data demands" {
       ]),
     ],
   }
-  let plan = plan_effect_specializations(program, entry)
+  let plan = plan_effect_specializations(program, [entry])
   assert_eq(plan, {
     callable_demands: [],
     retained_top_terms: [RetainedLetRec(source_index=0, values=[marker, entry])],
@@ -201,7 +201,7 @@ test "phantom generic type arguments contribute nominal data demands" {
   })
   assert_eq(
     @buslane.verify_program(
-      specialize(program.certify().unwrap(), entry).program(),
+      specialize(program.certify().unwrap(), [entry]).program(),
     ).diagnostics,
     [],
   )
@@ -264,7 +264,7 @@ test "ordinary generic type arguments contribute nominal data demands" {
       ]),
     ],
   }
-  assert_eq(plan_effect_specializations(program, entry), {
+  assert_eq(plan_effect_specializations(program, [entry]), {
     callable_demands: [],
     retained_top_terms: [RetainedLetRec(source_index=0, values=[marker, entry])],
     retained_declarations: [],
@@ -340,7 +340,7 @@ test "external generic type arguments contribute nominal data demands" {
       ]),
     ],
   }
-  assert_eq(plan_effect_specializations(program, entry), {
+  assert_eq(plan_effect_specializations(program, [entry]), {
     callable_demands: [
       Specialize(TopLevel(outer), ambient_bindings=[], instance_bindings=[
         { parameter: outer_effect, argument: empty_effect, },
@@ -394,7 +394,7 @@ test "planner records only reachable retained operations" {
       ),
     ],
   }
-  assert_eq(plan_effect_specializations(program, entry), {
+  assert_eq(plan_effect_specializations(program, [entry]), {
     callable_demands: [],
     retained_top_terms: [RetainedLet(source_index=0, value=entry)],
     retained_declarations: [Operation(active_operation)],
@@ -507,7 +507,7 @@ test "callable planner keeps generic and concrete demands independently" {
     metadata.types.length(),
     metadata.data_constructors.length(),
   )
-  let plan = plan_effect_specializations(program, entry)
+  let plan = plan_effect_specializations(program, [entry])
   assert_eq(
     (
       metadata.values.length(),
@@ -530,8 +530,8 @@ test "callable planner keeps generic and concrete demands independently" {
     retained_declarations: [],
     data_demands: [],
   })
-  assert_eq(plan_effect_specializations(program, entry), plan)
-  let specialized = specialize(program.certify().unwrap(), entry)
+  assert_eq(plan_effect_specializations(program, [entry]), plan)
+  let specialized = specialize(program.certify().unwrap(), [entry])
   assert_eq(@buslane.verify_program(specialized.program()).diagnostics, [])
   guard specialized.program().terms
     is [
@@ -662,7 +662,7 @@ test "callable planner reaches a local recursive group with lexical bindings" {
     parameter: outer_effect,
     argument: log_argument,
   }
-  let plan = plan_effect_specializations(program, entry)
+  let plan = plan_effect_specializations(program, [entry])
   assert_eq(plan, {
     callable_demands: [
       Specialize(TopLevel(outer), ambient_bindings=[], instance_bindings=[
@@ -741,7 +741,7 @@ test "callable planner retains and specializes one local definition" {
       ),
     ],
   }
-  assert_eq(plan_effect_specializations(program, entry), {
+  assert_eq(plan_effect_specializations(program, [entry]), {
     callable_demands: [
       RetainGeneric(Local(owner=entry, value=local_function), []),
       Specialize(

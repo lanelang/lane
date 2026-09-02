@@ -42,7 +42,7 @@ fn lower_conformance_program_to_physical(
         externals,
         entries: [entry],
       },
-      entry,
+      [{ entry, name: "_start", }],
       conformance_execution_profile(),
     ) {
     Ok(executable) => executable

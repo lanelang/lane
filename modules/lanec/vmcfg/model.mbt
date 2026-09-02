@@ -283,7 +283,7 @@ pub(all) enum FunctionEntry {
 
 ///|
 pub(all) struct Image {
-  entry : @physical.FunctionId
+  exports : Array[@physical.PhysicalExport]
   initializer : @physical.FunctionId?
   functions : Array[FunctionEntry]
   data_family_count : Int

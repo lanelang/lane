@@ -59,7 +59,7 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
   }
   let specialized = @effect_specialization.specialize(
     program.certify().unwrap(),
-    entry,
+    [entry],
   )
   // The generic original is no longer a term but is still in the registry.
   guard metadata.value_info(generic) is Some(_) else {
@@ -69,7 +69,7 @@ test "monadic lift preserves a replaced generic declaration's metadata" {
   let mut lifted_verification = None
   let lowered = lower_effects(
     specialized,
-    entry,
+    [entry],
     Some(stage => {
       if stage is MonadicContinuationsLifted(lifted) {
         lifted_generic_type = lifted.program().program().metadata
@@ -338,7 +338,7 @@ fn assert_cps_stage_entry_effect(
   ignore(
     lower_effects(
       source.certify().unwrap(),
-      entry,
+      [entry],
       Some(stage => {
         match stage {
           MonadicContinuationsLifted(program) =>

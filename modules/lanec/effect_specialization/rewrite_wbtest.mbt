@@ -73,7 +73,7 @@ test "reachable local effect-generic functions specialize in lexical scope" {
     Ok(program) => program
     Err(result) => abort("invalid test input: \{Repr(result)}")
   }
-  let specialized = specialize(verified, entry)
+  let specialized = specialize(verified, [entry])
   guard specialized.program().terms is [Let(_, Function({ body, .. }))] &&
     body is Let(captured_target, Literal(Unit), nested) &&
     nested
@@ -141,7 +141,7 @@ test "reachable effect applications create concrete callable instances" {
       ]),
     ],
   }
-  let specialized = specialize(program.certify().unwrap(), entry)
+  let specialized = specialize(program.certify().unwrap(), [entry])
   guard specialized.program().terms
     is [LetRec([instance]), LetRec(entry_bindings)] else {
     abort("expected one specialized callable and one retained entry")
@@ -240,7 +240,7 @@ test "runtime polymorphism propagates through symbolic effect forwarding" {
       ]),
     ],
   }
-  let specialized = specialize(program.certify().unwrap(), entry)
+  let specialized = specialize(program.certify().unwrap(), [entry])
   assert_eq(@buslane.verify_program(specialized.program()).diagnostics, [])
   guard specialized.program().terms is [LetRec(bindings)] else {
     abort("expected every symbolic forwarding definition to be retained")
@@ -302,7 +302,7 @@ test "unreachable bare references do not retain effect-polymorphic definitions" 
     Ok(program) => program
     Err(result) => abort("invalid test input: \{Repr(result)}")
   }
-  let specialized = specialize(verified, entry)
+  let specialized = specialize(verified, [entry])
   guard specialized.program().terms
     is [LetRec([instance]), LetRec([entry_binding])] else {
     abort("expected dead references to leave one concrete specialization")
@@ -437,7 +437,7 @@ test "handler residual effects specialize before answer-type CPS" {
     Ok(program) => program
     Err(result) => abort("invalid test input: \{Repr(result)}")
   }
-  let specialized = specialize(verified, entry)
+  let specialized = specialize(verified, [entry])
   guard specialized.program().terms is [LetRec([instance]), LetRec(_)] &&
     instance.rhs is Function(function) &&
     function.body is Handle(handle) &&
@@ -532,7 +532,7 @@ test "effect specialization rewrites retained declarations that name a specializ
       ),
     ],
   }
-  assert_eq(plan_effect_specializations(program, entry), {
+  assert_eq(plan_effect_specializations(program, [entry]), {
     callable_demands: [],
     retained_top_terms: [RetainedLet(source_index=0, value=entry)],
     retained_declarations: [DataConstructor(make_holder)],
@@ -553,7 +553,7 @@ test "effect specialization rewrites retained declarations that name a specializ
   })
   let source_type_count = metadata.types.length()
   let source_constructor_count = metadata.data_constructors.length()
-  let specialized = specialize(program.certify().unwrap(), entry)
+  let specialized = specialize(program.certify().unwrap(), [entry])
   assert_eq(metadata.types.length(), source_type_count)
   assert_eq(metadata.data_constructors.length(), source_constructor_count)
   assert_eq(

@@ -149,8 +149,7 @@ fn core_expression_call_count(expression : @buslane.Expr) -> Int {
 ///|
 fn prune_unreachable(
   program : @buslane.Program,
-  entry : @buslane.ValueId,
   roots : Array[@buslane.ValueId],
 ) -> @buslane.Program {
-  @occurrence.retain_reachable_top_terms(program, [entry] + roots)
+  @occurrence.retain_reachable_top_terms(program, roots)
 }

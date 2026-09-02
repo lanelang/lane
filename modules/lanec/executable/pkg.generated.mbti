@@ -3,6 +3,7 @@ package "Milky2018/lanec/executable"
 
 import {
   "Milky2018/buslane",
+  "Milky2018/lane_wasm_abi",
   "Milky2018/lanec/core_opt",
   "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/effect_specialization",
@@ -13,12 +14,17 @@ import {
 }
 
 // Values
-pub fn elaborate(@link.LinkedProgram, @buslane_lowering.BuslaneEntry, ExecutionProfile) -> Result[ExecutableProgram, ExecutableElaborationError]
+pub fn elaborate(@link.LinkedProgram, Array[ExportRequest], ExecutionProfile) -> Result[ExecutableProgram, ExecutableElaborationError]
 
-pub fn elaborate_observed(@link.LinkedProgram, @buslane_lowering.BuslaneEntry, ExecutionProfile, (ExecutableElaborationStage) -> Unit) -> Result[ExecutableProgram, ExecutableElaborationError]
+pub fn elaborate_observed(@link.LinkedProgram, Array[ExportRequest], ExecutionProfile, (ExecutableElaborationStage) -> Unit) -> Result[ExecutableProgram, ExecutableElaborationError]
+
+pub fn executable_export(entry~ : @buslane_lowering.BuslaneEntry, name~ : String, parameters~ : Array[@lane_wasm_abi.ExportParameter], result~ : @lane_wasm_abi.ExportResult) -> ExecutableExport
 
 // Errors
 pub(all) suberror ExecutableElaborationError {
+  NoExports
+  DuplicateExportName(String)
+  ReservedExportName(String)
   EntryNotLinked(@buslane.ValueId)
   EntryAdmissionRejected(value~ : @buslane.ValueId, type_~ : @buslane.Type, reason~ : EntryAdmissionFailure)
   EntryTypeNormalizationCompilerDefect(@buslane.TypeNormalizationError)
@@ -34,8 +40,8 @@ pub fn ExecutableElaborationError::to_repr(Self) -> @debug.Repr
 // Types and methods
 pub(all) enum EntryAdmissionFailure {
   NotFunction
-  HasParameters(count~ : Int)
-  ReturnsNonUnit(result~ : @buslane.Type)
+  UnsupportedParameter(index~ : Int, type_~ : @buslane.Type)
+  UnsupportedResult(result~ : @buslane.Type)
   HasUnsupportedEffects(effects~ : Array[@buslane.Effect])
 } derive(Eq, @debug.Debug)
 pub fn EntryAdmissionFailure::equal(Self, Self) -> Bool
@@ -50,10 +56,22 @@ pub(all) enum ExecutableElaborationStage {
   CpsCoreOptimized(@effect_lowering.CpsCoreProgram)
 }
 
+pub struct ExecutableExport {
+  entry : @buslane_lowering.BuslaneEntry
+  name : String
+  parameters : Array[@lane_wasm_abi.ExportParameter]
+  result : @lane_wasm_abi.ExportResult
+} derive(Eq, @debug.Debug)
+pub fn ExecutableExport::contract(Self) -> @lane_wasm_abi.ExportContract
+pub fn ExecutableExport::entry(Self) -> @buslane_lowering.BuslaneEntry
+pub fn ExecutableExport::name(Self) -> String
+pub fn ExecutableExport::parameters(Self) -> Array[@lane_wasm_abi.ExportParameter]
+pub fn ExecutableExport::result(Self) -> @lane_wasm_abi.ExportResult
+
 pub(all) struct ExecutableProgram {
   cps_core : @effect_lowering.CpsCoreProgram
   externals : @buslane_lowering.BuslaneExternalMap
-  entry : @buslane_lowering.BuslaneEntry
+  exports : Array[ExecutableExport]
   retained_values : Array[@buslane.ValueId]
 } derive(Eq, @debug.Debug)
 pub fn ExecutableProgram::equal(Self, Self) -> Bool
@@ -69,6 +87,11 @@ pub fn ExecutionProfile::equal(Self, Self) -> Bool
 pub fn ExecutionProfile::new(builtin_effects~ : Array[@buslane.BuiltinEffect], supports_external_effects~ : Bool) -> Self
 pub fn ExecutionProfile::not_equal(Self, Self) -> Bool
 pub fn ExecutionProfile::to_repr(Self) -> @debug.Repr
+
+pub(all) struct ExportRequest {
+  entry : @buslane_lowering.BuslaneEntry
+  name : String
+} derive(Eq, @debug.Debug)
 
 // Type aliases
 

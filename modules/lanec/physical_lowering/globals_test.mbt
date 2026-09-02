@@ -20,7 +20,7 @@ fn lower_test_linked_program_to_physical(
         externals,
         entries: [entry],
       },
-      entry,
+      [{ entry, name: "_start", }],
       @executable.ExecutionProfile::new(
         builtin_effects=[Io, Panic],
         supports_external_effects=true,
@@ -122,7 +122,7 @@ test "executable lowering emits reachable instance globals in source order" {
     Ok(image) => image
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  assert_eq(image.entry, { value: 3, })
+  assert_eq(image.exports[0].function(), { value: 3, })
   assert_eq(image.initializer, Some({ value: 4, }))
   assert_eq(image.globals, [
     {
@@ -274,7 +274,14 @@ test "executable initializer materializes function-valued data fields" {
     lower_executable_program_to_physical({
       cps_core,
       externals: { builtins: [], runtime_imports: [], },
-      entry,
+      exports: [
+        @executable.executable_export(
+          entry~,
+          name="_start",
+          parameters=[],
+          result=Unit,
+        ),
+      ],
       retained_values: [helper, consume, stored, main],
     }) {
     Ok(image) => image.image()

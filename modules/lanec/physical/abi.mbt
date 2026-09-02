@@ -77,6 +77,44 @@ pub fn runtime_import_callable_abi(
 }
 
 ///|
+pub fn wasm_export_callable_abi(
+  export_ : @wasm_abi.ExportContract,
+) -> CallableAbi {
+  let parameters = []
+  for parameter in export_.parameters {
+    if parameter is Direct(type_) {
+      parameters.push(core_value_abi(type_))
+    }
+  }
+  CallableAbi::from_value_abis(
+    [],
+    parameters,
+    match export_.result {
+      Unit => Unit
+      Direct(type_) => core_value_abi(type_).result_abi()
+    },
+  )
+}
+
+///|
+fn ValueAbi::is_wasm_export_value(self : ValueAbi) -> Bool {
+  self.cleanup is Trivial && self.kind is ScalarValue
+}
+
+///|
+pub fn CallableAbi::is_wasm_export_abi(self : CallableAbi) -> Bool {
+  guard self.witnesses.is_empty() else { return false }
+  for parameter in self.parameters {
+    guard parameter.is_wasm_export_value() else { return false }
+  }
+  match self.result {
+    Unit => true
+    Value(representation, cleanup, kind) =>
+      ({ representation, cleanup, kind, } : ValueAbi).is_wasm_export_value()
+  }
+}
+
+///|
 pub fn FunctionEntry::callable_abi(self : FunctionEntry) -> CallableAbi? {
   match self {
     PhysicalBody(body) => body.callable_abi()

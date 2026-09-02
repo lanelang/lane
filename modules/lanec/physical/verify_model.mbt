@@ -59,7 +59,20 @@ fn PhysicalProgramVerifier::verify(
       self.fail(Function(function), "function ABI is missing from the table")
     }
   }
-  self.verify_root_function(self.image.entry, "selected entry")
+  if self.image.exports.is_empty() {
+    self.fail(image_site, "physical program must have at least one export")
+  }
+  let export_names = []
+  for export_ in self.image.exports {
+    if export_.name() == "memory" {
+      self.fail(image_site, "physical export name `memory` is reserved")
+    }
+    if export_names.contains(export_.name()) {
+      self.fail(image_site, "physical export names must be unique")
+    }
+    export_names.push(export_.name())
+    self.verify_export(export_)
+  }
   match self.image.initializer {
     Some(initializer) =>
       self.verify_root_function(initializer, "instance initializer")
@@ -444,6 +457,28 @@ fn PhysicalProgramVerifier::verify_root_function(
         )
       }
     RuntimeImport(_) => self.fail(site, "\{what} must be a physical body")
+  }
+}
+
+///|
+fn PhysicalProgramVerifier::verify_export(
+  self : PhysicalProgramVerifier,
+  export_ : PhysicalExport,
+) -> Unit raise PhysicalProgramVerificationError {
+  let site = PhysicalVerificationSite::Image
+  match self.function_entry(site, export_.function()) {
+    PhysicalBody(body) => {
+      if body.inputs.environment is Some(_) {
+        self.fail(site, "exported function must not require an environment")
+      }
+      guard body.callable_abi() is Some(actual) else {
+        self.fail(site, "exported function has an invalid physical ABI")
+      }
+      guard actual.is_wasm_export_abi() else {
+        self.fail(site, "exported function has no stable Core Wasm ABI")
+      }
+    }
+    RuntimeImport(_) => self.fail(site, "export must name a physical body")
   }
 }
 

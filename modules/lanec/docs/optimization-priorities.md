@@ -286,7 +286,11 @@ to 15 because the verifier now rejects non-canonical initialization order.
 
 ### 5. Make instance-global cleanup data-driven
 
-Normal and exceptional cleanup currently unroll one conditional release per
+This historical optimization was superseded by ADR-0143. Instance Globals now
+have WebAssembly instance lifetime: initialization runs in the module start
+section, and public export wrappers emit no return-time global cleanup.
+
+The removed implementation unrolled one conditional release per
 global. Replace the generated linear code with a compact shared loop over the
 Instance Root Table and cleanup metadata. The loop must preserve reverse
 initialization order and the cleanup guarantees of ADR-0113. Removing the

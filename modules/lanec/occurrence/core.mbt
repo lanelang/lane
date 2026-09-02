@@ -1,7 +1,6 @@
 ///|
 pub(all) struct OccurrenceInput {
   program : @buslane.Program
-  entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
 } derive(Debug, Eq)
 
@@ -14,12 +13,11 @@ pub(all) struct ValueOccurrenceFact {
   escapes : Bool
   used_in_effectful_context : Bool
   has_incomplete_type_application : Bool
-  reachable_from_entry : Bool
+  reachable : Bool
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct OccurrenceSummary {
-  entry : @buslane.ValueId
   roots : Array[@buslane.ValueId]
   facts : Array[ValueOccurrenceFact]
 } derive(Debug, Eq)
@@ -41,8 +39,8 @@ priv struct OccurrenceAnalyzer {
 pub fn analyze(input : OccurrenceInput) -> OccurrenceSummary {
   let analyzer = OccurrenceAnalyzer::from_program(input.program)
   analyzer.record_occurrences()
-  analyzer.record_reachability([input.entry] + input.roots)
-  { entry: input.entry, roots: input.roots, facts: analyzer.facts, }
+  analyzer.record_reachability(input.roots)
+  { roots: input.roots, facts: analyzer.facts, }
 }
 
 ///|
@@ -80,7 +78,7 @@ pub fn analyze_program(
   program : @buslane.Program,
   entry : @buslane.ValueId,
 ) -> OccurrenceSummary {
-  analyze({ program, entry, roots: [], })
+  analyze({ program, roots: [entry], })
 }
 
 ///|
@@ -118,7 +116,7 @@ fn ValueOccurrenceFact::empty(id : @buslane.ValueId) -> ValueOccurrenceFact {
     escapes: false,
     used_in_effectful_context: false,
     has_incomplete_type_application: false,
-    reachable_from_entry: false,
+    reachable: false,
   }
 }
 
@@ -147,7 +145,7 @@ fn OccurrenceAnalyzer::value_is_reachable(
   value : @buslane.ValueId,
 ) -> Bool {
   match self.facts.get(value.index) {
-    Some(fact) => fact.reachable_from_entry
+    Some(fact) => fact.reachable
     None => false
   }
 }
@@ -268,10 +266,10 @@ fn OccurrenceAnalyzer::mark_reachable(
   id : @buslane.ValueId,
 ) -> Unit {
   guard self.facts.get(id.index) is Some(fact) else { return }
-  if fact.reachable_from_entry {
+  if fact.reachable {
     return
   }
-  self.facts[id.index] = { ..fact, reachable_from_entry: true, }
+  self.facts[id.index] = { ..fact, reachable: true, }
   if self.top_definition(id) is Some(rhs) {
     self.mark_reachable_expr(rhs, 0)
   }
@@ -397,8 +395,8 @@ fn OccurrenceAnalyzer::mark_reachable_value(
 ) -> Unit {
   self.ensure_fact(id)
   guard self.facts.get(id.index) is Some(fact) else { return }
-  if !fact.reachable_from_entry {
-    self.facts[id.index] = { ..fact, reachable_from_entry: true, }
+  if !fact.reachable {
+    self.facts[id.index] = { ..fact, reachable: true, }
   }
 }
 

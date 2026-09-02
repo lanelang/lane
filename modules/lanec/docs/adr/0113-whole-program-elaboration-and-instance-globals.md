@@ -1,6 +1,11 @@
 # Whole-program elaboration and instance globals
 
-Lane inserts Whole-Program Elaboration between linked Buslane and LoisVM execution-image lowering. It accepts a linked program and selected entry and produces one Executable Program containing closed effect-aware CPS Core, externals, the selected entry, and an Initializer Retention Root Set. CPS Core terms remain the sole owner of initializer bodies and source order. LoisVM lowering consumes this product rather than the linked program, entry, and external map as parallel inputs.
+> The single selected-entry and initializer-entry-cleanup lifecycle described
+> here is superseded by ADR-0143. Whole-Program Elaboration now consumes a
+> complete requested export root set, and retained initialization executes via
+> the WebAssembly start section at instance creation.
+
+Lane inserts Whole-Program Elaboration between linked Buslane and Physical lowering. It accepts a linked program and a complete requested export set and produces one Executable Program containing closed effect-aware CPS Core, externals, certified exports, and an Initializer Retention Root Set. CPS Core terms remain the sole owner of initializer bodies and source order. Physical lowering consumes this product rather than reconstructing roots from the linked program.
 
 The target-independent `lanec/executable` package owns Whole-Program Elaboration and the Executable Program model. Execution-image targets such as `lanec/loisvm_lowering` depend on this package. The executable package does not depend on LoisVM bytecode, VM CFG, Wasm, or another execution-image target.
 
@@ -10,17 +15,17 @@ The resulting dependency direction is `module/compile -> module/link`, `executab
 
 Lane type checking requires the empty effect for top-level `let` initializers. Whole-Program Elaboration treats the selected entry as the semantic root and retains only the transitive top-level initializer dependencies reachable from that entry. Required initializers remain in linked declaration order. Unreachable pure initialization is not part of the selected executable instance, so its allocation, divergence, resource exhaustion, or fatal primitive condition is not observed by that instance.
 
-Whole-Program Elaboration computes selected-entry reachability while effect and top-level binding information remain available, records only the retained initializer ValueIds, and then runs effect-aware core optimization. The selected entry remains its own typed field and is not repeated in a root variant. Execution Image Reachability Collection belongs to the subsequent lowering pipeline. LoisVM lowering supplies those roots to occurrence analysis and scans Runtime ANF terms once in canonical term order to produce initializer steps. It does not reconstruct a second schedule or copy initializer expressions. This keeps startup semantics in the Buslane-level Executable Program while leaving scheduling and code-generation selection with the execution-image target.
+Whole-Program Elaboration computes export-set reachability while effect and top-level binding information remain available, records only the retained initializer ValueIds, and then runs effect-aware core optimization. Each export carries its admitted Core Wasm contract. Physical lowering supplies the complete root set to occurrence analysis and scans Runtime ANF terms once in canonical term order to produce initializer steps. It does not reconstruct a second schedule or copy initializer expressions.
 
-LoisVM bytecode contains an ordered Instance Global table and an optional Instance Initializer `FunctionId`. A dynamic Instance Global requires an initializer. The initializer is a bytecode body with no context, layout witnesses, user parameters, or result value. It initializes non-companion globals in table order; an `OwnedErased` owner initializes its immediately preceding companion atomically. Execution runs the initializer exactly once before the selected entry; an image without dynamic globals may omit it.
+The Physical Program contains an ordered Instance Global table and an optional Instance Initializer `FunctionId`. A dynamic Instance Global requires an initializer. The initializer has no context, layout witnesses, user parameters, or result value. It initializes non-companion globals in table order; an `OwnedErased` owner initializes its immediately preceding companion atomically. Wasm emission installs a private wrapper as the module start function; an image without retained initialization omits it.
 
 Each Instance Global records the same erased representation and cleanup category used by a local slot. An `OwnedErased` global has an immutable companion Instance Global containing its `LayoutId`. Bytecode can initialize a global exactly once by consuming a local owner into it and can borrow an initialized global into a local slot. Bytecode has no general global mutation, swap, or consuming global load. A later consuming or escaping use of a borrowed global value requires compiler-inserted retain-copy in the ordinary ARC insertion pipeline.
 
-The verifier proves initialization as a canonical table-order prefix, rejects an out-of-order or duplicate initialization, proves every borrow observes an initialized prefix, and requires the complete prefix at every normal initializer return. Execution tiers consume that proof rather than repeating per-operation guards. If initialization fails, the selected entry is not called and the single-shot instance is discarded. Owned globals are released in reverse initialization order only on normal completion; fatal failure and interruption do not install a recovery cleanup path.
+The verifier proves initialization as a canonical table-order prefix, rejects an out-of-order or duplicate initialization, proves every borrow observes an initialized prefix, and requires the complete prefix at every normal initializer return. Wasm emission consumes that proof rather than repeating per-operation guards. Failed initialization fails instantiation, so no export becomes observable. Instance Globals remain owned by the WebAssembly instance and are discarded with it; Lane does not generate a second export-return cleanup lifecycle.
 
-Creating an execution instance allocates only uninitialized per-instance state. Its single execution attempt runs initializer, selected entry, and global cleanup under one RuntimeContext and one set of cancellation and live-heap limits. Instance globals therefore belong to the Single-Shot Execution Instance rather than the reusable Loaded Executable Image.
+Creating a WebAssembly instance materializes static state and executes the initializer through the module start section. Export calls happen only after successful instantiation. Instance Globals belong to that instance rather than the reusable loaded module and may be observed by any exported function.
 
-The Wasm tier does not map heterogeneous Lane values to Wasm globals and does not add a Wasm start function. It stores globals in a linear-memory Instance Root Table owned by the execution instance. The exported `"lane.entry"` wrapper performs initializer invocation, selected-entry invocation, and cleanup. Static image bytes, immutable allocator constants, and active data or element segments retain their existing declarative-instantiation role.
+The Wasm tier does not map heterogeneous Lane values to Wasm globals. It stores them in a linear-memory Instance Root Table owned by the WebAssembly instance. A private start wrapper invokes the initializer. Public export wrappers only project the admitted Core Wasm ABI and call their shared Physical function. Static image bytes, immutable allocator constants, and active data or element segments retain their declarative-instantiation role.
 
 A scalar external used to initialize a Lane global is represented as a zero-argument runtime import invoked by the Instance Initializer. The current bytecode format restricts its result to the supported primitive host ABI; richer host-owned values require a later decision.
 
@@ -33,14 +38,13 @@ ADR-0114 records the historical introduction of the exact table order, GlobalId 
 - The independent `lanec/executable` package owns this seam and remains target-independent.
 - The independent `lanec/module/link` package owns Linked Program construction and the link model.
 - Compilation orchestration, executable elaboration, and LoisVM lowering follow a one-way dependency graph.
-- Whole-Program Elaboration retains only selected-entry-reachable initializer dependencies.
-- Executable Program stores initializer ValueIds but no copied initializer bodies, indices, or entry root.
+- Whole-Program Elaboration retains only export-set-reachable initializer dependencies.
+- Executable Program stores initializer ValueIds and certified exports but no copied initializer bodies or schedule.
 - Execution Image Lowering owns transitive function, external, and runtime-import reachability collection.
 - Runtime ANF term order is the sole source of retained top-level initializer execution order.
 - Instance Globals are immutable after one consuming initialization.
 - Global reads borrow; ARC insertion owns any required retained copies.
-- Initialized globals are roots outside ordinary call frames and are released in reverse initialization order.
-- Initialization failure prevents selected-entry execution.
-- Interpreter and Wasm execution share one initializer-entry-cleanup lifecycle.
-- Wasm output keeps declarative instantiation and has no start function.
-- LoisVM bytecode carries globals and the optional initializer in every current-format image.
+- Initialized globals are roots outside ordinary call frames and live for the WebAssembly instance lifetime.
+- Initialization failure prevents the instance and all of its exports from becoming observable.
+- Wasm output uses the module start section for retained initialization.
+- Public export wrappers do not own initialization or instance cleanup.

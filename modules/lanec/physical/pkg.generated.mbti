@@ -8,6 +8,8 @@ import {
 }
 
 // Values
+pub fn physical_export(function~ : FunctionId, name~ : String) -> PhysicalExport
+
 pub fn physical_program_to_code(PhysicalProgram) -> String
 
 pub fn physical_program_to_disassembly(PhysicalProgram) -> String
@@ -19,6 +21,8 @@ pub fn statically_known_object_shape(Array[ObjectShape], SemanticValueKind) -> O
 pub fn verify_physical_program(PhysicalProgram) -> Result[Unit, PhysicalProgramVerificationError]
 
 pub fn verify_physical_program_for_execution(PhysicalProgram) -> Result[VerifiedPhysicalProgram, PhysicalProgramVerificationError]
+
+pub fn wasm_export_callable_abi(@lane_wasm_abi.ExportContract) -> CallableAbi
 
 // Errors
 pub(all) suberror PhysicalProgramVerificationError {
@@ -58,6 +62,7 @@ pub(all) struct CallableAbi {
 pub fn CallableAbi::accepts_callsite(Self, Self) -> Bool
 pub fn CallableAbi::equal(Self, Self) -> Bool
 pub fn CallableAbi::from_slot_metadata(Array[SlotMetadata], Array[SlotMetadata], ResultAbi) -> Self
+pub fn CallableAbi::is_wasm_export_abi(Self) -> Bool
 pub fn CallableAbi::not_equal(Self, Self) -> Bool
 pub fn CallableAbi::to_repr(Self) -> @debug.Repr
 
@@ -405,8 +410,15 @@ pub fn ObjectShapeId::op_le(Self, Self) -> Bool
 pub fn ObjectShapeId::op_lt(Self, Self) -> Bool
 pub fn ObjectShapeId::to_repr(Self) -> @debug.Repr
 
+pub struct PhysicalExport {
+  function : FunctionId
+  name : String
+} derive(Eq, @debug.Debug)
+pub fn PhysicalExport::function(Self) -> FunctionId
+pub fn PhysicalExport::name(Self) -> String
+
 pub(all) struct PhysicalProgram {
-  entry : FunctionId
+  exports : Array[PhysicalExport]
   initializer : FunctionId?
   callable_abis : Array[CallableAbi]
   data_family_count : Int

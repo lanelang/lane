@@ -152,13 +152,13 @@ priv struct EffectSpecializer {
 ///|
 pub fn specialize(
   verified : @buslane.VerifiedProgram,
-  entry : @buslane.ValueId,
+  roots : Array[@buslane.ValueId],
 ) -> @buslane.VerifiedProgram raise SpecializationError {
   let program = verified.program()
   let definitions = collect_effect_generic_definitions(program)
   let planned_definitions = collect_plannable_definitions(program)
   let plan = plan_effect_specializations_with_definitions(
-    program, entry, planned_definitions,
+    program, roots, planned_definitions,
   )
   let specializer = EffectSpecializer::{
     program,
@@ -168,14 +168,16 @@ pub fn specialize(
     data_instances: [],
     plan,
   }
-  if specializer.find_definition(entry) is Some(_) {
-    raise UnsupportedProgram(
-      specialization_error_context(
-        "an executable entry cannot retain effect parameters",
-        site=TopLevel(entry),
-        source=Value(entry),
-      ),
-    )
+  for root in roots {
+    if specializer.find_definition(root) is Some(_) {
+      raise UnsupportedProgram(
+        specialization_error_context(
+          "an executable export cannot retain effect parameters",
+          site=TopLevel(root),
+          source=Value(root),
+        ),
+      )
+    }
   }
   specializer.allocate_data_instances()
   specializer.allocate_callable_instances()

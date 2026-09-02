@@ -18,7 +18,14 @@ fn lower_unoptimized_test_program(
   @physical_lowering.lower_executable_program_to_physical({
     cps_core,
     externals,
-    entry,
+    exports: [
+      @executable.executable_export(
+        entry~,
+        name="_start",
+        parameters=[],
+        result=Unit,
+      ),
+    ],
     retained_values,
   }).map(verified => verified.image())
 }

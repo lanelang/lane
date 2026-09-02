@@ -47,7 +47,8 @@ test "empty data match lowers to unreachable physical control flow" {
     Ok(value) => value
     Err(error) => fail("lowering failed: \{Repr(error)}")
   }
-  guard image.functions[image.entry.value - 1] is PhysicalBody(main_body) else {
+  guard image.functions[image.exports[0].function().value - 1]
+    is PhysicalBody(main_body) else {
     fail("expected the entry to select the main physical body")
   }
   assert_true(main_body.blocks.any(block => block.terminator is Unreachable))

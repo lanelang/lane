@@ -27,10 +27,10 @@ test "unsupported source programs have a distinct specialization error" {
       ),
     ],
   }
-  try specialize(program.certify().unwrap(), entry) catch {
+  try specialize(program.certify().unwrap(), [entry]) catch {
     UnsupportedProgram(context) =>
       assert_eq(context, {
-        detail: "an executable entry cannot retain effect parameters",
+        detail: "an executable export cannot retain effect parameters",
         site: Some(TopLevel(entry)),
         source: Some(Value(entry)),
         specialization_key: [],

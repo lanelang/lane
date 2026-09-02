@@ -29,7 +29,7 @@ fn direct_import_test_image() -> @physical.PhysicalProgram {
     ],
   }
   {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     callable_abis: [
       { witnesses: [], parameters: [], result: Unit, },

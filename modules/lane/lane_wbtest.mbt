@@ -1,6 +1,6 @@
 ///|
-fn main_entry_name() -> PublicEntryName {
-  { module_path_text: "Main", value_name: "main", }
+fn main_export_request() -> PublicExportRequest {
+  { module_path_text: "Main", value_name: "main", wasm_name: "_start", }
 }
 
 ///|
@@ -31,27 +31,6 @@ test "reject run target without entry suffix" {
       #|
       #|Example:
       #|  lane run Main.lane:main
-    ),
-  )
-}
-
-///|
-test "reject exec target with entry suffix" {
-  let error = InvalidExecTarget(target="program.wasm:Main.main")
-  debug_inspect(
-    error,
-    content="InvalidExecTarget(target=\"program.wasm:Main.main\")",
-  )
-  inspect(
-    error.render_human(),
-    content=(
-      #|error[E6008]: invalid exec target `program.wasm:Main.main`
-      #|  expected: FILE.wasm
-      #|
-      #|`lane exec` executes the entry selected when the WebAssembly module was linked.
-      #|
-      #|Example:
-      #|  lane exec program.wasm
     ),
   )
 }
@@ -456,7 +435,7 @@ async test "exec executes explicit Basic Io linked input" {
   }
   guard lane_link(
       [main_object, basic_object, abi_object],
-      main_entry_name(),
+      [main_export_request()],
       program_path,
       false,
     )
@@ -474,6 +453,7 @@ async test "exec executes explicit Basic Io linked input" {
   let output : Array[Byte] = []
   guard execute_wasm_with_wasi_stdout(
       wasm,
+      "_start",
       Some(bytes => output.append(bytes.to_array())),
     )
     is Succeeded else {
@@ -482,6 +462,121 @@ async test "exec executes explicit Basic Io linked input" {
   }
   cleanup_library_fixture(workspace)
   assert_eq(Bytes::from_array(output), b"hello\n")
+}
+
+///|
+async test "link preserves multiple named exports and shares aliases" {
+  let workspace = ".tmp-lane-multiple-exports"
+  let source = "\{workspace}/Main.lane"
+  let interface = "\{workspace}/Main.lmi"
+  let object = "\{workspace}/Main.lmo"
+  let program = "\{workspace}/program.wasm"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  write_source_file(
+    source,
+    (
+      #|module Main
+      #|pub fn identity(value : I32) -> I32 { value }
+      #|pub fn identity_i64(value : I64) -> I64 { value }
+      #|pub fn identity_f32(value : F32) -> F32 { value }
+      #|pub fn identity_f64(value : F64) -> F64 { value }
+      #|pub fn constant(_value : I32) -> I32 { 7i32 }
+      #|pub fn unit_arg(_value : Unit) -> Unit { () }
+    ),
+  )
+  guard lane_compile(source, [], interface, object, false) is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected compile to succeed")
+  }
+  let exports = [
+    { module_path_text: "Main", value_name: "identity", wasm_name: "identity", },
+    {
+      module_path_text: "Main",
+      value_name: "identity_i64",
+      wasm_name: "identity_i64",
+    },
+    {
+      module_path_text: "Main",
+      value_name: "identity_f32",
+      wasm_name: "identity_f32",
+    },
+    {
+      module_path_text: "Main",
+      value_name: "identity_f64",
+      wasm_name: "identity_f64",
+    },
+    { module_path_text: "Main", value_name: "constant", wasm_name: "constant", },
+    { module_path_text: "Main", value_name: "identity", wasm_name: "again", },
+    { module_path_text: "Main", value_name: "unit_arg", wasm_name: "unit_arg", },
+  ]
+  guard lane_link([object], exports, program, false) is Succeeded else {
+    cleanup_library_fixture(workspace)
+    abort("expected multi-export link to succeed")
+  }
+  let wasm = match read_wasm_executable(program) {
+    Ok(wasm) => wasm
+    Err(error) => {
+      cleanup_library_fixture(workspace)
+      abort(error.render_human())
+    }
+  }
+  let loaded = match @lane_wasm_runtime.load_wasm(wasm, mode=Interpreter) {
+    Ok(loaded) => loaded
+    Err(error) => {
+      cleanup_library_fixture(workspace)
+      abort("expected linked Wasm to load: \{Repr(error)}")
+    }
+  }
+  let function_exports = loaded.wasm_module().exports.filter_map(export_ => {
+    if export_.desc is Func(index) {
+      Some((export_.name, index))
+    } else {
+      None
+    }
+  })
+  let module_ = loaded.wasm_module()
+  let imported_function_types = module_.imports.filter_map(import_ => {
+    if import_.desc is Func(type_index) {
+      Some(type_index)
+    } else {
+      None
+    }
+  })
+  let function_types = function_exports.map(export_ => {
+    let index = export_.1
+    let type_index = if index < imported_function_types.length() {
+      imported_function_types[index]
+    } else {
+      module_.funcs[index - imported_function_types.length()]
+    }
+    (export_.0, module_.validated_func_type_at(type_index))
+  })
+  let execution = execute_wasm(wasm, "identity", no_jit=true)
+  let erased_unit_execution = execute_wasm(wasm, "unit_arg", no_jit=true)
+  let erased_unit_jit_execution = execute_wasm(wasm, "unit_arg")
+  cleanup_library_fixture(workspace)
+  assert_eq(function_exports.map(export_ => export_.0), [
+    "identity", "identity_i64", "identity_f32", "identity_f64", "constant", "again",
+    "unit_arg",
+  ])
+  assert_eq(function_exports[0].1, function_exports[5].1)
+  assert_true(function_exports[0].1 != function_exports[4].1)
+  assert_eq(function_types.map(item => item.1), [
+    { params: [I32], results: [I32], },
+    { params: [I64], results: [I64], },
+    { params: [F32], results: [F32], },
+    { params: [F64], results: [F64], },
+    { params: [I32], results: [I32], },
+    { params: [I32], results: [I32], },
+    { params: [], results: [], },
+  ])
+  assert_true(
+    execution is UserErrors([ExecutionFailed(EngineTrap(detail~))]) &&
+    detail.contains("requires a () -> ()"),
+  )
+  assert_true(erased_unit_execution is Succeeded)
+  assert_true(erased_unit_jit_execution is Succeeded)
 }
 
 ///|
@@ -509,7 +604,7 @@ async test "link rejects private selected entry" {
     cleanup_library_fixture(workspace)
     abort("expected compile to succeed")
   }
-  let outcome = lane_link([object], main_entry_name(), program, false)
+  let outcome = lane_link([object], [main_export_request()], program, false)
   cleanup_library_fixture(workspace)
   guard outcome is UserErrors(errors) else {
     abort("expected link to reject private entry")
@@ -545,7 +640,7 @@ async test "link rejects non-function selected entry" {
     cleanup_library_fixture(workspace)
     abort("expected compile to succeed")
   }
-  let outcome = lane_link([object], main_entry_name(), program, false)
+  let outcome = lane_link([object], [main_export_request()], program, false)
   cleanup_library_fixture(workspace)
   guard outcome is UserErrors(errors) else {
     abort("expected link to reject value entry")
@@ -553,13 +648,13 @@ async test "link rejects non-function selected entry" {
   inspect(
     errors.map(CliError::render_human).join("\n"),
     content=(
-      #|error[E6009]: entry `Main.main` is not executable
+      #|error[E6017]: entry `Main.main` cannot be exported to WebAssembly
       #|  requested type: I64
-      #|  expected: () -> Unit with only effects supported by the Lane CLI
+      #|  expected: parameters and result in Unit, I32, I64, F32, or F64
       #|
       #|The selected public entry is a value, not a function.
       #|
-      #|Export a zero-parameter `pub fn` that returns `Unit` with only `Io`, `Panic`, or closed External Effects.
+      #|Expose a public function with a stable Core WebAssembly scalar ABI and effects supported by the Lane CLI.
       #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
     ),
   )
@@ -590,7 +685,7 @@ async test "link rejects unsupported selected entry effects" {
     cleanup_library_fixture(workspace)
     abort("expected compile to succeed")
   }
-  let outcome = lane_link([object], main_entry_name(), program, false)
+  let outcome = lane_link([object], [main_export_request()], program, false)
   cleanup_library_fixture(workspace)
   guard outcome is UserErrors(errors) else {
     abort("expected link to reject unsupported effect entry")
@@ -598,30 +693,50 @@ async test "link rejects unsupported selected entry effects" {
   inspect(
     errors.map(CliError::render_human).join("\n"),
     content=(
-      #|error[E6009]: entry `Main.main` is not executable
+      #|error[E6017]: entry `Main.main` cannot be exported to WebAssembly
       #|  requested type: () -> Unit ! effect#0
-      #|  expected: () -> Unit with only effects supported by the Lane CLI
+      #|  expected: parameters and result in Unit, I32, I64, F32, or F64
       #|
       #|The selected function requires unsupported effect(s): effect#0.
       #|
-      #|Export a zero-parameter `pub fn` that returns `Unit` with only `Io`, `Panic`, or closed External Effects.
+      #|Expose a public function with a stable Core WebAssembly scalar ABI and effects supported by the Lane CLI.
       #|Use `lane inspect <artifact>` to inspect public entries and artifact metadata.
     ),
   )
 }
 
 ///|
-test "invalid link entry diagnostic explains expected public symbol form" {
+test "invalid link export diagnostic explains expected public symbol form" {
   inspect(
-    InvalidLinkEntry(entry="main").render_human(),
+    InvalidLinkExport(export_="main").render_human(),
     content=(
-      #|error[E6010]: invalid link entry `main`
-      #|  expected: Module.value
+      #|error[E6010]: invalid link export `main`
+      #|  expected: Module.value:wasm_name
       #|
-      #|`lane link` selects one exported entry before producing a WebAssembly module.
+      #|Repeat `--export` to expose multiple functions from one WebAssembly module.
       #|
       #|Example:
-      #|  lane link --entry Main.main -o program.wasm Main.lmo
+      #|  lane link --export Main.main:_start -o program.wasm Main.lmo
+    ),
+  )
+}
+
+///|
+test "link diagnoses duplicate and reserved WebAssembly export names" {
+  inspect(
+    [
+      DuplicateLinkExportName(name="answer").render_human(),
+      ReservedLinkExportName(name="memory").render_human(),
+    ].join("\n"),
+    content=(
+      #|error[E6015]: duplicate WebAssembly export name `answer`
+      #|Every public name in one WebAssembly module must be unique.
+      #|
+      #|Choose distinct names after `:` in the repeated `--export` arguments.
+      #|error[E6016]: WebAssembly export name `memory` is reserved
+      #|Lane emits the canonical linear memory under this public name.
+      #|
+      #|Choose a different name after `:` in the `--export` argument.
     ),
   )
 }
@@ -669,7 +784,7 @@ test "run rejects functions with parameters" {
     elaborate_command_entry(program, entry),
     content=(
       #|Err(
-      #|  EntryNotExecutable(
+      #|  EntryNotInvocable(
       #|    name="Test.id",
       #|    type_=Function([Primitive(I64)], Primitive(I64), Empty),
       #|    reason=HasParameters(count=1),
@@ -695,7 +810,7 @@ test "run rejects functions with non-Unit results" {
     elaborate_command_entry(program, entry),
     content=(
       #|Err(
-      #|  EntryNotExecutable(
+      #|  EntryNotInvocable(
       #|    name="Test.answer",
       #|    type_=Function([], Primitive(I64), Empty),
       #|    reason=ReturnsNonUnit(result=Primitive(I64)),
@@ -720,7 +835,9 @@ async test "run executes pure unit function entries without rendering Unit" {
   let entry = find_entry(program.entries(), "main")
   guard entry is Ok(entry) else { abort("expected entry") }
   let outcome = execute_entry(program, entry)
-  guard outcome is Succeeded else { abort("expected run entry to succeed") }
+  guard outcome is Succeeded else {
+    abort("expected run entry to succeed: \{Repr(outcome)}")
+  }
 }
 
 ///|

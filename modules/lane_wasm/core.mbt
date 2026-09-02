@@ -448,7 +448,8 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
       }
       fields.to_json()
     }
-    EntryWrapper => { "kind": "entryWrapper" }
+    InitializerWrapper => { "kind": "initializerWrapper" }
+    ExportWrapper => { "kind": "exportWrapper" }
   }
 }
 

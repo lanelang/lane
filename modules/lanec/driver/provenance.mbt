@@ -222,7 +222,8 @@ fn wasm_role(origin : @wasm_compiler.WasmFunctionOrigin) -> ExploreFunctionRole 
       RuntimeImportAdapter(module_name~, field_name~)
     RuntimeFunction(role) => WasmRuntimeFunction(name=wasm_runtime_name(role))
     HelperFunction(role) => wasm_helper_role(role)
-    EntryWrapper => EntryWrapper
+    InitializerWrapper => InitializerWrapper
+    ExportWrapper(_) => ExportWrapper
   }
 }
 
@@ -249,7 +250,6 @@ fn wasm_runtime_name(role : @wasm_compiler.WasmRuntimeFunctionRole) -> String {
     ByteBufferWriteI32 => "byte buffer write i32"
     ByteBufferWriteAddress => "byte buffer write address"
     ByteBufferReadI32 => "byte buffer read i32"
-    InstanceGlobalCleanup => "instance global cleanup"
   }
 }
 

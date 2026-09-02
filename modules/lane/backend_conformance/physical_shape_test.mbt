@@ -45,7 +45,7 @@ fn erased_reference_with_wrong_object_shape() -> @physical.PhysicalProgram {
     ],
   }
   {
-    entry: { value: 1, },
+    exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
     initializer: None,
     callable_abis: [{ witnesses: [], parameters: [], result: Unit, }],
     data_family_count: 1,

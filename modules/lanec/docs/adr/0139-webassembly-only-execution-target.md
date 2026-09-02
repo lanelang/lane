@@ -39,9 +39,9 @@ The Physical Program is compiler-private and non-persisted. It has no decoder,
 codec, public loader, or independent interpreter. The WebAssembly emitter is
 its only consumer.
 
-A linked executable artifact contains standard Wasm bytes and a semantic
-runtime-import manifest. The manifest remains explicit because core Wasm value
-types cannot preserve Lane host categories such as String and Opaque.
+A linked artifact is exactly one standard Core WebAssembly module. Its import,
+export, memory, and start sections are the complete executable contract; there
+is no outer semantic runtime-import manifest.
 
 `lane run` and `lane exec` always load the same Wasm artifact. `--no-jit`
 selects Wasmoon's interpreter; the default selects Wasmoon's JIT. Engine choice
@@ -51,8 +51,9 @@ Internal runtime helpers and runtime-control globals are identified by names
 owned by the Lane Wasm Internal Runtime ABI. The runtime must discover them
 from module imports and exports rather than reproduce compiler numeric indices.
 
-The linked-program schema advances to 17 and rejects prior bytecode-bearing
-schemas. There is no compatibility decoder or fallback execution path.
+Module interface and object schemas remain compiler artifacts. Linked output
+has no Lane schema version because it is raw WebAssembly. There is no
+compatibility decoder or fallback execution path.
 
 ## Consequences
 
@@ -65,6 +66,7 @@ schemas. There is no compatibility decoder or fallback execution path.
 - Any future execution target must be introduced as a new explicit target with
   its own artifact and ABI decision; it cannot revive the Physical Program as a
   public compatibility layer.
+- ADR-0143 defines multi-export selection and WebAssembly start semantics.
 
 ## Supersedes
 
