@@ -2,7 +2,6 @@ module Examples.Valid.DeepGenericTuple
 
 import Basic.Data.Tuple
 import Basic.Io.{ println }
-import Basic.Ops.*
 import Basic.Data.String.*
 import Basic.Data.Bool.*
 import Basic.Data.I64.*

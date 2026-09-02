@@ -3,7 +3,6 @@ module Examples.Valid.ByteBufferAllocationLifecycle
 import Basic.Builtins.{ i32_to_i64, i64_to_i32 }
 import Basic.Data.I64.*
 import Basic.Io.{ println }
-import Basic.Ops.*
 import Basic.Wasm.Abi.{ allocate, read_i32, write_i32 }
 
 fn sum_allocations(remaining : I64, total : I64) -> I64 ! Io {

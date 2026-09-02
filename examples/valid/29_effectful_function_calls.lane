@@ -1,6 +1,5 @@
 module Examples.Valid.EffectfulFunctionCalls
 
-import Basic.Ops.*
 import Basic.Data.I64.*
 import Basic.Io.{ println }
 

@@ -54,6 +54,8 @@ pub impl @prettyprinter.Pretty for CallArgument
 
 pub(all) enum CallArgumentProvenance {
   Authored
+  Operator
+  Pipeline
   Synthetic
 } derive(Eq, @debug.Debug)
 pub fn CallArgumentProvenance::equal(Self, Self) -> Bool
@@ -479,6 +481,7 @@ pub(all) struct SourceFile {
 } derive(Eq, @debug.Debug)
 pub fn SourceFile::equal(Self, Self) -> Bool
 pub fn SourceFile::first_derive_loc(Self) -> @basic.SourceSpan?
+pub fn SourceFile::first_operator_loc(Self) -> @basic.SourceSpan?
 pub fn SourceFile::not_equal(Self, Self) -> Bool
 pub fn SourceFile::pretty(Self) -> @source_prettyprinter.Document
 pub fn SourceFile::syntactic_identifier_index(Self) -> SyntacticIdentifierIndex

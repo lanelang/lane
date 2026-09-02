@@ -5,7 +5,6 @@ import Basic.Data.Void.{ Void }
 import Basic.Io.{ println }
 import Basic.Trait.Derive.{ Deriver, FieldInfo, Product, Sum, TypeInfo, VariantInfo }
 import Basic.Trait.Iso.{ Iso }
-import Basic.Ops.*
 import Basic.Data.Bool.*
 import Basic.Data.String.*
 import Basic.Data.I64.*

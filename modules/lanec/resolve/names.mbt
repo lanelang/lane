@@ -7,44 +7,52 @@ priv enum UnqualifiedNameUse {
 ///|
 fn Resolver::operator_target(
   self : Resolver,
-  scope : ResolveScope,
-  name : String,
+  provider : @abi.BasicValueProvider,
   loc : SourceSpan,
 ) -> ResolvedOperatorTarget {
-  let reference = scope.value_reference(name)
-  self.record_import_use(scope.value_import_origin(reference), loc)
-  self.report_unresolved_value(reference, loc)
-  { name, reference, }
+  self.canonical_basic_abi_demands.push({
+    provider: ValueProvider(provider),
+    loc,
+  })
+  let reference = match
+    self.canonical_basic_abi.require_value_symbol(provider) {
+    Ok(symbol) => {
+      self.record_canonical_basic_value_import_uses(symbol, loc)
+      ResolvedValueReference::Symbol(symbol)
+    }
+    Err(_) => Unresolved(provider.qualified_name())
+  }
+  { provider, name: provider.value_name(), reference, }
 }
 
 ///|
-fn @syntax.UnaryOperator::operation_name(
+fn @syntax.UnaryOperator::operator_provider(
   self : @syntax.UnaryOperator,
-) -> String {
+) -> @abi.BasicValueProvider {
   match self {
-    Neg => "op_neg"
-    Not => "op_not"
+    Neg => OpNeg
+    Not => OpNot
   }
 }
 
 ///|
-fn @syntax.BinaryOperator::operation_name(
+fn @syntax.BinaryOperator::operator_provider(
   self : @syntax.BinaryOperator,
-) -> String {
+) -> @abi.BasicValueProvider {
   match self {
-    Add => "op_add"
-    Sub => "op_sub"
-    Mul => "op_mul"
-    Div => "op_div"
-    Rem => "op_rem"
-    Equal => "op_equal"
-    NotEqual => "op_not_equal"
-    Less => "op_less"
-    LessEqual => "op_less_eq"
-    Greater => "op_greater"
-    GreaterEqual => "op_greater_eq"
-    And => "op_and"
-    Or => "op_or"
+    Add => OpAdd
+    Sub => OpSub
+    Mul => OpMul
+    Div => OpDiv
+    Rem => OpRem
+    Equal => OpEqual
+    NotEqual => OpNotEqual
+    Less => OpLess
+    LessEqual => OpLessEqual
+    Greater => OpGreater
+    GreaterEqual => OpGreaterEqual
+    And => OpAnd
+    Or => OpOr
   }
 }
 

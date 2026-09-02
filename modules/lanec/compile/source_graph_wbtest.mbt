@@ -110,17 +110,23 @@ test "compile sources accepts selective import with module dot syntax" {
 }
 
 ///|
-fn contextual_import_test_library() -> String {
-  (
-    #|module Ops
-    #|pub struct Add[A] {
-    #|  add : (A, A) -> A
-    #|}
-    #|pub fn[A] op_add(left : A, right : A, auto op : Add[A]) -> A {
-    #|  op.add(left, right)
-    #|}
-    #|pub offer i64_add_ops : Add[I64] = Add::{ add: fn(left : I64, right : I64) -> I64 { builtin("%i64_add")(left, right) } }
-  )
+fn contextual_import_test_libraries() -> Array[String] {
+  [
+    (
+      #|module Basic.Trait.Num
+      #|pub struct Add[A] {
+      #|  add : (A, A) -> A
+      #|}
+    ),
+    (
+      #|module Basic.Ops
+      #|import Basic.Trait.Num.{ Add }
+      #|pub fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
+      #|  op.add(a, b)
+      #|}
+      #|pub offer i64_add_ops : Add[I64] = Add::{ add: fn(left : I64, right : I64) -> I64 { builtin("%i64_add")(left, right) } }
+    ),
+  ]
 }
 
 ///|
@@ -128,10 +134,10 @@ test "selective import does not expose an unselected contextual offer" {
   let result = check_sources_for_test(
     (
       #|module Main
-      #|import Ops.{ op_add }
+      #|import Basic.Ops.{ op_add }
       #|pub let answer : I64 = 1 + 1
     ),
-    [contextual_import_test_library()],
+    contextual_import_test_libraries(),
   )
   debug_inspect(
     result.diagnostics,
@@ -144,8 +150,8 @@ test "selective import does not expose an unselected contextual offer" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 57,
-      #|          end_offset: 62,
+      #|          start_offset: 63,
+      #|          end_offset: 68,
       #|          start_line: 3,
       #|          start_column: 24,
       #|          end_line: 3,
@@ -160,8 +166,8 @@ test "selective import does not expose an unselected contextual offer" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 57,
-      #|            end_offset: 62,
+      #|            start_offset: 63,
+      #|            end_offset: 68,
       #|            start_line: 3,
       #|            start_column: 24,
       #|            end_line: 3,
@@ -187,10 +193,10 @@ test "qualified import does not expose a contextual offer" {
   let result = check_sources_for_test(
     (
       #|module Main
-      #|import Ops
-      #|pub let answer : I64 = Ops.op_add(1, 1)
+      #|import Basic.Ops
+      #|pub let answer : I64 = Basic.Ops.op_add(1, 1)
     ),
-    [contextual_import_test_library()],
+    contextual_import_test_libraries(),
   )
   debug_inspect(
     result.diagnostics,
@@ -203,12 +209,12 @@ test "qualified import does not expose a contextual offer" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 46,
-      #|          end_offset: 62,
+      #|          start_offset: 52,
+      #|          end_offset: 74,
       #|          start_line: 3,
       #|          start_column: 24,
       #|          end_line: 3,
-      #|          end_column: 40,
+      #|          end_column: 46,
       #|        },
       #|      ),
       #|    ),
@@ -219,12 +225,12 @@ test "qualified import does not expose a contextual offer" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 46,
-      #|            end_offset: 62,
+      #|            start_offset: 52,
+      #|            end_offset: 74,
       #|            start_line: 3,
       #|            start_column: 24,
       #|            end_line: 3,
-      #|            end_column: 40,
+      #|            end_column: 46,
       #|          },
       #|        ),
       #|        message: "auto offer parameter `op` requires `Add[I64]`, but no visible offer matches",
@@ -246,10 +252,10 @@ test "qualified offer can be passed as an explicit contextual argument" {
   let result = check_sources_for_test(
     (
       #|module Main
-      #|import Ops
-      #|pub let answer : I64 = Ops.op_add(1, 1, op=Ops.i64_add_ops)
+      #|import Basic.Ops
+      #|pub let answer : I64 = Basic.Ops.op_add(1, 1, op=Basic.Ops.i64_add_ops)
     ),
-    [contextual_import_test_library()],
+    contextual_import_test_libraries(),
   )
   debug_inspect(result.diagnostics, content="[]")
   guard result.source is Some(_) else { abort("expected checked source") }
@@ -260,10 +266,10 @@ test "selective import exposes an explicitly selected contextual offer" {
   let result = check_sources_for_test(
     (
       #|module Main
-      #|import Ops.{ op_add, i64_add_ops }
+      #|import Basic.Ops.{ op_add, i64_add_ops }
       #|pub let answer : I64 = 1 + 1
     ),
-    [contextual_import_test_library()],
+    contextual_import_test_libraries(),
   )
   debug_inspect(result.diagnostics, content="[]")
   guard result.source is Some(_) else { abort("expected checked source") }
@@ -274,10 +280,10 @@ test "open import exposes contextual offers" {
   let result = check_sources_for_test(
     (
       #|module Main
-      #|import Ops.*
+      #|import Basic.Ops.*
       #|pub let answer : I64 = 1 + 1
     ),
-    [contextual_import_test_library()],
+    contextual_import_test_libraries(),
   )
   debug_inspect(result.diagnostics, content="[]")
   guard result.source is Some(_) else { abort("expected checked source") }

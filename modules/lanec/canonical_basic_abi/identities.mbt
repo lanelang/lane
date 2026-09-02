@@ -2,12 +2,14 @@
 pub struct CanonicalBasicAbiIdentityCatalog {
   types : Map[@abi.BasicTypeProvider, @symbol.TypeSymbolId]
   variants : Map[@abi.BasicVariantProvider, @symbol.VariantSymbolId]
+  values : Map[@abi.BasicValueProvider, @symbol.ValueSymbolId]
 } derive(Debug, Eq)
 
 ///|
 pub struct CanonicalBasicAbiIdentityCatalogBuilder {
   types : Map[@abi.BasicTypeProvider, @symbol.TypeSymbolId]
   variants : Map[@abi.BasicVariantProvider, @symbol.VariantSymbolId]
+  values : Map[@abi.BasicValueProvider, @symbol.ValueSymbolId]
 }
 
 ///|
@@ -17,6 +19,7 @@ pub fn CanonicalBasicAbiIdentityCatalogBuilder::from_interfaces(
   let builder = CanonicalBasicAbiIdentityCatalogBuilder::{
     types: Map([]),
     variants: Map([]),
+    values: Map([]),
   }
   for provider in @abi.BasicTypeProvider::all() {
     guard interfaces.find(provider.module_path()) is Some(interface) else {
@@ -39,6 +42,16 @@ pub fn CanonicalBasicAbiIdentityCatalogBuilder::from_interfaces(
               builder.register_variant(provider, variant.name, variant.symbol)
             }
           }
+      }
+    }
+  }
+  for provider in @abi.BasicValueProvider::all() {
+    guard interfaces.find(provider.module_path()) is Some(interface) else {
+      continue
+    }
+    for value in interface.values {
+      if value.name == provider.value_name() {
+        builder.register_value(provider, value.symbol)
       }
     }
   }
@@ -76,6 +89,21 @@ pub fn CanonicalBasicAbiIdentityCatalogBuilder::register_local_variant(
 }
 
 ///|
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::register_local_value(
+  self : CanonicalBasicAbiIdentityCatalogBuilder,
+  module_path : String,
+  name : String,
+  symbol : @symbol.ValueSymbolId,
+  is_public : Bool,
+) -> Unit {
+  guard is_public else { return }
+  guard @abi.BasicValueProvider::find(module_path, name) is Some(provider) else {
+    return
+  }
+  self.register_value(provider, symbol)
+}
+
+///|
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::type_symbol(
   self : CanonicalBasicAbiIdentityCatalogBuilder,
   provider : @abi.BasicTypeProvider,
@@ -100,6 +128,22 @@ pub fn CanonicalBasicAbiIdentityCatalogBuilder::variant_symbol(
 }
 
 ///|
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::value_symbol(
+  self : CanonicalBasicAbiIdentityCatalogBuilder,
+  provider : @abi.BasicValueProvider,
+) -> @symbol.ValueSymbolId? {
+  self.values.get(provider)
+}
+
+///|
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_value_symbol(
+  self : CanonicalBasicAbiIdentityCatalogBuilder,
+  provider : @abi.BasicValueProvider,
+) -> Result[@symbol.ValueSymbolId, CanonicalBasicAbiError] {
+  require_value_symbol(self.value_symbol(provider), provider)
+}
+
+///|
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_variant_symbol(
   self : CanonicalBasicAbiIdentityCatalogBuilder,
   provider : @abi.BasicVariantProvider,
@@ -111,7 +155,11 @@ pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_variant_symbol(
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::build(
   self : CanonicalBasicAbiIdentityCatalogBuilder,
 ) -> CanonicalBasicAbiIdentityCatalog {
-  { types: self.types.copy(), variants: self.variants.copy(), }
+  {
+    types: self.types.copy(),
+    variants: self.variants.copy(),
+    values: self.values.copy(),
+  }
 }
 
 ///|
@@ -153,6 +201,39 @@ pub fn CanonicalBasicAbiIdentityCatalog::variant_symbol(
   provider : @abi.BasicVariantProvider,
 ) -> @symbol.VariantSymbolId? {
   self.variants.get(provider)
+}
+
+///|
+pub fn CanonicalBasicAbiIdentityCatalog::value_symbol(
+  self : CanonicalBasicAbiIdentityCatalog,
+  provider : @abi.BasicValueProvider,
+) -> @symbol.ValueSymbolId? {
+  self.values.get(provider)
+}
+
+///|
+pub fn CanonicalBasicAbiIdentityCatalog::require_value_symbol(
+  self : CanonicalBasicAbiIdentityCatalog,
+  provider : @abi.BasicValueProvider,
+) -> Result[@symbol.ValueSymbolId, CanonicalBasicAbiError] {
+  require_value_symbol(self.value_symbol(provider), provider)
+}
+
+///|
+fn require_value_symbol(
+  symbol : @symbol.ValueSymbolId?,
+  provider : @abi.BasicValueProvider,
+) -> Result[@symbol.ValueSymbolId, CanonicalBasicAbiError] {
+  match symbol {
+    Some(symbol) => Ok(symbol)
+    None =>
+      Err(
+        InvalidValueProvider(
+          provider~,
+          reason="the required public declaration is missing",
+        ),
+      )
+  }
 }
 
 ///|
@@ -203,5 +284,16 @@ fn CanonicalBasicAbiIdentityCatalogBuilder::register_variant(
   }
   if self.variants.get(provider) is None {
     self.variants[provider] = symbol
+  }
+}
+
+///|
+fn CanonicalBasicAbiIdentityCatalogBuilder::register_value(
+  self : CanonicalBasicAbiIdentityCatalogBuilder,
+  provider : @abi.BasicValueProvider,
+  symbol : @symbol.ValueSymbolId,
+) -> Unit {
+  if self.values.get(provider) is None {
+    self.values[provider] = symbol
   }
 }

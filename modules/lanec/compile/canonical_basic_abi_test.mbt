@@ -271,6 +271,113 @@ test "canonical Basic ABI diagnoses distinct providers in demand order" {
 }
 
 ///|
+test "operator syntax resolves to canonical Basic Ops instead of a lexical homonym" {
+  let outcome = check({
+    root: {
+      source_id: "main",
+      text: (
+        #|module Main
+        #|import Basic.Trait.Num.{ Add }
+        #|
+        #|fn op_add(_a : I64, _b : I64) -> Bool { false }
+        #|offer addition : Add[I64] = Add::{
+        #|  add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) }
+        #|}
+        #|
+        #|pub let explicit : Bool = op_add(1, 2)
+        #|pub let symbolic : I64 = 1 + 2
+      ),
+    },
+    libraries: [
+      {
+        source_id: "num",
+        text: (
+          #|module Basic.Trait.Num
+          #|pub struct Add[T] { add : (T, T) -> T }
+        ),
+      },
+      {
+        source_id: "ops",
+        text: (
+          #|module Basic.Ops
+          #|import Basic.Trait.Num.{ Add }
+          #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
+          #|  op.add(a, b)
+          #|}
+        ),
+      },
+    ],
+  })
+  guard outcome is Succeeded(_) else {
+    fail("canonical operator provider unexpectedly failed")
+  }
+}
+
+///|
+test "operator syntax uses the Basic-owned provider type" {
+  let outcome = check({
+    root: {
+      source_id: "main",
+      text: (
+        #|module Main
+        #|pub let symbolic : Bool = 1 + 2
+      ),
+    },
+    libraries: [
+      {
+        source_id: "ops",
+        text: (
+          #|module Basic.Ops
+          #|pub fn op_add(a : I64, b : I64) -> Bool {
+          #|  builtin("%i64_less")(a, b)
+          #|}
+        ),
+      },
+    ],
+  })
+  guard outcome is Succeeded(_) else {
+    fail("Basic-owned operator provider type unexpectedly failed")
+  }
+}
+
+///|
+test "operator syntax requires only the canonical Basic Ops identity" {
+  let outcome = check({
+    root: {
+      source_id: "main",
+      text: (
+        #|module Main
+        #|pub let symbolic : I64 = 1 + 2
+      ),
+    },
+    libraries: [{ source_id: "ops", text: "module Basic.Ops", }],
+  })
+  guard outcome is Failed(failure) else {
+    fail("missing canonical operator provider unexpectedly typechecked")
+  }
+  assert_eq(
+    failure
+    .diagnostics()
+    .map(fn(diagnostic) {
+      (
+        diagnostic.code,
+        diagnostic.message,
+        diagnostic.labels.map(fn(label) { label.message }),
+        diagnostic.helps,
+      )
+    }),
+    [
+      (
+        Some("E3039"),
+        "invalid canonical Basic provider `Basic.Ops.op_add`",
+        ["the required public declaration is missing"],
+        ["export the required operator value from `Basic.Ops`"],
+      ),
+    ],
+  )
+}
+
+///|
 test "canonical Basic ABI resolves providers from the module input closure" {
   let outcome = check({
     root: {

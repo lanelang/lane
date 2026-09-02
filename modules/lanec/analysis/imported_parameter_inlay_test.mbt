@@ -209,13 +209,31 @@ test "semantic workspace does not label synthetic operator operands" {
         source_id: "file:///Main.lane",
         text: (
           #|module Main
+          #|import Basic.Trait.Num.{ Add }
           #|
-          #|pub fn op_add(left : I64, right : I64) -> I64 {
-          #|  if true { left } else { right }
+          #|offer addition : Add[I64] = Add::{
+          #|  add: fn(left : I64, _right : I64) -> I64 { left }
           #|}
           #|
           #|pub fn answer(seed : I64) -> I64 {
           #|  seed + 1
+          #|}
+        ),
+      },
+      {
+        source_id: "file:///Num.lane",
+        text: (
+          #|module Basic.Trait.Num
+          #|pub struct Add[T] { add : (T, T) -> T }
+        ),
+      },
+      {
+        source_id: "file:///Ops.lane",
+        text: (
+          #|module Basic.Ops
+          #|import Basic.Trait.Num.{ Add }
+          #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
+          #|  op.add(a, b)
           #|}
         ),
       },

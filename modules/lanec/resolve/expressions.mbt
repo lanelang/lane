@@ -188,11 +188,7 @@ fn @syntax.Expr::resolve_expr(
     Unary(operator=Neg, operand=FloatingLiteral(raw, suffix~, ..), loc~) =>
       ImmediatelyNegatedFloatingLiteral(raw, suffix~, loc~)
     Unary(operator~, operand~, loc~) => {
-      let target = resolver.operator_target(
-        scope,
-        operator.operation_name(),
-        loc,
-      )
+      let target = resolver.operator_target(operator.operator_provider(), loc)
       Unary(
         operator~,
         target~,
@@ -201,11 +197,7 @@ fn @syntax.Expr::resolve_expr(
       )
     }
     Binary(operator~, left~, right~, loc~) => {
-      let target = resolver.operator_target(
-        scope,
-        operator.operation_name(),
-        loc,
-      )
+      let target = resolver.operator_target(operator.operator_provider(), loc)
       Binary(
         operator~,
         target~,

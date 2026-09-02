@@ -312,8 +312,8 @@ async test "public server composes nested implicit argument inlays" {
     #|  less_than : (A, A) -> Bool
     #|}
     #|
-    #|pub fn[A] op_less(left : A, right : A, auto op : Compare[A]) -> Bool {
-    #|  op.less_than(left, right)
+    #|pub fn[A] op_less(a : A, b : A, auto op : Compare[A]) -> Bool {
+    #|  op.less_than(a, b)
     #|}
     #|
     #|pub fn assert_true(value : Bool, auto info : Unit) -> Unit {
@@ -324,7 +324,7 @@ async test "public server composes nested implicit argument inlays" {
     #|offer source_info : Unit = ()
     #|
     #|pub fn answer() -> Unit {
-    #|  assert_true('你' < '😀')
+    #|  assert_true(op_less('你', '😀'))
     #|}
   @async.with_task_group(group => {
     let server = group.spawn(() => {
@@ -354,8 +354,23 @@ async test "public server composes nested implicit argument inlays" {
           "kind": 2,
         },
         {
-          "position": { "line": 18, "character": 24 },
-          "label": ", op=char_compare, info=source_info",
+          "position": { "line": 18, "character": 22 },
+          "label": "a=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 18, "character": 27 },
+          "label": "b=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 18, "character": 31 },
+          "label": ", op=char_compare",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 18, "character": 32 },
+          "label": ", info=source_info",
           "kind": 2,
         },
       ],
@@ -382,8 +397,23 @@ async test "public server composes nested implicit argument inlays" {
           "kind": 2,
         },
         {
-          "position": { "line": 18, "character": 24 },
-          "label": ", op=char_compare, info=source_info",
+          "position": { "line": 18, "character": 22 },
+          "label": "a=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 18, "character": 27 },
+          "label": "b=",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 18, "character": 31 },
+          "label": ", op=char_compare",
+          "kind": 2,
+        },
+        {
+          "position": { "line": 18, "character": 32 },
+          "label": ", info=source_info",
           "kind": 2,
         },
       ],

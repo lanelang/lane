@@ -125,3 +125,37 @@ pub fn SourceFile::first_derive_loc(self : SourceFile) -> SourceSpan? {
   }
   found.val
 }
+
+///|
+/// Returns the first authored operator expression that requires the canonical
+/// `Basic.Ops` provider module. Immediately negated numeric literals are signed
+/// literal syntax and therefore do not create an operator dependency.
+pub fn SourceFile::first_operator_loc(self : SourceFile) -> SourceSpan? {
+  let found : Ref[SourceSpan?] = { val: None, }
+  fn visit(expression : Expr, found : Ref[SourceSpan?]) -> Unit {
+    if found.val is Some(_) {
+      return
+    }
+    match expression {
+      Unary(operator=Neg, operand=IntegerLiteral(_), ..)
+      | Unary(operator=Neg, operand=FloatingLiteral(_), ..) => ()
+      Unary(loc~, ..) | Binary(loc~, ..) => {
+        found.val = Some(loc)
+        return
+      }
+      _ => ()
+    }
+    expression.for_each_child_expr(fn(child) { visit(child, found) })
+  }
+  for declaration in self.declarations {
+    if found.val is Some(_) {
+      break
+    }
+    match declaration {
+      Function(declaration) => visit(declaration.body, found)
+      Let(declaration) => visit(declaration.initializer, found)
+      Struct(_) | Enum(_) | Effect(_) | ExternalType(_) | TypeAlias(_) => ()
+    }
+  }
+  found.val
+}

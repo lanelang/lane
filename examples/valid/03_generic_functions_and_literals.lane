@@ -1,6 +1,5 @@
 module Examples.Valid03
 
-import Basic.Ops.*
 import Basic.Data.I64.*
 import Basic.Data.Bool.*
 import Basic.Io.{ println }

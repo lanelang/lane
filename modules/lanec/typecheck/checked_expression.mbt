@@ -496,7 +496,7 @@ fn desugared_unary_call(
   Call(
     callee=Var(name=target.name, reference=target.reference, loc~),
     arguments=[
-      Positional(value=operand, loc=operand.loc(), provenance=Synthetic),
+      Positional(value=operand, loc=operand.loc(), provenance=Operator),
     ],
     loc~,
   )

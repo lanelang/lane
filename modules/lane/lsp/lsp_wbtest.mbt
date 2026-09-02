@@ -429,20 +429,41 @@ async test "inlay hint anchors implicit auto offers by call syntax" {
   ignore(
     state.handle_message(
       request(
+        0,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Num.lane", "module Basic.Trait.Num\npub struct Add[T] { add : (T, T) -> T }",
+        ),
+      ),
+    ),
+  )
+  ignore(
+    state.handle_message(
+      request(
+        0,
+        "textDocument/didOpen",
+        open_params(
+          "file:///Ops.lane",
+          (
+            #|module Basic.Ops
+            #|import Basic.Trait.Num.{ Add }
+            #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T { op.add(a, b) }
+          ),
+        ),
+      ),
+    ),
+  )
+  ignore(
+    state.handle_message(
+      request(
         1,
         "textDocument/didOpen",
         open_params(
           "file:///Main.lane",
           (
             #|module Main
-            #|
-            #|pub struct Add[A] {
-            #|  add : (A, A) -> A
-            #|}
-            #|
-            #|pub fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
-            #|  op.add(a, b)
-            #|}
+            #|import Basic.Trait.Num.{ Add }
+            #|import Basic.Ops.{ op_add }
             #|
             #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
             #|
@@ -460,7 +481,7 @@ async test "inlay hint anchors implicit auto offers by call syntax" {
     request(
       2,
       "textDocument/inlayHint",
-      range_params("file:///Main.lane", 0, 0, 17, 0),
+      range_params("file:///Main.lane", 0, 0, 12, 0),
     ),
   )
   json_inspect(result.outgoing.map(fn(message) { message.to_json() }), content=[
@@ -469,32 +490,24 @@ async test "inlay hint anchors implicit auto offers by call syntax" {
       "id": 2,
       "result": [
         {
-          "position": { "line": 13, "character": 11 },
+          "position": { "line": 7, "character": 11 },
           "label": ": I64",
           "kind": 1,
         },
         {
-          "position": { "line": 13, "character": 22 },
+          "position": { "line": 7, "character": 22 },
           "label": ", op=i64_add_ops",
           "kind": 2,
         },
         {
-          "position": { "line": 14, "character": 14 },
+          "position": { "line": 8, "character": 14 },
           "label": ": I64",
           "kind": 1,
         },
+        { "position": { "line": 8, "character": 24 }, "label": "a=", "kind": 2 },
+        { "position": { "line": 8, "character": 30 }, "label": "b=", "kind": 2 },
         {
-          "position": { "line": 14, "character": 24 },
-          "label": "a=",
-          "kind": 2,
-        },
-        {
-          "position": { "line": 14, "character": 30 },
-          "label": "b=",
-          "kind": 2,
-        },
-        {
-          "position": { "line": 14, "character": 31 },
+          "position": { "line": 8, "character": 31 },
           "label": ", op=i64_add_ops",
           "kind": 2,
         },
@@ -980,19 +993,27 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
     source_id: "file:///generic-operator.lane",
     text: (
       #|module Main
-      #|struct Add[T] {
-      #|  add : (T, T) -> T
-      #|}
-      #|fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
-      #|  op.add(a, b)
-      #|}
+      #|import Basic.Trait.Num.{ Add }
       #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
       #|pub let x : I64 = 1 + true
     ),
   }
   let result = @compile.check({
     root: { source_id: input.source_id, text: input.text, },
-    libraries: [],
+    libraries: [
+      {
+        source_id: "file:///Num.lane",
+        text: "module Basic.Trait.Num\npub struct Add[T] { add : (T, T) -> T }",
+      },
+      {
+        source_id: "file:///Ops.lane",
+        text: (
+          #|module Basic.Ops
+          #|import Basic.Trait.Num.{ Add }
+          #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T { op.add(a, b) }
+        ),
+      },
+    ],
   })
   let diagnostics = result
     .diagnostics()
@@ -1009,8 +1030,8 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
         "source": "lane",
         "code": "E3006",
         "range": {
-          "start": { "line": 8, "character": 22 },
-          "end": { "line": 8, "character": 26 },
+          "start": { "line": 3, "character": 22 },
+          "end": { "line": 3, "character": 26 },
         },
         "data": {
           "notes": [

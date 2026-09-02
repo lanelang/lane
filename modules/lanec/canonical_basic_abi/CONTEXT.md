@@ -10,8 +10,8 @@ shapes, and certifies their persisted runtime projection.
 ## Glossary
 
 **Canonical Basic ABI**:
-The certified module-input catalog for Tuple, List, Void, WasmAddress, and
-structural-derivation providers. It is constructed once from a Canonical Basic
+The certified module-input catalog for Tuple, List, Void, WasmAddress,
+structural-derivation providers, and canonical operator values. It is constructed once from a Canonical Basic
 ABI Identity Catalog, imported Module Interfaces, and the current Module
 Interface Declaration Surface; later consumers receive only its resolved
 identities and semantic results. This package certifies interface descriptors
@@ -27,10 +27,16 @@ certified only by the Canonical Basic ABI adapter.
 _Avoid_: semantic validation result, string-keyed lookup, backend ABI
 
 **Canonical Basic Provider Universe**:
-The closed type-provider and variant-provider sets declared by the ABI Contract.
+The closed type-provider, variant-provider, and value-provider sets declared by the ABI Contract.
 The ABI Contract alone owns enumeration and qualified-identity lookup; this
 package consumes that universe when collecting and certifying identities.
 _Avoid_: package-local provider arrays, numeric provider indexes, repeated provider switches
+
+**Canonical Basic Operator Provider**:
+A public `Basic.Ops.op_*` value whose stable identity is certified by this
+adapter. Operator resolution consumes this identity directly; its declared type
+belongs to Basic and is checked through the ordinary call judgment.
+_Avoid_: lexical operator lookup, implicit value import, compiler-owned provider type
 
 **Canonical Basic ABI Diagnostic Policy**:
 The complete classification, grouping, diagnostic code, and presentation of a

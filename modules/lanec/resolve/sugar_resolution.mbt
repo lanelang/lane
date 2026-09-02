@@ -11,7 +11,10 @@ fn Resolver::demand_canonical_basic_provider(
   provider : @abi.BasicTypeProvider,
   loc : SourceSpan,
 ) -> Unit {
-  self.canonical_basic_abi_demands.push({ provider, loc, })
+  self.canonical_basic_abi_demands.push({
+    provider: TypeProvider(provider),
+    loc,
+  })
 }
 
 ///|
@@ -29,6 +32,23 @@ fn Resolver::record_canonical_basic_import_uses(
         _ => false
       }
       if matches {
+        self.record_import_uses(imported.provider_origins, loc)
+        return
+      }
+    }
+  }
+}
+
+///|
+fn Resolver::record_canonical_basic_value_import_uses(
+  self : Resolver,
+  symbol : ValueSymbolId,
+  loc : SourceSpan,
+) -> Unit {
+  for imported in self.imported_modules {
+    for binding in imported.bindings {
+      if binding.declaration is Value(declaration) &&
+        declaration.symbol == symbol {
         self.record_import_uses(imported.provider_origins, loc)
         return
       }

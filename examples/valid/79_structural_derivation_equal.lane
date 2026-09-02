@@ -6,7 +6,6 @@ import Basic.Io.{ println }
 import Basic.Trait.Derive.{ Deriver, Lift, Product, Recursive, Sum }
 import Basic.Trait.Equal.{ Equal }
 import Basic.Trait.Iso.{ Iso }
-import Basic.Ops.*
 import Basic.Data.Bool.*
 import Basic.Data.I64.{ i64_impl_equal }
 

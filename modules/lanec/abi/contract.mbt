@@ -144,6 +144,92 @@ pub fn BasicTypeProvider::qualified_name(self : BasicTypeProvider) -> String {
 }
 
 ///|
+/// Names the canonical Basic value that implements one operator spelling.
+pub(all) enum BasicValueProvider {
+  OpAdd
+  OpSub
+  OpMul
+  OpDiv
+  OpRem
+  OpNeg
+  OpEqual
+  OpNotEqual
+  OpLess
+  OpLessEqual
+  OpGreater
+  OpGreaterEqual
+  OpAnd
+  OpOr
+  OpNot
+} derive(Debug, Eq, Hash)
+
+///|
+pub fn BasicValueProvider::all() -> Array[BasicValueProvider] {
+  [
+    OpAdd,
+    OpSub,
+    OpMul,
+    OpDiv,
+    OpRem,
+    OpNeg,
+    OpEqual,
+    OpNotEqual,
+    OpLess,
+    OpLessEqual,
+    OpGreater,
+    OpGreaterEqual,
+    OpAnd,
+    OpOr,
+    OpNot,
+  ]
+}
+
+///|
+pub fn BasicValueProvider::find(
+  module_path : String,
+  value_name : String,
+) -> BasicValueProvider? {
+  for provider in BasicValueProvider::all() {
+    if provider.module_path() == module_path &&
+      provider.value_name() == value_name {
+      return Some(provider)
+    }
+  }
+  None
+}
+
+///|
+pub fn BasicValueProvider::module_path(_self : BasicValueProvider) -> String {
+  "Basic.Ops"
+}
+
+///|
+pub fn BasicValueProvider::value_name(self : BasicValueProvider) -> String {
+  match self {
+    OpAdd => "op_add"
+    OpSub => "op_sub"
+    OpMul => "op_mul"
+    OpDiv => "op_div"
+    OpRem => "op_rem"
+    OpNeg => "op_neg"
+    OpEqual => "op_equal"
+    OpNotEqual => "op_not_equal"
+    OpLess => "op_less"
+    OpLessEqual => "op_less_eq"
+    OpGreater => "op_greater"
+    OpGreaterEqual => "op_greater_eq"
+    OpAnd => "op_and"
+    OpOr => "op_or"
+    OpNot => "op_not"
+  }
+}
+
+///|
+pub fn BasicValueProvider::qualified_name(self : BasicValueProvider) -> String {
+  self.module_path() + "." + self.value_name()
+}
+
+///|
 pub(all) enum BasicVariantProvider {
   TupleValue
   ListEmpty

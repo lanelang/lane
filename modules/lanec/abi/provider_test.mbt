@@ -28,4 +28,17 @@ test "Basic ABI provider universes own identity lookup" {
       Some(provider),
     )
   }
+  let values = BasicValueProvider::all()
+  assert_eq(values.map(provider => provider.qualified_name()), [
+    "Basic.Ops.op_add", "Basic.Ops.op_sub", "Basic.Ops.op_mul", "Basic.Ops.op_div",
+    "Basic.Ops.op_rem", "Basic.Ops.op_neg", "Basic.Ops.op_equal", "Basic.Ops.op_not_equal",
+    "Basic.Ops.op_less", "Basic.Ops.op_less_eq", "Basic.Ops.op_greater", "Basic.Ops.op_greater_eq",
+    "Basic.Ops.op_and", "Basic.Ops.op_or", "Basic.Ops.op_not",
+  ])
+  for provider in values {
+    assert_eq(
+      BasicValueProvider::find(provider.module_path(), provider.value_name()),
+      Some(provider),
+    )
+  }
 }

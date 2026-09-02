@@ -34,6 +34,34 @@ pub fn BasicTypeProvider::qualified_name(Self) -> String
 pub fn BasicTypeProvider::to_repr(Self) -> @debug.Repr
 pub fn BasicTypeProvider::type_name(Self) -> String
 
+pub(all) enum BasicValueProvider {
+  OpAdd
+  OpSub
+  OpMul
+  OpDiv
+  OpRem
+  OpNeg
+  OpEqual
+  OpNotEqual
+  OpLess
+  OpLessEqual
+  OpGreater
+  OpGreaterEqual
+  OpAnd
+  OpOr
+  OpNot
+} derive(Eq, Hash, @debug.Debug)
+pub fn BasicValueProvider::all() -> Array[Self]
+pub fn BasicValueProvider::equal(Self, Self) -> Bool
+pub fn BasicValueProvider::find(String, String) -> Self?
+pub fn BasicValueProvider::hash(Self) -> Int
+pub fn BasicValueProvider::hash_combine(Self, Hasher) -> Unit
+pub fn BasicValueProvider::module_path(Self) -> String
+pub fn BasicValueProvider::not_equal(Self, Self) -> Bool
+pub fn BasicValueProvider::qualified_name(Self) -> String
+pub fn BasicValueProvider::to_repr(Self) -> @debug.Repr
+pub fn BasicValueProvider::value_name(Self) -> String
+
 pub(all) enum BasicVariantProvider {
   TupleValue
   ListEmpty

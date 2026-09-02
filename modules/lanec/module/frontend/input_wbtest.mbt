@@ -83,3 +83,73 @@ test "derive module header includes every canonical compiler dependency" {
     ),
   )
 }
+
+///|
+test "operator syntax adds the canonical Basic Ops dependency once" {
+  let parsed = parse_module_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: "module Main\npub let value : I64 = (1 + 2) * 3",
+    },
+    [],
+  )
+  debug_inspect(parsed.sources.map(ParsedSource::diagnostics), content="[[]]")
+  debug_inspect(
+    parsed.sources.filter_map(ParsedSource::module_header),
+    content=(
+      #|[
+      #|  {
+      #|    source_id: "file:///Main.lane",
+      #|    module_path_text: "Main",
+      #|    imports: ["Basic.Ops"],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "signed numeric literals do not add an operator dependency" {
+  let parsed = parse_module_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: "module Main\npub let value : I64 = -1",
+    },
+    [],
+  )
+  debug_inspect(
+    parsed.sources.filter_map(ParsedSource::module_header),
+    content=(
+      #|[
+      #|  {
+      #|    source_id: "file:///Main.lane",
+      #|    module_path_text: "Main",
+      #|    imports: [],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
+test "canonical Basic Ops does not depend on itself" {
+  let parsed = parse_module_inputs(
+    {
+      source_id: "file:///Ops.lane",
+      text: "module Basic.Ops\npub fn op_not(value : Bool) -> Bool { !value }",
+    },
+    [],
+  )
+  debug_inspect(
+    parsed.sources.filter_map(ParsedSource::module_header),
+    content=(
+      #|[
+      #|  {
+      #|    source_id: "file:///Ops.lane",
+      #|    module_path_text: "Basic.Ops",
+      #|    imports: [],
+      #|  },
+      #|]
+    ),
+  )
+}

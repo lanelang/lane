@@ -132,7 +132,7 @@ fn SemanticIndex::add_call_inlay_hints(
       arguments,
       parameters,
       call_loc,
-      is_source_operator_call(callee, call_loc),
+      is_source_operator_call(arguments),
     )
   }
 }
@@ -244,18 +244,9 @@ fn checked_type_parameters_text(
 
 ///|
 fn is_source_operator_call(
-  callee : @checked.CheckedExpr,
-  call_loc : @basic.SourceSpan,
+  arguments : Array[@checked.CheckedCallArgument],
 ) -> Bool {
-  callee_origin_loc(callee) == call_loc
-}
-
-///|
-fn callee_origin_loc(callee : @checked.CheckedExpr) -> @basic.SourceSpan {
-  match callee {
-    GenericApplication(callee~, ..) => callee_origin_loc(callee)
-    _ => callee.loc()
-  }
+  arguments.any(fn(argument) { argument.provenance is Operator })
 }
 
 ///|

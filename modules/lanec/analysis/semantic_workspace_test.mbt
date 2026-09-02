@@ -27,29 +27,31 @@ test "semantic snapshot composes right-nested operator inlays inner first" {
   let workspace = SemanticWorkspace::new()
   let source =
     #|module Main
-    #|
-    #|pub struct Add[A] {
-    #|  add : (A, A) -> A
-    #|}
-    #|
-    #|pub struct Multiply[A] {
-    #|  multiply : (A, A) -> A
-    #|}
-    #|
-    #|pub fn[A] op_add(left : A, right : A, auto op : Add[A]) -> A {
-    #|  op.add(left, right)
-    #|}
-    #|
-    #|pub fn[A] op_mul(left : A, right : A, auto op : Multiply[A]) -> A {
-    #|  op.multiply(left, right)
-    #|}
+    #|import Basic.Trait.Num.{ Add, Mul }
     #|
     #|offer i64_add : Add[I64] = Add::{ add: fn(left : I64, right : I64) { builtin("%i64_add")(left, right) } }
-    #|offer i64_multiply : Multiply[I64] = Multiply::{ multiply: fn(left : I64, right : I64) { builtin("%i64_mul")(left, right) } }
+    #|offer i64_multiply : Mul[I64] = Mul::{ mul: fn(left : I64, right : I64) { builtin("%i64_mul")(left, right) } }
     #|
     #|pub let answer : I64 = 1 + 2 * 3
   guard workspace.replace_sources([
       { source_id: "file:///Main.lane", text: source, },
+      {
+        source_id: "file:///Num.lane",
+        text: (
+          #|module Basic.Trait.Num
+          #|pub struct Add[T] { add : (T, T) -> T }
+          #|pub struct Mul[T] { mul : (T, T) -> T }
+        ),
+      },
+      {
+        source_id: "file:///Ops.lane",
+        text: (
+          #|module Basic.Ops
+          #|import Basic.Trait.Num.{ Add, Mul }
+          #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T { op.add(a, b) }
+          #|pub fn[T] op_mul(a : T, b : T, auto op : Mul[T]) -> T { op.mul(a, b) }
+        ),
+      },
     ])
     is Some(snapshot) else {
     abort("expected semantic snapshot")
@@ -57,12 +59,12 @@ test "semantic snapshot composes right-nested operator inlays inner first" {
   assert_eq(snapshot.diagnostics(), [])
   debug_inspect(
     snapshot
-    .inlay_hints_in_range("file:///Main.lane", 1, 1, 24, 1)
+    .inlay_hints_in_range("file:///Main.lane", 1, 1, 12, 1)
     .filter(fn(hint) { hint.kind is ImplicitArgumentHint }),
     content=(
       #|[
       #|  {
-      #|    position: { source_id: "file:///Main.lane", line: 22, column: 33 },
+      #|    position: { source_id: "file:///Main.lane", line: 7, column: 33 },
       #|    kind: ImplicitArgumentHint,
       #|    label: ", op=i64_multiply, op=i64_add",
       #|  },

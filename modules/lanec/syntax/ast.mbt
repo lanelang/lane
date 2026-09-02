@@ -482,6 +482,8 @@ pub(all) enum CallArgument {
 ///|
 pub(all) enum CallArgumentProvenance {
   Authored
+  Operator
+  Pipeline
   Synthetic
 } derive(Debug, Eq)
 

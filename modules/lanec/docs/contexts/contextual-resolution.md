@@ -46,16 +46,16 @@ A value whose fields provide named operations through ordinary field access.
 _Avoid_: trait instance, interface implementation
 
 **Operator Alias**:
-A symbolic operator form that resolves through its corresponding ordinary operation name.
+A symbolic operator form that resolves to its corresponding Canonical Basic Operator Provider.
 _Avoid_: primitive operator, compiler-only operator
 
-**Recognized Operation**:
-A conventional operation name, such as `op_add` or `op_equal`, that may be referenced by an operator alias.
-_Avoid_: compiler-only operator method, ad-hoc operator field
+**Canonical Basic Operator Provider**:
+A certified public value identity in `Basic.Ops` selected by a fixed operator-token mapping. Its type is owned by Basic and consumed by ordinary call typechecking.
+_Avoid_: lexical `op_*` lookup, implicitly imported value, replaceable wrapper
 
 **Operation Name**:
-A normal value name with an `op_` prefix that may be targeted by a fixed operator alias mapping.
-_Avoid_: reserved identifier, user-defined operator token
+A normal value name with an `op_` prefix. Explicit calls resolve this name lexically and do not determine the meaning of operator tokens.
+_Avoid_: reserved identifier, operator target identity
 
 **Operation Field**:
 A field inside a Basic library operation struct that stores the implementation function.
@@ -113,7 +113,10 @@ _Avoid_: placeholder builtin, implementation-only primitive
 - Selectively importing an offered function with `import A.{ function_name }` exposes both its ordinary function binding and its offered status.
 - A qualified module import does not implicitly expose its offers; a qualified offer value may still be passed as an **Explicit Contextual Argument**.
 - A **Contextual Parameter** is not an **Offered Parameter** unless it is explicitly marked as offered.
-- **Operator Aliases** are fixed mappings to **Operation Names**.
+- **Operator Aliases** are fixed mappings to **Canonical Basic Operator Providers**.
+- A **Canonical Basic Operator Provider** supplies a stable value identity; if its Basic-owned declaration has contextual parameters, visible **Contextual Offers** may supply them through the ordinary call judgment.
+- Resolving an operator adds a dependency on `Basic.Ops` but does not expose any `Basic.Ops` value as an unqualified lexical binding.
+- An explicit call such as `op_add(a, b)` uses ordinary name resolution and may call a user-defined value without changing `a + b`.
 - `&&` and `||` are **Short-Circuit Boolean Operations** and elaborate to **Thunked Operator Calls**.
 - Ordinary calls to `op_and` and `op_or` are strict.
 - Lane builtin syntax lowers to an **External Builtin Value** before entering Buslane.

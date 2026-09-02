@@ -1,6 +1,5 @@
 module Examples.Valid.ElseIfChain
 
-import Basic.Ops.*
 import Basic.Data.I64.*
 import Basic.Data.Bool.*
 import Basic.Io.{ println }

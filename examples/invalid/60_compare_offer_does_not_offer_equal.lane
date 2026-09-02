@@ -1,18 +1,8 @@
 // invalid: offering Compare[I64] does not derive an Equal[I64] contextual offer
 module Examples.Invalid60
 
-struct Equal[T] {
-  equal : (T, T) -> Bool
-}
-
-struct Compare[T] {
-  equal_impl : Equal[T]
-  less : (T, T) -> Bool
-}
-
-fn[T] op_equal(a : T, b : T, auto op : Equal[T]) -> Bool {
-  op.equal(a, b)
-}
+import Basic.Trait.Equal.{ Equal }
+import Basic.Trait.Compare.{ Compare }
 
 offer i64_impl_compare : Compare[I64] = Compare::{
   equal_impl: Equal::{

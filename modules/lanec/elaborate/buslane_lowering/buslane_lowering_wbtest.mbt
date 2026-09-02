@@ -506,7 +506,7 @@ test "pre-buslane lowering contract covers source-only forms and witnesses" {
       #|let packed : Packed = Packed::hide[I64](1)
       #|fn answer() -> I64 {
       #|  handle {
-      #|    let Cell::{ value } = Cell::{ value: 1 + 2 }
+      #|    let Cell::{ value } = Cell::{ value: op_add(1, 2) }
       #|    let piped : I64 = value |> id[I64]
       #|    let chosen : I64 = Prompt::choose![I64](piped, 4)
       #|    if true {

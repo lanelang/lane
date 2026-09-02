@@ -1,7 +1,6 @@
 module Examples.Valid.RecursiveParserCombinators
 
 import Basic.Io.{ println }
-import Basic.Ops.*
 import Basic.Data.Bool.*
 import Basic.Data.I64.*
 import Basic.Builtins.{ byte_to_i64, bytes_get, bytes_length, string_to_bytes }

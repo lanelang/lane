@@ -2,6 +2,7 @@
 package "Milky2018/lanec/resolve"
 
 import {
+  "Milky2018/lanec/abi",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/canonical_basic_abi",
   "Milky2018/lanec/diagnostic",
@@ -464,6 +465,7 @@ pub fn ResolvedOperationReference::not_equal(Self, Self) -> Bool
 pub fn ResolvedOperationReference::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ResolvedOperatorTarget {
+  provider : @abi.BasicValueProvider
   name : String
   reference : ResolvedValueReference
 } derive(Eq, @debug.Debug)

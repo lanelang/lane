@@ -208,23 +208,11 @@ test "immediate negation admits both signed integer minima" {
 }
 
 ///|
-test "positive and parenthesized signed-minimum magnitudes are invalid" {
-  for
-    case in [
-      ("2147483648i32", "I32", "%i32_neg"),
-      ("-(2147483648i32)", "I32", "%i32_neg"),
-      ("9223372036854775808i64", "I64", "%i64_neg"),
-      ("-(9223372036854775808i64)", "I64", "%i64_neg"),
-    ] {
-    let (expression, return_type, neg_intrinsic) = case
+test "positive signed-minimum magnitudes are invalid" {
+  for case in [("2147483648i32", "I32"), ("9223372036854775808i64", "I64")] {
+    let (expression, return_type) = case
     let outcome = check_source(
-      "module Main\nlet op_neg : (" +
-      return_type +
-      ") -> " +
-      return_type +
-      " = builtin(\"" +
-      neg_intrinsic +
-      "\")\npub fn answer() -> " +
+      "module Main\npub fn answer() -> " +
       return_type +
       " { " +
       expression +

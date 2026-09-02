@@ -3,7 +3,6 @@ module Examples.Valid.HigherKindedIdentityRepresentations
 import Basic.Builtins.{ f32_equal, f64_equal, i32_equal, i64_equal }
 import Basic.Data.Bool.*
 import Basic.Io.{ println }
-import Basic.Ops.*
 
 pub type Identity = type[T] => T
 

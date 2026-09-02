@@ -122,6 +122,12 @@ fn Resolver::collect_top_level_headers(
           TopLevelFunction,
           declaration.name_loc,
         )
+        self.canonical_basic_abi.register_local_value(
+          self.local_module.path_text,
+          declaration.name,
+          symbol,
+          declaration.is_public,
+        )
         let binding = {
           name: declaration.name,
           reference: Symbol(symbol),
@@ -138,6 +144,12 @@ fn Resolver::collect_top_level_headers(
           declaration.name,
           TopLevelValue,
           declaration.name_loc,
+        )
+        self.canonical_basic_abi.register_local_value(
+          self.local_module.path_text,
+          declaration.name,
+          symbol,
+          declaration.is_public,
         )
         let type_annotation = declaration.type_annotation.map(fn(type_) {
           type_.resolve_type(self, self.scope([]))

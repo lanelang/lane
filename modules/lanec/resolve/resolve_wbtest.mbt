@@ -961,36 +961,47 @@ test "resolve top level function bodies with complete top level values" {
 test "operator target mapping covers every syntax operator" {
   assert_eq(
     [
-      @syntax.UnaryOperator::Neg.operation_name(),
-      @syntax.UnaryOperator::Not.operation_name(),
+      @syntax.UnaryOperator::Neg.operator_provider(),
+      @syntax.UnaryOperator::Not.operator_provider(),
     ],
-    ["op_neg", "op_not"],
+    [OpNeg, OpNot],
   )
   assert_eq(
     [
-      @syntax.BinaryOperator::Add.operation_name(),
-      @syntax.BinaryOperator::Sub.operation_name(),
-      @syntax.BinaryOperator::Mul.operation_name(),
-      @syntax.BinaryOperator::Div.operation_name(),
-      @syntax.BinaryOperator::Rem.operation_name(),
-      @syntax.BinaryOperator::Equal.operation_name(),
-      @syntax.BinaryOperator::NotEqual.operation_name(),
-      @syntax.BinaryOperator::Less.operation_name(),
-      @syntax.BinaryOperator::LessEqual.operation_name(),
-      @syntax.BinaryOperator::Greater.operation_name(),
-      @syntax.BinaryOperator::GreaterEqual.operation_name(),
-      @syntax.BinaryOperator::And.operation_name(),
-      @syntax.BinaryOperator::Or.operation_name(),
+      @syntax.BinaryOperator::Add.operator_provider(),
+      @syntax.BinaryOperator::Sub.operator_provider(),
+      @syntax.BinaryOperator::Mul.operator_provider(),
+      @syntax.BinaryOperator::Div.operator_provider(),
+      @syntax.BinaryOperator::Rem.operator_provider(),
+      @syntax.BinaryOperator::Equal.operator_provider(),
+      @syntax.BinaryOperator::NotEqual.operator_provider(),
+      @syntax.BinaryOperator::Less.operator_provider(),
+      @syntax.BinaryOperator::LessEqual.operator_provider(),
+      @syntax.BinaryOperator::Greater.operator_provider(),
+      @syntax.BinaryOperator::GreaterEqual.operator_provider(),
+      @syntax.BinaryOperator::And.operator_provider(),
+      @syntax.BinaryOperator::Or.operator_provider(),
     ],
     [
-      "op_add", "op_sub", "op_mul", "op_div", "op_rem", "op_equal", "op_not_equal",
-      "op_less", "op_less_eq", "op_greater", "op_greater_eq", "op_and", "op_or",
+      OpAdd,
+      OpSub,
+      OpMul,
+      OpDiv,
+      OpRem,
+      OpEqual,
+      OpNotEqual,
+      OpLess,
+      OpLessEqual,
+      OpGreater,
+      OpGreaterEqual,
+      OpAnd,
+      OpOr,
     ],
   )
 }
 
 ///|
-test "resolve operator aliases through operation names" {
+test "operator aliases do not resolve through lexical operation names" {
   let file = expect_parse_ok(
     (
       #|fn op_add(a : I64, b : I64) -> I64 {
@@ -1008,7 +1019,11 @@ test "resolve operator aliases through operation names" {
       {
         body: Block(
           result=Binary(
-            target={ name: "op_add", reference: Symbol(operator_symbol), },
+            target={
+              provider: OpAdd,
+              name: "op_add",
+              reference: Unresolved("Basic.Ops.op_add"),
+            },
             ..
           ),
           ..
@@ -1018,41 +1033,10 @@ test "resolve operator aliases through operation names" {
     ) else {
     abort("expected resolved operator target")
   }
-  assert_eq(operator_symbol, { index: 0, })
-  inspect(
-    @prettyprinter.render(result.source, width=100),
-    content=(
-      #|resolved {
-      #|  symbols {
-      #|    types {}
-      #|    type_parameters {}
-      #|    type_members {}
-      #|    values {
-      #|      value#0 top_function op_add
-      #|      value#1 top_function add
-      #|      value#2 parameter a
-      #|      value#3 parameter b
-      #|      value#4 parameter a
-      #|      value#5 parameter b
-      #|    }
-      #|    fields {}
-      #|    variants {}
-      #|  }
-      #|  declarations {
-      #|    fn value#0 op_add(value#2 a : I64, value#3 b : I64) -> I64 {
-      #|      var value#2 a
-      #|    }
-      #|    fn value#1 add(value#4 a : I64, value#5 b : I64) -> I64 {
-      #|      var value#4 a +[value#0] var value#5 b
-      #|    }
-      #|  }
-      #|}
-    ),
-  )
 }
 
 ///|
-test "report unresolved operator operation name" {
+test "missing canonical operator is a typed ABI demand, not an unresolved name" {
   let file = expect_parse_ok(
     (
       #|fn add(a : I64, b : I64) -> I64 {
@@ -1061,11 +1045,10 @@ test "report unresolved operator operation name" {
     ),
   )
   let result = resolve_source_file_result(file)
-  inspect(
-    @prettyprinter.render(result.diagnostics, width=100),
-    content=(
-      #|[unresolved_value op_add]
-    ),
+  debug_inspect(result.diagnostics, content="[]")
+  assert_eq(
+    result.source.canonical_basic_abi_demands.map(fn(demand) { demand.provider }),
+    [ValueProvider(OpAdd)],
   )
 }
 

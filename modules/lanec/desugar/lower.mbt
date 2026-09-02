@@ -344,7 +344,7 @@ fn desugar_operator_call(
   Call(
     callee=Var(name~, reference~, loc~),
     arguments=arguments.map(fn(argument) {
-      Positional(value=argument, loc=argument.loc(), provenance=Synthetic)
+      Positional(value=argument, loc=argument.loc(), provenance=Operator)
     }),
     loc~,
   )
@@ -360,7 +360,7 @@ fn desugar_pipeline(
     Call(
       callee~,
       arguments=prepend_argument(
-        Positional(value=left, loc=left.loc(), provenance=Synthetic),
+        Positional(value=left, loc=left.loc(), provenance=Pipeline),
         arguments,
       ),
       loc~,
@@ -368,7 +368,7 @@ fn desugar_pipeline(
   } else {
     Call(
       callee=right,
-      arguments=[Positional(value=left, loc=left.loc(), provenance=Synthetic)],
+      arguments=[Positional(value=left, loc=left.loc(), provenance=Pipeline)],
       loc~,
     )
   }

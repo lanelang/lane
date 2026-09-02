@@ -4,7 +4,6 @@ import Basic.Data.F32.*
 import Basic.Conv.I64.{ i64_impl_debug }
 import Basic.Data.I64.{ i64_impl_equal }
 import Basic.Data.List.{ List }
-import Basic.Ops.*
 import Test.Assert.{ Assert, assert_equal, assert_false, assert_true, execute_all_tests }
 
 fn test_f32_operations() -> Unit ! Assert {

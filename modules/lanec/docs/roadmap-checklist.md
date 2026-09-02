@@ -77,8 +77,8 @@ The checked-source to Buslane boundary is defined in
   information is available.
 - [x] Remove contextual forwarding fields so contextual resolution consumes
   only explicit named offers and offered parameters.
-- [ ] Resolve operator aliases through ordinary operation names while
-  preserving call origin metadata for diagnostics.
+- [x] Resolve operator aliases through certified Canonical Basic operator
+  providers while preserving call origin metadata for diagnostics.
 - [x] Report diagnostics for unresolved types, unresolved values, unresolved
   qualified variants, and ambiguous unqualified variants.
 - [ ] Report diagnostics and warnings for invalid offers, duplicate offers,
@@ -108,8 +108,8 @@ ordinary local typing has determined their target types.
   `auto` parameters.
 - [x] Propagate expected types through function bodies, block results, `if`
   branches, and known call parameters to drive local checking.
-- [x] Check desugared operator alias calls as ordinary calls to resolved `op_*`
-  named functions.
+- [x] Check desugared operator alias calls as ordinary calls to certified
+  Canonical Basic `op_*` providers.
 - [x] Reframe the checker around explicit synthesis (`synthesize(expr) -> T`)
   and checking (`check(expr, expected)`) judgments.
 - [x] Document the main typechecking judgments, including expression,
@@ -168,11 +168,11 @@ and unresolved or ambiguous states before Buslane lowering.
 - [x] Implement `lanec/elaborate` as the source-to-checked pipeline over
   resolved source and type-checking judgments.
 - [x] Desugar pipeline expressions into ordinary calls before type checking.
-- [x] Desugar ordinary operator aliases into resolved `op_*` calls before type
-  checking.
+- [x] Desugar operator aliases into calls to resolved Canonical Basic `op_*`
+  providers before type checking.
 - [x] Desugar `&&` and `||` into thunked calls to `op_and` and
   `op_or`.
-- [ ] Preserve call origin metadata when desugaring operators into `op_*`
+- [x] Preserve structural operator argument provenance when desugaring into
   direct named calls.
 - [x] Desugar struct field punning into explicit field values.
 - [x] Desugar qualified and unqualified enum variant expressions into one

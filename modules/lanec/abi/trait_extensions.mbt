@@ -57,3 +57,14 @@ pub extend ValueKind with Debug::{to_repr}
 
 ///|
 pub extend ValueKind with Eq::{not_equal, equal}
+
+///|
+pub extend BasicValueProvider with Debug::{to_repr}
+
+///|
+pub extend BasicValueProvider with Eq::{not_equal, equal}
+
+///|
+pub extend BasicValueProvider with Hash::{hash, hash_combine}
+
+///|

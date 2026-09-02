@@ -56,3 +56,14 @@ pub extend CertifiedCanonicalBasicAbiRuntimeContract with Debug::{to_repr}
 
 ///|
 pub extend CertifiedCanonicalBasicAbiRuntimeContract with Eq::{not_equal, equal}
+
+///|
+pub extend CanonicalBasicAbiProvider with Debug::{to_repr}
+
+///|
+pub extend CanonicalBasicAbiProvider with Eq::{not_equal, equal}
+
+///|
+pub extend CanonicalBasicAbiProvider with Hash::{hash, hash_combine}
+
+///|

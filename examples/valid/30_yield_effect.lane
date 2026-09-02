@@ -1,7 +1,6 @@
 module Examples.Valid.YieldEffect
 
 import Basic.Io.{ println }
-import Basic.Ops.*
 import Basic.Data.I64.*
 
 pub enum I64List {

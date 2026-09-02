@@ -19,10 +19,22 @@ fn desugar_source(source : String) -> DesugaredSourceFile {
 }
 
 ///|
+fn desugar_module_source(source : String) -> DesugaredSourceFile {
+  let result = @parser.parse_string(source)
+  guard result.syntax() is Some(file) else { abort("expected parse success") }
+  let resolution = @resolve.resolve_source_file_result(file)
+  if !resolution.diagnostics.is_empty() {
+    abort(@prettyprinter.render(resolution.diagnostics, width=100))
+  }
+  desugar_source_file(resolution.source)
+}
+
+///|
 test "desugar operators and pipeline into ordinary calls" {
-  let source = desugar_source(
+  let source = desugar_module_source(
     (
-      #|fn op_add(a : I64, b : I64) -> I64 {
+      #|module Basic.Ops
+      #|pub fn op_add(a : I64, b : I64) -> I64 {
       #|  a
       #|}
       #|fn first(a : I64, b : I64) -> I64 {
@@ -65,9 +77,10 @@ test "desugar operators and pipeline into ordinary calls" {
 
 ///|
 test "desugar lazy bool operators into thunked ordinary calls" {
-  let source = desugar_source(
+  let source = desugar_module_source(
     (
-      #|fn op_and(a : Bool, b : () -> Bool) -> Bool {
+      #|module Basic.Ops
+      #|pub fn op_and(a : Bool, b : () -> Bool) -> Bool {
       #|  a
       #|}
       #|fn use(a : Bool, b : Bool) -> Bool {

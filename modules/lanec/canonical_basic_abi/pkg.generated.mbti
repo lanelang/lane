@@ -23,16 +23,18 @@ pub struct CanonicalBasicAbi {
   providers : Map[@abi.BasicTypeProvider, Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]]
   void_declaration : Result[@module.ModuleInterfaceEnum, CanonicalBasicAbiError]
   structural_derive : Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError]
+  values : Map[@abi.BasicValueProvider, Result[@symbol.ValueSymbolId, CanonicalBasicAbiError]]
 }
 pub fn CanonicalBasicAbi::checked_contract(Self) -> @checked.CheckedCanonicalBasicAbi
 pub fn CanonicalBasicAbi::derive_abi(Self) -> Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbi::diagnose_demands(Self, Array[CanonicalBasicAbiDemand]) -> Array[CanonicalBasicAbiDiagnostic]
 pub fn CanonicalBasicAbi::from_module_input(CanonicalBasicAbiIdentityCatalog, @module.ModuleInterfaceCatalog, Array[@module.ModuleInterfaceType]) -> Self
 pub fn CanonicalBasicAbi::validate_provider(Self, @abi.BasicTypeProvider) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
+pub fn CanonicalBasicAbi::validate_value_provider(Self, @abi.BasicValueProvider) -> Result[@symbol.ValueSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbi::void_type_symbol(Self) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
 
 pub(all) struct CanonicalBasicAbiDemand {
-  provider : @abi.BasicTypeProvider
+  provider : CanonicalBasicAbiProvider
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub fn CanonicalBasicAbiDemand::equal(Self, Self) -> Bool
@@ -53,6 +55,7 @@ pub impl @prettyprinter.Pretty for CanonicalBasicAbiDiagnostic
 
 pub(all) enum CanonicalBasicAbiError {
   InvalidProvider(provider~ : @abi.BasicTypeProvider, reason~ : String)
+  InvalidValueProvider(provider~ : @abi.BasicValueProvider, reason~ : String)
   InvalidStructuralDerivation(reason~ : String)
 } derive(Eq, @debug.Debug)
 pub fn CanonicalBasicAbiError::at(Self, @basic.SourceSpan) -> CanonicalBasicAbiDiagnostic
@@ -65,26 +68,33 @@ pub impl @prettyprinter.Pretty for CanonicalBasicAbiError
 pub struct CanonicalBasicAbiIdentityCatalog {
   types : Map[@abi.BasicTypeProvider, @symbol.TypeSymbolId]
   variants : Map[@abi.BasicVariantProvider, @symbol.VariantSymbolId]
+  values : Map[@abi.BasicValueProvider, @symbol.ValueSymbolId]
 } derive(Eq, @debug.Debug)
 pub fn CanonicalBasicAbiIdentityCatalog::equal(Self, Self) -> Bool
 pub fn CanonicalBasicAbiIdentityCatalog::not_equal(Self, Self) -> Bool
 pub fn CanonicalBasicAbiIdentityCatalog::require_type_symbol(Self, @abi.BasicTypeProvider) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
+pub fn CanonicalBasicAbiIdentityCatalog::require_value_symbol(Self, @abi.BasicValueProvider) -> Result[@symbol.ValueSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbiIdentityCatalog::require_variant_symbol(Self, @abi.BasicVariantProvider) -> Result[@symbol.VariantSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbiIdentityCatalog::to_repr(Self) -> @debug.Repr
 pub fn CanonicalBasicAbiIdentityCatalog::type_symbol(Self, @abi.BasicTypeProvider) -> @symbol.TypeSymbolId?
+pub fn CanonicalBasicAbiIdentityCatalog::value_symbol(Self, @abi.BasicValueProvider) -> @symbol.ValueSymbolId?
 pub fn CanonicalBasicAbiIdentityCatalog::variant_symbol(Self, @abi.BasicVariantProvider) -> @symbol.VariantSymbolId?
 
 pub struct CanonicalBasicAbiIdentityCatalogBuilder {
   types : Map[@abi.BasicTypeProvider, @symbol.TypeSymbolId]
   variants : Map[@abi.BasicVariantProvider, @symbol.VariantSymbolId]
+  values : Map[@abi.BasicValueProvider, @symbol.ValueSymbolId]
 }
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::build(Self) -> CanonicalBasicAbiIdentityCatalog
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::from_interfaces(@module.ModuleInterfaceCatalog) -> Self
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::register_local_type(Self, String, String, @symbol.TypeSymbolId, Bool) -> Unit
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::register_local_value(Self, String, String, @symbol.ValueSymbolId, Bool) -> Unit
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::register_local_variant(Self, String, String, String, @symbol.VariantSymbolId) -> Unit
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_type_symbol(Self, @abi.BasicTypeProvider) -> Result[@symbol.TypeSymbolId, CanonicalBasicAbiError]
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_value_symbol(Self, @abi.BasicValueProvider) -> Result[@symbol.ValueSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::require_variant_symbol(Self, @abi.BasicVariantProvider) -> Result[@symbol.VariantSymbolId, CanonicalBasicAbiError]
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::type_symbol(Self, @abi.BasicTypeProvider) -> @symbol.TypeSymbolId?
+pub fn CanonicalBasicAbiIdentityCatalogBuilder::value_symbol(Self, @abi.BasicValueProvider) -> @symbol.ValueSymbolId?
 pub fn CanonicalBasicAbiIdentityCatalogBuilder::variant_symbol(Self, @abi.BasicVariantProvider) -> @symbol.VariantSymbolId?
 
 pub(all) struct CanonicalBasicAbiObjectTypeDeclaration {
@@ -95,6 +105,16 @@ pub(all) struct CanonicalBasicAbiObjectTypeDeclaration {
 pub fn CanonicalBasicAbiObjectTypeDeclaration::equal(Self, Self) -> Bool
 pub fn CanonicalBasicAbiObjectTypeDeclaration::not_equal(Self, Self) -> Bool
 pub fn CanonicalBasicAbiObjectTypeDeclaration::to_repr(Self) -> @debug.Repr
+
+pub(all) enum CanonicalBasicAbiProvider {
+  TypeProvider(@abi.BasicTypeProvider)
+  ValueProvider(@abi.BasicValueProvider)
+} derive(Eq, Hash, @debug.Debug)
+pub fn CanonicalBasicAbiProvider::equal(Self, Self) -> Bool
+pub fn CanonicalBasicAbiProvider::hash(Self) -> Int
+pub fn CanonicalBasicAbiProvider::hash_combine(Self, Hasher) -> Unit
+pub fn CanonicalBasicAbiProvider::not_equal(Self, Self) -> Bool
+pub fn CanonicalBasicAbiProvider::to_repr(Self) -> @debug.Repr
 
 pub struct CanonicalBasicAbiRuntimeContract {
   void_type : @buslane.TypeId?

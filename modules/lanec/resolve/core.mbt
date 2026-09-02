@@ -110,6 +110,7 @@ pub fn ResolvedNominalName::local_name(self : ResolvedNominalName) -> String {
 
 ///|
 pub(all) struct ResolvedOperatorTarget {
+  provider : @abi.BasicValueProvider
   name : String
   reference : ResolvedValueReference
 } derive(Debug, Eq)

@@ -2,7 +2,6 @@ module Examples.Valid.HigherOrderTuple
 
 import Basic.Data.Tuple
 import Basic.Io.{ println }
-import Basic.Ops.*
 import Basic.Data.Bool.*
 import Basic.Data.I64.*
 

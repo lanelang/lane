@@ -101,7 +101,7 @@ test "typecheck inserts contextual auto argument" {
       #|  op.add(a, b)
       #|}
       #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
-      #|let answer : I64 = 1 + 2
+      #|let answer : I64 = op_add(1, 2)
     ),
     "answer",
     Primitive(I64),
@@ -149,7 +149,7 @@ test "typecheck offer value declaration supplies contextual argument" {
       #|  op.add(a, b)
       #|}
       #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
-      #|let answer : I64 = 1 + 2
+      #|let answer : I64 = op_add(1, 2)
     ),
     "answer",
     Primitive(I64),
@@ -389,7 +389,7 @@ test "typecheck auto offer parameter is visible in function body" {
       #|  op.add(a, b)
       #|}
       #|fn[A] twice(x : A, auto offer op : Add[A]) -> A {
-      #|  x + x
+      #|  op_add(x, x)
       #|}
       #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
       #|let answer : I64 = twice(1)
@@ -437,13 +437,13 @@ test "typecheck compare offer does not derive equal offer" {
       #|  op.equal(a, b)
       #|}
       #|offer i64_compare_ops : Compare[I64] = Compare::{ equal_impl: Equal::{ equal: fn(a : I64, b : I64) -> Bool { builtin("%i64_equal")(a, b) } } }
-      #|let answer : Bool = 1 == 2
+      #|let answer : Bool = op_equal(1, 2)
     ),
   )
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[missing_contextual_offer type#0[I64] auto_parameter=op @ 12:21-12:27]
+      #|[missing_contextual_offer type#0[I64] auto_parameter=op @ 12:21-12:35]
     ),
   )
 }
@@ -460,7 +460,7 @@ test "typecheck local offer value declaration supplies contextual argument" {
       #|}
       #|let answer : I64 = {
       #|  offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
-      #|  1 + 2
+      #|  op_add(1, 2)
       #|}
     ),
     "answer",
@@ -491,7 +491,7 @@ test "typecheck reports missing contextual offer" {
       #|fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
       #|  op.add(a, b)
       #|}
-      #|let answer : I64 = 1 + 2
+      #|let answer : I64 = op_add(1, 2)
     ),
   )
   inspect(
@@ -515,7 +515,7 @@ test "typecheck reports missing contextual offer" {
       #|    let answer#1 : I64
       #|  }
       #|  diagnostics {
-      #|    missing_contextual_offer type#0[I64] auto_parameter=op @ 8:20-8:25
+      #|    missing_contextual_offer type#0[I64] auto_parameter=op @ 8:20-8:32
       #|  }
       #|}
     ),
@@ -534,7 +534,7 @@ test "typecheck reports ambiguous contextual offer" {
       #|}
       #|offer add_a : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
       #|offer add_b : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_sub")(a, b) } }
-      #|let answer : I64 = 1 + 2
+      #|let answer : I64 = op_add(1, 2)
     ),
   )
   inspect(
@@ -560,7 +560,7 @@ test "typecheck reports ambiguous contextual offer" {
       #|    let answer#3 : I64
       #|  }
       #|  diagnostics {
-      #|    ambiguous_contextual_offer type#0[I64] auto_parameter=op candidates=[add_a, add_b] @ 10:20-10:25
+      #|    ambiguous_contextual_offer type#0[I64] auto_parameter=op candidates=[add_a, add_b] @ 10:20-10:32
       #|  }
       #|}
     ),
@@ -791,14 +791,14 @@ test "typecheck local generic function after declaration" {
 }
 
 ///|
-test "typecheck direct binary operator alias" {
+test "explicit local op_add remains an ordinary call" {
   let result = expect_typecheck_result(
     (
       #|fn op_add(a : I64, b : I64) -> I64 {
       #|  a
       #|}
       #|fn use() -> I64 {
-      #|  1 + 2
+      #|  op_add(1, 2)
       #|}
     ),
   )
@@ -823,27 +823,27 @@ test "typecheck direct binary operator alias" {
 }
 
 ///|
-test "typecheck direct binary operator result mismatch" {
+test "explicit local op_add preserves its declared result" {
   let result = expect_typecheck_result(
     (
       #|fn op_add(a : I64, b : I64) -> Bool {
       #|  true
       #|}
       #|fn use() -> I64 {
-      #|  1 + 2
+      #|  op_add(1, 2)
       #|}
     ),
   )
   inspect(
     @prettyprinter.render(result.diagnostics, width=100),
     content=(
-      #|[type_mismatch expected=I64 actual=Bool @ 6:3-6:8]
+      #|[type_mismatch expected=I64 actual=Bool @ 6:3-6:15]
     ),
   )
 }
 
 ///|
-test "typecheck direct unary operator alias" {
+test "immediate negative literal does not call local op_neg" {
   let result = expect_typecheck_result(
     (
       #|fn op_neg(value : I64) -> I64 {

@@ -7,7 +7,6 @@ module Examples.Valid.I64SignedMinimum
 import Basic.Data.I64.*
 import Basic.Conv.I64.{ i64_impl_debug }
 import Basic.Data.List.{ List }
-import Basic.Ops.*
 import Test.Assert.{ Assert, assert_equal, assert_false, assert_true, execute_all_tests }
 
 pub let signed_minimum : I64 = -9223372036854775808

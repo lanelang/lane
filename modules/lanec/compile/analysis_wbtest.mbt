@@ -11,6 +11,29 @@ fn analyze_test_source_inputs(
 }
 
 ///|
+fn operator_analysis_libraries() -> Array[@module_frontend.SourceInput] {
+  [
+    {
+      source_id: "file:///Num.lane",
+      text: (
+        #|module Basic.Trait.Num
+        #|pub struct Add[T] { add : (T, T) -> T }
+      ),
+    },
+    {
+      source_id: "file:///Ops.lane",
+      text: (
+        #|module Basic.Ops
+        #|import Basic.Trait.Num.{ Add }
+        #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
+        #|  op.add(a, b)
+        #|}
+      ),
+    },
+  ]
+}
+
+///|
 test "semantic workspace reports diagnostics from every workspace module" {
   let result = analyze_test_source_inputs(
     {
@@ -672,7 +695,7 @@ test "analysis keeps nested call parameter hints at distinct positions" {
       text: (
         #|module Main
         #|
-        #|pub fn append(left : I64, right : I64) -> I64 {
+        #|pub fn append(left : I64, _right : I64) -> I64 {
         #|  left
         #|}
         #|
@@ -689,53 +712,7 @@ test "analysis keeps nested call parameter hints at distinct positions" {
     },
     [],
   )
-  debug_inspect(
-    result.diagnostics,
-    content=(
-      #|[
-      #|  {
-      #|    source_id: Some("file:///Main.lane"),
-      #|    message: "unused local value binding",
-      #|    span: Some(
-      #|      Source(
-      #|        source_id="file:///Main.lane",
-      #|        span={
-      #|          start_offset: 39,
-      #|          end_offset: 44,
-      #|          start_line: 3,
-      #|          start_column: 27,
-      #|          end_line: 3,
-      #|          end_column: 32,
-      #|        },
-      #|      ),
-      #|    ),
-      #|    severity: Warning,
-      #|    code: Some("W2001"),
-      #|    labels: [
-      #|      {
-      #|        span: Source(
-      #|          source_id="file:///Main.lane",
-      #|          span={
-      #|            start_offset: 39,
-      #|            end_offset: 44,
-      #|            start_line: 3,
-      #|            start_column: 27,
-      #|            end_line: 3,
-      #|            end_column: 32,
-      #|          },
-      #|        ),
-      #|        message: "`right` is never used",
-      #|        style: Primary,
-      #|      },
-      #|    ],
-      #|    notes: [],
-      #|    helps: ["prefix the name with `_` if this is intentional"],
-      #|    facts: [],
-      #|    suggestions: [],
-      #|  },
-      #|]
-    ),
-  )
+  debug_inspect(result.diagnostics, content="[]")
   assert_no_duplicate_parameter_hint_positions(result.inlay_hints)
 }
 
@@ -784,9 +761,10 @@ test "analysis skips parameter name inlay hints for source operators" {
       source_id: "file:///Main.lane",
       text: (
         #|module Main
+        #|import Basic.Trait.Num.{ Add }
         #|
-        #|pub fn op_add(left : I64, right : I64) -> I64 {
-        #|  left
+        #|offer addition : Add[I64] = Add::{
+        #|  add: fn(left : I64, _right : I64) -> I64 { left }
         #|}
         #|
         #|pub fn answer(seed : I64) -> I64 {
@@ -795,63 +773,22 @@ test "analysis skips parameter name inlay hints for source operators" {
         #|}
       ),
     },
-    [],
+    operator_analysis_libraries(),
   )
-  debug_inspect(
-    result.diagnostics,
-    content=(
-      #|[
-      #|  {
-      #|    source_id: Some("file:///Main.lane"),
-      #|    message: "unused local value binding",
-      #|    span: Some(
-      #|      Source(
-      #|        source_id="file:///Main.lane",
-      #|        span={
-      #|          start_offset: 39,
-      #|          end_offset: 44,
-      #|          start_line: 3,
-      #|          start_column: 27,
-      #|          end_line: 3,
-      #|          end_column: 32,
-      #|        },
-      #|      ),
-      #|    ),
-      #|    severity: Warning,
-      #|    code: Some("W2001"),
-      #|    labels: [
-      #|      {
-      #|        span: Source(
-      #|          source_id="file:///Main.lane",
-      #|          span={
-      #|            start_offset: 39,
-      #|            end_offset: 44,
-      #|            start_line: 3,
-      #|            start_column: 27,
-      #|            end_line: 3,
-      #|            end_column: 32,
-      #|          },
-      #|        ),
-      #|        message: "`right` is never used",
-      #|        style: Primary,
-      #|      },
-      #|    ],
-      #|    notes: [],
-      #|    helps: ["prefix the name with `_` if this is intentional"],
-      #|    facts: [],
-      #|    suggestions: [],
-      #|  },
-      #|]
-    ),
-  )
+  debug_inspect(result.diagnostics, content="[]")
   debug_inspect(
     result.inlay_hints,
     content=(
       #|[
       #|  {
-      #|    position: { source_id: "file:///Main.lane", line: 8, column: 12 },
+      #|    position: { source_id: "file:///Main.lane", line: 9, column: 12 },
       #|    kind: TypeHint,
       #|    label: ": I64",
+      #|  },
+      #|  {
+      #|    position: { source_id: "file:///Main.lane", line: 9, column: 23 },
+      #|    kind: ImplicitArgumentHint,
+      #|    label: ", op=addition",
       #|  },
       #|]
     ),
@@ -865,14 +802,7 @@ test "analysis produces implicit argument inlay hints for auto offers" {
       source_id: "file:///Main.lane",
       text: (
         #|module Main
-        #|
-        #|pub struct Add[A] {
-        #|  add : (A, A) -> A
-        #|}
-        #|
-        #|pub fn[A] op_add(a : A, b : A, auto op : Add[A]) -> A {
-        #|  op.add(a, b)
-        #|}
+        #|import Basic.Trait.Num.{ Add }
         #|
         #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
         #|
@@ -882,7 +812,7 @@ test "analysis produces implicit argument inlay hints for auto offers" {
         #|}
       ),
     },
-    [],
+    operator_analysis_libraries(),
   )
   debug_inspect(result.diagnostics, content="[]")
   debug_inspect(
@@ -890,12 +820,12 @@ test "analysis produces implicit argument inlay hints for auto offers" {
     content=(
       #|[
       #|  {
-      #|    position: { source_id: "file:///Main.lane", line: 14, column: 12 },
+      #|    position: { source_id: "file:///Main.lane", line: 7, column: 12 },
       #|    kind: TypeHint,
       #|    label: ": I64",
       #|  },
       #|  {
-      #|    position: { source_id: "file:///Main.lane", line: 14, column: 23 },
+      #|    position: { source_id: "file:///Main.lane", line: 7, column: 23 },
       #|    kind: ImplicitArgumentHint,
       #|    label: ", op=i64_add_ops",
       #|  },

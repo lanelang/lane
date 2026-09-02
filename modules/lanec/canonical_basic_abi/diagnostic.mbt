@@ -6,9 +6,15 @@ pub(all) struct CanonicalBasicAbiDiagnostic {
 
 ///|
 pub(all) struct CanonicalBasicAbiDemand {
-  provider : @abi.BasicTypeProvider
+  provider : CanonicalBasicAbiProvider
   loc : @basic.SourceSpan
 } derive(Debug, Eq)
+
+///|
+pub(all) enum CanonicalBasicAbiProvider {
+  TypeProvider(@abi.BasicTypeProvider)
+  ValueProvider(@abi.BasicValueProvider)
+} derive(Debug, Eq, Hash)
 
 ///|
 pub fn CanonicalBasicAbiError::at(
@@ -24,13 +30,25 @@ pub fn CanonicalBasicAbi::diagnose_demands(
   demands : Array[CanonicalBasicAbiDemand],
 ) -> Array[CanonicalBasicAbiDiagnostic] {
   let diagnostics = []
-  let seen : @hashset.HashSet[@abi.BasicTypeProvider] = HashSet([])
+  let seen : @hashset.HashSet[CanonicalBasicAbiProvider] = HashSet([])
   for demand in demands {
     if seen.contains(demand.provider) {
       continue
     }
     seen.add(demand.provider)
-    if self.validate_provider(demand.provider) is Err(error) {
+    let error = match demand.provider {
+      TypeProvider(provider) =>
+        match self.validate_provider(provider) {
+          Ok(_) => None
+          Err(error) => Some(error)
+        }
+      ValueProvider(provider) =>
+        match self.validate_value_provider(provider) {
+          Ok(_) => None
+          Err(error) => Some(error)
+        }
+    }
+    if error is Some(error) {
       diagnostics.push(error.at(demand.loc))
     }
   }
@@ -58,6 +76,18 @@ pub impl @compiler_diag.ToCompilerDiagnostic for CanonicalBasicAbiDiagnostic wit
         ],
         context~,
       )
+    InvalidValueProvider(provider~, reason~) =>
+      @compiler_diag.compiler_error(
+        "invalid canonical Basic provider `\{provider.qualified_name()}`",
+        span~,
+        code=Some("E3039"),
+        labels=[@compiler_diag.compiler_primary_label(diagnostic.loc, reason)],
+        notes=[
+          "compiler-owned operator syntax requires the named public Basic value",
+        ],
+        helps=["export the required operator value from `Basic.Ops`"],
+        context~,
+      )
     InvalidStructuralDerivation(reason~) =>
       @compiler_diag.compiler_error(
         "invalid structural derivation interface",
@@ -79,6 +109,12 @@ pub impl @prettyprinter.Pretty for CanonicalBasicAbiError with fn pretty(
 ) {
   match error {
     InvalidProvider(provider~, reason~) =>
+      @prettyprinter.text("invalid_canonical_basic_provider") +
+      @prettyprinter.space +
+      @prettyprinter.text(provider.qualified_name()) +
+      @prettyprinter.space +
+      @prettyprinter.text(reason)
+    InvalidValueProvider(provider~, reason~) =>
       @prettyprinter.text("invalid_canonical_basic_provider") +
       @prettyprinter.space +
       @prettyprinter.text(provider.qualified_name()) +

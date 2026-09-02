@@ -1,6 +1,7 @@
 ///|
 pub(all) enum CanonicalBasicAbiError {
   InvalidProvider(provider~ : @abi.BasicTypeProvider, reason~ : String)
+  InvalidValueProvider(provider~ : @abi.BasicValueProvider, reason~ : String)
   InvalidStructuralDerivation(reason~ : String)
 } derive(Debug, Eq)
 
@@ -15,6 +16,10 @@ pub struct CanonicalBasicAbi {
     CanonicalBasicAbiError,
   ]
   structural_derive : Result[@checked.CheckedDeriveAbi, CanonicalBasicAbiError]
+  values : Map[
+    @abi.BasicValueProvider,
+    Result[@symbol.ValueSymbolId, CanonicalBasicAbiError],
+  ]
 }
 
 ///|
@@ -44,7 +49,14 @@ pub fn CanonicalBasicAbi::from_module_input(
       provider, tuple, list, void_declaration, structural_derive, wasm_address,
     )
   }
-  { providers, void_declaration, structural_derive, }
+  let values : Map[
+    @abi.BasicValueProvider,
+    Result[@symbol.ValueSymbolId, CanonicalBasicAbiError],
+  ] = Map([])
+  for provider in @abi.BasicValueProvider::all() {
+    values[provider] = identities.require_value_symbol(provider)
+  }
+  { providers, void_declaration, structural_derive, values, }
 }
 
 ///|
@@ -114,6 +126,23 @@ pub fn CanonicalBasicAbi::validate_provider(
     None =>
       Err(
         InvalidProvider(
+          provider~,
+          reason="the provider is absent from the canonical Basic ABI contract",
+        ),
+      )
+  }
+}
+
+///|
+pub fn CanonicalBasicAbi::validate_value_provider(
+  self : CanonicalBasicAbi,
+  provider : @abi.BasicValueProvider,
+) -> Result[@symbol.ValueSymbolId, CanonicalBasicAbiError] {
+  match self.values.get(provider) {
+    Some(result) => result
+    None =>
+      Err(
+        InvalidValueProvider(
           provider~,
           reason="the provider is absent from the canonical Basic ABI contract",
         ),
