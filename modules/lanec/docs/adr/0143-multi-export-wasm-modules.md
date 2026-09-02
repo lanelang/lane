@@ -58,7 +58,7 @@ global. Discarding the instance discards its linear memory and therefore all
 Lane-managed instance roots together. Traps and host failures discard the same
 instance without a second cleanup protocol.
 
-`lane exec --entry wasm_name program.wasm` instantiates the module and invokes
+`lane exec program.wasm:wasm_name` instantiates the module and invokes
 the named export. Its first command-level invocation ABI is exactly
 `() -> ()`; other valid module exports remain available to external WebAssembly
 hosts. `lane run FILE:ENTRY` remains a source convenience command and requires

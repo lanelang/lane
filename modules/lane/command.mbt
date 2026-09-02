@@ -119,11 +119,8 @@ fn lane_command_spec() -> Command {
       Command(
         "exec",
         about="Run a linked Lane WebAssembly module.",
-        options=[exec_entry_option()],
         flags=[no_jit_flag()],
-        positionals=[
-          artifact_positional_arg("program", "WebAssembly module to run."),
-        ],
+        positionals=[exec_target_positional_arg()],
       ),
       Command(
         "fmt",
@@ -233,13 +230,17 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
       )
     }
     Some(("exec", child)) =>
-      Ok(
-        Exec(
-          program=single_value(child, "program"),
-          entry=single_value(child, "entry"),
-          no_jit=flag(child, "no-jit"),
-        ),
-      )
+      match parse_exec_target(single_value(child, "target")) {
+        Ok(target) =>
+          Ok(
+            Exec(
+              program=target.file,
+              entry=target.entry,
+              no_jit=flag(child, "no-jit"),
+            ),
+          )
+        Err(message) => Err(message)
+      }
     Some(("fmt", child)) =>
       Ok(Fmt(files=values(child, "files"), check=flag(child, "check")))
     Some(("lsp", child)) => Ok(Lsp(stdio=flag(child, "stdio")))
@@ -254,6 +255,12 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
 priv struct RunTarget {
   file : String
   entry : String
+}
+
+///|
+priv enum EntryTargetCommand {
+  RunTargetCommand
+  ExecTargetCommand
 }
 
 ///|
@@ -278,11 +285,39 @@ fn PublicExportRequest::entry_name(
 
 ///|
 fn parse_run_target(target : String) -> Result[RunTarget, CliError] {
-  let parts = target.split(":").collect()
-  if parts.length() != 2 || parts[0].is_empty() || parts[1].is_empty() {
-    return Err(InvalidRunTarget(target~))
+  parse_entry_target(target, RunTargetCommand)
+}
+
+///|
+fn parse_exec_target(target : String) -> Result[RunTarget, CliError] {
+  parse_entry_target(target, ExecTargetCommand)
+}
+
+///|
+fn parse_entry_target(
+  target : String,
+  command : EntryTargetCommand,
+) -> Result[RunTarget, CliError] {
+  let parts = target.split(":").map(StringView::to_owned).collect()
+  guard parts.length() >= 2 else {
+    return Err(
+      match command {
+        RunTargetCommand => InvalidRunTarget(target~)
+        ExecTargetCommand => InvalidExecTarget(target~)
+      },
+    )
   }
-  Ok({ file: parts[0].to_owned(), entry: parts[1].to_owned(), })
+  let entry = parts[parts.length() - 1]
+  let file = parts[:parts.length() - 1].join(":")
+  guard !file.is_empty() && !entry.is_empty() else {
+    return Err(
+      match command {
+        RunTargetCommand => InvalidRunTarget(target~)
+        ExecTargetCommand => InvalidExecTarget(target~)
+      },
+    )
+  }
+  Ok({ file, entry, })
 }
 
 ///|
@@ -335,6 +370,15 @@ fn run_target_positional_arg() -> @argparse.PositionArg {
     "target",
     num_args=@argparse.ValueRange::single(),
     about="Source file and entry to select, as FILE:ENTRY.",
+  )
+}
+
+///|
+fn exec_target_positional_arg() -> @argparse.PositionArg {
+  PositionArg(
+    "target",
+    num_args=@argparse.ValueRange::single(),
+    about="WebAssembly module and exported entry to invoke, as PROGRAM:ENTRY.",
   )
 }
 
@@ -430,16 +474,6 @@ fn link_export_option() -> @argparse.OptionArg {
     action=Append,
     required=true,
     about="Export a public Lane value as NAME, such as Main.main:_start. Repeat for multiple exports.",
-  )
-}
-
-///|
-fn exec_entry_option() -> @argparse.OptionArg {
-  OptionArg(
-    "entry",
-    long="entry",
-    required=true,
-    about="Invoke this zero-argument, zero-result WebAssembly function export.",
   )
 }
 

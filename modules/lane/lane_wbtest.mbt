@@ -36,6 +36,26 @@ test "reject run target without entry suffix" {
 }
 
 ///|
+test "reject exec target without entry suffix" {
+  guard parse_exec_target("program.wasm") is Err(error) else {
+    abort("expected exec target error")
+  }
+  debug_inspect(error, content="InvalidExecTarget(target=\"program.wasm\")")
+  inspect(
+    error.render_human(),
+    content=(
+      #|error[E6018]: invalid exec target `program.wasm`
+      #|  expected: PROGRAM:ENTRY
+      #|
+      #|`lane exec` loads an existing WebAssembly module and invokes one exported entry.
+      #|
+      #|Example:
+      #|  lane exec program.wasm:main
+    ),
+  )
+}
+
+///|
 test "file read diagnostics hide host exception details" {
   let error = CliError::file_io(
     Read,

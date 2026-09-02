@@ -51,6 +51,7 @@ enum CliError {
   InvalidCommand(message~ : String)
   LaneHomeNotConfigured
   InvalidRunTarget(target~ : String)
+  InvalidExecTarget(target~ : String)
   InvalidExploreTarget(target~ : String)
   InvalidLinkExport(export_~ : String)
   DuplicateLinkExportName(name~ : String)
@@ -148,6 +149,18 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
         ],
         suggestions=[
           command_suggestion("Example:", command="lane run Main.lane:main"),
+        ],
+      )
+    InvalidExecTarget(target~) =>
+      command_report(
+        code="E6018",
+        title="invalid exec target `\{target}`",
+        fields=[command_report_field("expected", "PROGRAM:ENTRY")],
+        details=[
+          "`lane exec` loads an existing WebAssembly module and invokes one exported entry.",
+        ],
+        suggestions=[
+          command_suggestion("Example:", command="lane exec program.wasm:main"),
         ],
       )
     InvalidExploreTarget(target~) =>
