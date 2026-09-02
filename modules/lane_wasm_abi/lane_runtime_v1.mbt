@@ -1,6 +1,7 @@
 ///|
 pub(all) enum LaneRuntimeV1Import {
   RunCommand
+  TakeCommandOutput
 } derive(Debug, Eq)
 
 ///|
@@ -15,12 +16,19 @@ pub fn LaneRuntimeV1Import::contract(
         parameters: [GuestAddress, Direct(I32), GuestAddress],
         result: Direct(I32),
       }
+    TakeCommandOutput =>
+      {
+        module_name: "lane_runtime_v1",
+        field_name: "take_command_output",
+        parameters: [Direct(I32), GuestAddress, Direct(I32)],
+        result: Direct(I32),
+      }
   }
 }
 
 ///|
 pub fn lane_runtime_v1_imports() -> Array[LaneRuntimeV1Import] {
-  [RunCommand]
+  [RunCommand, TakeCommandOutput]
 }
 
 ///|
@@ -47,6 +55,7 @@ pub(all) struct RunCommandRequest {
   working_directory : String?
   environment : Array[RunCommandEnvironmentEntry]
   inherit_environment : Bool
+  stdin : Bytes
 } derive(Debug, Eq)
 
 ///|
@@ -92,7 +101,7 @@ pub fn RunCommandTermination::response_words(
 
 ///|
 pub fn run_command_response_size() -> Int {
-  8
+  20
 }
 
 ///|
@@ -177,6 +186,8 @@ pub fn decode_run_command_request(
         i32le(working_directory_length),
         i32le(environment_offset),
         i32le(environment_count),
+        i32le(stdin_offset),
+        i32le(stdin_length),
         ..,
       ] else {
       raise InvalidRunCommandFrame(detail="the request header is truncated")
@@ -254,6 +265,10 @@ pub fn decode_run_command_request(
       working_directory,
       environment,
       inherit_environment: flags == 1,
+      stdin: {
+        checked_frame_range(frame, stdin_offset, stdin_length, "standard input")
+        frame[stdin_offset:stdin_offset + stdin_length].to_owned()
+      },
     })
   } catch {
     error => Err(error)

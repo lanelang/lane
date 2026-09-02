@@ -291,6 +291,10 @@ fn @bytecodec.ByteReader::read_intrinsic(
       self.update_view(rest)
       ByteBufferReadI32
     }
+    [u8be(67), .. rest] => {
+      self.update_view(rest)
+      ByteBufferToBytes
+    }
     [u8be(tag), .. rest] => {
       self.update_view(rest)
       invalid_binary_tag(

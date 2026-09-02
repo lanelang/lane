@@ -178,6 +178,7 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteBufferWriteI32
   ByteBufferWriteAddress
   ByteBufferReadI32
+  ByteBufferToBytes
 } derive(Eq, @debug.Debug)
 pub fn WasmRuntimeFunctionRole::equal(Self, Self) -> Bool
 pub fn WasmRuntimeFunctionRole::not_equal(Self, Self) -> Bool

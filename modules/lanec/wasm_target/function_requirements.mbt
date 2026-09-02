@@ -129,6 +129,8 @@ fn require_physical_instruction_dependencies(
       )
     ByteBufferReadI32(_, _, _) =>
       require_wasm_function(dependencies, RuntimeFunction(ByteBufferReadI32))
+    ByteBufferToBytes(_, _) =>
+      require_wasm_function(dependencies, RuntimeFunction(ByteBufferToBytes))
     ByteSequenceEqual(_, _, _) =>
       require_wasm_function(dependencies, RuntimeFunction(ByteSequenceEqual))
     ByteSequenceConcat(_, _, _) =>
@@ -236,6 +238,11 @@ fn runtime_function_dependencies(
       ])
     ByteBufferWriteI32 | ByteBufferWriteAddress | ByteBufferReadI32 =>
       dependencies.push(RuntimeFunction(RequireByteBufferLayout))
+    ByteBufferToBytes =>
+      dependencies.append([
+        RuntimeFunction(RequireByteBufferLayout),
+        RuntimeFunction(ByteSequenceNew),
+      ])
   }
   dependencies
 }

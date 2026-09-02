@@ -370,6 +370,12 @@ fn compile_instruction(
         function_catalog.runtime(ByteBufferReadI32).call(),
         LocalSet(locals.slot_local(destination)),
       ]
+    ByteBufferToBytes(destination, buffer) =>
+      [
+        LocalGet(locals.slot_local(buffer)),
+        function_catalog.runtime(ByteBufferToBytes).call(),
+        LocalSet(locals.slot_local(destination)),
+      ]
     ByteSequenceConcat(destination, left, right) => {
       let result : Array[@wasm_types.Instruction] = [
         LocalGet(locals.slot_local(left)),

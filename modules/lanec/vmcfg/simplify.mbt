@@ -603,6 +603,8 @@ fn map_instruction_values(
         transform(buffer),
         transform(index),
       )
+    ByteBufferToBytes(destination, buffer) =>
+      ByteBufferToBytes(transform(destination), transform(buffer))
     I32Add(destination, left, right) =>
       I32Add(transform(destination), transform(left), transform(right))
     I32Sub(destination, left, right) =>

@@ -72,6 +72,7 @@ fn runtime_function_type(role : WasmRuntimeFunctionRole) -> WasmFunctionType {
     ByteBufferWriteI32 => wasm_function_type([I32, I64, I32], [])
     ByteBufferWriteAddress => wasm_function_type([I32, I64, I32, I32], [])
     ByteBufferReadI32 => wasm_function_type([I32, I64], [I32])
+    ByteBufferToBytes => wasm_function_type([I32], [I32])
   }
 }
 
@@ -113,6 +114,7 @@ fn runtime_function_order() -> Array[WasmRuntimeFunctionRole] {
     ByteBufferWriteI32,
     ByteBufferWriteAddress,
     ByteBufferReadI32,
+    ByteBufferToBytes,
   ]
 }
 

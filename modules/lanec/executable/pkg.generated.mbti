@@ -64,9 +64,12 @@ pub struct ExecutableExport {
 } derive(Eq, @debug.Debug)
 pub fn ExecutableExport::contract(Self) -> @lane_wasm_abi.ExportContract
 pub fn ExecutableExport::entry(Self) -> @buslane_lowering.BuslaneEntry
+pub fn ExecutableExport::equal(Self, Self) -> Bool
 pub fn ExecutableExport::name(Self) -> String
+pub fn ExecutableExport::not_equal(Self, Self) -> Bool
 pub fn ExecutableExport::parameters(Self) -> Array[@lane_wasm_abi.ExportParameter]
 pub fn ExecutableExport::result(Self) -> @lane_wasm_abi.ExportResult
+pub fn ExecutableExport::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ExecutableProgram {
   cps_core : @effect_lowering.CpsCoreProgram
@@ -92,6 +95,9 @@ pub(all) struct ExportRequest {
   entry : @buslane_lowering.BuslaneEntry
   name : String
 } derive(Eq, @debug.Debug)
+pub fn ExportRequest::equal(Self, Self) -> Bool
+pub fn ExportRequest::not_equal(Self, Self) -> Bool
+pub fn ExportRequest::to_repr(Self) -> @debug.Repr
 
 // Type aliases
 

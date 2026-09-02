@@ -216,6 +216,7 @@ pub(all) enum Instruction {
   ByteBufferWriteI32(ValueId, ValueId, ValueId)
   ByteBufferWriteAddress(ValueId, ValueId, ValueId, ValueId)
   ByteBufferReadI32(ValueId, ValueId, ValueId)
+  ByteBufferToBytes(ValueId, ValueId)
   I32Add(ValueId, ValueId, ValueId)
   I32Sub(ValueId, ValueId, ValueId)
   I32Mul(ValueId, ValueId, ValueId)

@@ -173,6 +173,12 @@ pub extend ObjectShapeId with Debug::{to_repr}
 pub extend ObjectShapeId with Eq::{not_equal, equal}
 
 ///|
+pub extend PhysicalExport with Debug::{to_repr}
+
+///|
+pub extend PhysicalExport with Eq::{not_equal, equal}
+
+///|
 pub extend PhysicalProgram with @prettyprinter.Pretty::{pretty}
 
 ///|

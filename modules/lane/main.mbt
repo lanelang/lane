@@ -26,7 +26,7 @@ async fn main {
             file, interfaces, interface_output, object_output, verbose,
           )
         Fmt(files~, check~) => lane_fmt(files, check)
-        Inspect(artifact~) => lane_inspect(artifact)
+        Inspect(input~) => lane_inspect(input)
         Link(objects~, exports~, output~, verbose~) =>
           lane_link(objects, exports, output, verbose)
         Lsp(stdio~) => lsp_command(stdio)

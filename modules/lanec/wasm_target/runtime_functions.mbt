@@ -142,6 +142,14 @@ fn compile_runtime_function(
           catalog.runtime(RequireByteBufferLayout),
         ),
       }
+    ByteBufferToBytes =>
+      {
+        locals: [I32, I32],
+        body: byte_buffer_to_bytes_body(
+          catalog.runtime(RequireByteBufferLayout),
+          catalog.runtime(ByteSequenceNew),
+        ),
+      }
   }
 }
 
@@ -763,6 +771,31 @@ fn byte_buffer_read_i32_body(
     LocalGet(2),
     I32Add,
     I32Load(0, 2, 12L),
+  ]
+}
+
+///|
+fn byte_buffer_to_bytes_body(
+  require_buffer : WasmFunctionHandle,
+  byte_sequence_new : WasmFunctionHandle,
+) -> Array[@wasm_types.Instruction] {
+  [
+    LocalGet(0),
+    require_buffer.call(),
+    LocalGet(0),
+    I32Load(0, 2, 8L),
+    LocalTee(1),
+    byte_sequence_new.call(),
+    LocalSet(2),
+    LocalGet(2),
+    I32Const(12),
+    I32Add,
+    LocalGet(0),
+    I32Const(12),
+    I32Add,
+    LocalGet(1),
+    MemoryCopy(0, 0),
+    LocalGet(2),
   ]
 }
 

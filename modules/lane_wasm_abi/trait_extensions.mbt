@@ -35,6 +35,33 @@ pub extend ImportContract with Debug::{to_repr}
 pub extend ImportContract with Eq::{not_equal, equal}
 
 ///|
+pub extend ExportParameter with Compare::{op_lt, op_le, op_ge, compare, op_gt}
+
+///|
+pub extend ExportParameter with Debug::{to_repr}
+
+///|
+pub extend ExportParameter with Eq::{not_equal, equal}
+
+///|
+pub extend ExportResult with Compare::{op_lt, op_le, op_ge, compare, op_gt}
+
+///|
+pub extend ExportResult with Debug::{to_repr}
+
+///|
+pub extend ExportResult with Eq::{not_equal, equal}
+
+///|
+pub extend ExportContract with Compare::{op_lt, op_le, op_ge, compare, op_gt}
+
+///|
+pub extend ExportContract with Debug::{to_repr}
+
+///|
+pub extend ExportContract with Eq::{not_equal, equal}
+
+///|
 pub extend LaneRuntimeV1Import with Debug::{to_repr}
 
 ///|

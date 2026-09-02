@@ -343,6 +343,7 @@ pub(all) enum Intrinsic {
   ByteBufferWriteI32
   ByteBufferWriteAddress
   ByteBufferReadI32
+  ByteBufferToBytes
 } derive(Debug, Eq)
 
 ///|
@@ -414,6 +415,7 @@ pub fn Intrinsic::from_name(name : String) -> Intrinsic? {
     "%byte_buffer_write_i32" => Some(ByteBufferWriteI32)
     "%byte_buffer_write_address" => Some(ByteBufferWriteAddress)
     "%byte_buffer_read_i32" => Some(ByteBufferReadI32)
+    "%byte_buffer_to_bytes" => Some(ByteBufferToBytes)
     _ => None
   }
 }
@@ -487,6 +489,7 @@ pub fn Intrinsic::name(self : Intrinsic) -> String {
     ByteBufferWriteI32 => "%byte_buffer_write_i32"
     ByteBufferWriteAddress => "%byte_buffer_write_address"
     ByteBufferReadI32 => "%byte_buffer_read_i32"
+    ByteBufferToBytes => "%byte_buffer_to_bytes"
   }
 }
 
@@ -582,6 +585,13 @@ pub fn Intrinsic::signature(self : Intrinsic) -> IntrinsicSignature {
       Function(
         parameters=[ByteBuffer, I64],
         result=I32,
+        effect=BuiltinIo,
+        implementation=Direct,
+      )
+    ByteBufferToBytes =>
+      Function(
+        parameters=[ByteBuffer],
+        result=Bytes,
         effect=BuiltinIo,
         implementation=Direct,
       )

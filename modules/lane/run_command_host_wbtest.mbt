@@ -9,6 +9,7 @@ fn native_command_request(
     working_directory: None,
     environment: [],
     inherit_environment: true,
+    stdin: b"",
   }
 }
 
@@ -56,49 +57,72 @@ async test "lane runtime executes its async host import in both backends" {
 ///|
 #cfg(not(platform="windows"))
 async test "native run-command adapter preserves process termination" {
-  assert_eq(
-    execute_native_command(native_command_request("/usr/bin/true", [])),
-    (Succeeded, Some(Exited(code=0))),
+  let (true_status, true_termination) = execute_native_command(
+    native_command_request("/usr/bin/true", []),
   )
-  assert_eq(
-    execute_native_command(native_command_request("/usr/bin/false", [])),
-    (Succeeded, Some(Exited(code=1))),
+  assert_eq(true_status, Succeeded)
+  assert_true(true_termination is Some({ termination: Exited(code=0), .. }))
+  let (false_status, false_termination) = execute_native_command(
+    native_command_request("/usr/bin/false", []),
   )
+  assert_eq(false_status, Succeeded)
+  assert_true(false_termination is Some({ termination: Exited(code=1), .. }))
 }
 
 ///|
 #cfg(not(platform="windows"))
 async test "native run-command adapter never interprets an implicit shell command" {
-  assert_eq(
-    execute_native_command(native_command_request("true; false", [])),
-    (ExecutableNotFound, None),
+  let (status, termination) = execute_native_command(
+    native_command_request("true; false", []),
   )
+  assert_eq(status, ExecutableNotFound)
+  assert_true(termination is None)
 }
 
 ///|
 #cfg(not(platform="windows"))
 async test "native run-command adapter applies working directory and environment" {
+  let (status, termination) = execute_native_command({
+    executable: "/bin/sh",
+    arguments: [
+      "-c", "[ \"$LANE_RUN_COMMAND_TEST\" = ready ] && [ \"$PWD\" = / ]",
+    ],
+    working_directory: Some("/"),
+    environment: [{ key: "LANE_RUN_COMMAND_TEST", value: "ready", }],
+    inherit_environment: false,
+    stdin: b"",
+  })
+  assert_eq(status, Succeeded)
+  assert_true(termination is Some({ termination: Exited(code=0), .. }))
+}
+
+///|
+#cfg(not(platform="windows"))
+async test "native run-command adapter writes stdin and captures both outputs" {
+  let (status, output) = execute_native_command({
+    executable: "/bin/sh",
+    arguments: ["-c", "cat; printf stdout; printf stderr >&2"],
+    working_directory: None,
+    environment: [],
+    inherit_environment: true,
+    stdin: b"input",
+  })
+  assert_eq(status, Succeeded)
+  guard output is Some({ termination, stdout, stderr, }) else {
+    abort("expected captured command output")
+  }
   assert_eq(
-    execute_native_command({
-      executable: "/bin/sh",
-      arguments: [
-        "-c", "[ \"$LANE_RUN_COMMAND_TEST\" = ready ] && [ \"$PWD\" = / ]",
-      ],
-      working_directory: Some("/"),
-      environment: [{ key: "LANE_RUN_COMMAND_TEST", value: "ready", }],
-      inherit_environment: false,
-    }),
-    (Succeeded, Some(Exited(code=0))),
+    (termination, stdout, stderr),
+    (Exited(code=0), b"inputstdout", b"stderr"),
   )
 }
 
 ///|
 #cfg(platform="windows")
 async test "native run-command adapter preserves Windows process termination" {
-  assert_eq(
-    execute_native_command(
-      native_command_request("cmd.exe", ["/d", "/c", "exit", "7"]),
-    ),
-    (Succeeded, Some(Exited(code=7))),
+  let (status, termination) = execute_native_command(
+    native_command_request("cmd.exe", ["/d", "/c", "exit", "7"]),
   )
+  assert_eq(status, Succeeded)
+  assert_true(termination is Some({ termination: Exited(code=7), .. }))
 }

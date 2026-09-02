@@ -535,6 +535,10 @@ fn FunctionLowerer::lower_intrinsic(
       ignore(self.image.intern_layout(ByteBuffer))
       ignore(self.image.intern_layout(ByteSequence))
     }
+    ByteBufferToBytes => {
+      ignore(self.image.intern_layout(ByteBuffer))
+      ignore(self.image.intern_layout(ByteSequence))
+    }
     _ => ()
   }
   let slots = arguments.map(fn(argument) {
@@ -615,6 +619,7 @@ fn FunctionLowerer::lower_intrinsic(
     (ByteBufferMake, [length]) => ByteBufferMake(destination, length)
     (ByteBufferReadI32, [buffer, index]) =>
       ByteBufferReadI32(destination, buffer, index)
+    (ByteBufferToBytes, [buffer]) => ByteBufferToBytes(destination, buffer)
     _ => raise UnsupportedIntrinsic(name=intrinsic.name())
   }
   self.emit(instruction)

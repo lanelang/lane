@@ -1,9 +1,10 @@
 # Lane Runtime V1: Run Command
 
-`lane_runtime_v1.run_command` is a Core WebAssembly host import with blocking
-guest semantics and an asynchronous host implementation. It executes an
-executable directly with a structured argument vector. It never parses a shell
-command and never invokes a shell implicitly.
+Lane Runtime V1 uses two Core WebAssembly host imports with blocking guest
+semantics. `lane_runtime_v1.run_command` executes an executable directly with a
+structured argument vector and captures its output. It never parses a shell
+command and never invokes a shell implicitly. `lane_runtime_v1.take_command_output`
+copies one completed command's captured bytes into guest memory.
 
 The Basic wrapper is the guest-side encoder for this protocol. Runtime hosts
 consume the catalog decoder and wire projections; they do not independently
@@ -21,10 +22,20 @@ After projecting both guest addresses, its Core Wasm type is:
 (i32, i32, i32) -> i32
 ```
 
-The parameters are the request address, request byte length, and address of an
-eight-byte response record. Both addresses borrow guest memory while the Wasm
-invocation is parked and only until the host call returns. Standard input,
-output, and error are inherited from the host running the Lane program.
+The parameters are the request address, request byte length, and address of a
+20-byte response record. Both addresses borrow guest memory while the Wasm
+invocation is parked and only until the host call returns. Standard input is
+read from the request frame. Standard output and standard error are captured
+separately.
+
+The output-transfer source contract is:
+
+```lane
+(I32, WasmAddress, I32) -> I32 ! Io
+```
+
+Its Core Wasm type is `(i32, i32, i32) -> i32`. The parameters are the output
+handle, destination address, and exact combined output length.
 
 ## Request frame
 
@@ -42,6 +53,8 @@ relative to the start of the request frame.
 | 24 | Working-directory byte length; zero when absent |
 | 28 | Environment table offset |
 | 32 | Environment entry count |
+| 36 | Standard-input byte offset |
+| 40 | Standard-input byte length |
 
 Each argument-table entry contains an offset followed by a byte length. Each
 environment-table entry contains key offset, key length, value offset, and
@@ -66,12 +79,24 @@ The import result classifies the host operation:
 | 3 | Permission denied |
 | 4 | Other host process failure |
 
-On success, the response record contains a termination tag at offset 0 and its
-code at offset 4. Tag 0 is normal exit and tag 1 is signal termination. Windows
-does not produce the signal form.
+On success, the response record contains:
+
+| Offset | Field |
+| ---: | --- |
+| 0 | Termination tag: 0 for exit, 1 for signal |
+| 4 | Exit code or signal number |
+| 8 | Output handle |
+| 12 | Standard-output byte length |
+| 16 | Standard-error byte length |
+
+Windows does not produce the signal form. The guest allocates exactly the sum
+of the two output lengths and calls `take_command_output`. The host writes
+standard output followed immediately by standard error. A successful transfer
+consumes the handle; an unknown handle, an incorrect length, or an out-of-range
+destination returns `InvalidRequest`. A host retains no guest-memory address
+after either import returns.
 
 The guest call completes only after the child terminates, but the host process
 operation suspends the Wasm continuation or JIT native fiber instead of
 blocking the host thread. Cancelling the surrounding host task cancels the
-child process through structured concurrency. Output capture and process
-handles are not part of this interface.
+child process through structured concurrency.

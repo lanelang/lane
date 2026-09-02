@@ -20,6 +20,7 @@ pub(all) enum WasmRuntimeFunctionRole {
   ByteBufferWriteI32
   ByteBufferWriteAddress
   ByteBufferReadI32
+  ByteBufferToBytes
 } derive(Debug, Eq)
 
 ///|

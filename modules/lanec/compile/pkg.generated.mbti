@@ -101,6 +101,9 @@ pub(all) struct CompiledExport {
   entry : CompiledEntry
   name : String
 } derive(Eq, @debug.Debug)
+pub fn CompiledExport::equal(Self, Self) -> Bool
+pub fn CompiledExport::not_equal(Self, Self) -> Bool
+pub fn CompiledExport::to_repr(Self) -> @debug.Repr
 
 pub struct CompiledModules {
   // private fields

@@ -193,6 +193,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "byte_buffer_write_address \{render_value(buffer)}, \{render_value(index)}, \{render_value(target)}, \{render_value(offset)}"
     ByteBufferReadI32(destination, buffer, index) =>
       binary_instruction("byte_buffer_read_i32", destination, buffer, index)
+    ByteBufferToBytes(destination, buffer) =>
+      unary_instruction("byte_buffer_to_bytes", destination, buffer)
     I32Add(destination, left, right) =>
       binary_instruction("i32_add", destination, left, right)
     I32Sub(destination, left, right) =>

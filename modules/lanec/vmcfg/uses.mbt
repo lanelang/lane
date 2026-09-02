@@ -92,6 +92,7 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | ByteBufferWriteBytes(string, start, length)
     | ByteBufferWriteI32(string, start, length) => [string, start, length]
     ByteBufferReadI32(_, buffer, index) => [buffer, index]
+    ByteBufferToBytes(_, buffer) => [buffer]
     ByteBufferWriteAddress(buffer, index, target, offset) =>
       [buffer, index, target, offset]
     CallDirect(_, environment, witnesses, arguments, _) => {
@@ -296,8 +297,9 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | UneraseF64(destination, _)
     | EraseUnit(destination)
     | BorrowGlobal(destination, _) => [destination]
-    ByteBufferMake(destination, _) | ByteBufferReadI32(destination, _, _) =>
-      [destination]
+    ByteBufferMake(destination, _)
+    | ByteBufferReadI32(destination, _, _)
+    | ByteBufferToBytes(destination, _) => [destination]
     CallDirect(_, _, _, _, destination)
     | CallRuntimeImport(_, _, destination)
     | CallPackedDirect(_, _, _, _, destination)

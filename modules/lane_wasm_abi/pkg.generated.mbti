@@ -43,21 +43,45 @@ pub(all) struct ExportContract {
   parameters : Array[ExportParameter]
   result : ExportResult
 } derive(Compare, Eq, @debug.Debug)
+pub fn ExportContract::compare(Self, Self) -> Int
 pub fn ExportContract::core_parameters(Self) -> Array[CoreValueType]
 pub fn ExportContract::core_results(Self) -> Array[CoreValueType]
+pub fn ExportContract::equal(Self, Self) -> Bool
+pub fn ExportContract::not_equal(Self, Self) -> Bool
+pub fn ExportContract::op_ge(Self, Self) -> Bool
+pub fn ExportContract::op_gt(Self, Self) -> Bool
+pub fn ExportContract::op_le(Self, Self) -> Bool
+pub fn ExportContract::op_lt(Self, Self) -> Bool
 pub fn ExportContract::snapshot(Self) -> Self
+pub fn ExportContract::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExportParameter {
   ErasedUnit
   Direct(CoreValueType)
 } derive(Compare, Eq, @debug.Debug)
+pub fn ExportParameter::compare(Self, Self) -> Int
 pub fn ExportParameter::core_types(Self) -> Array[CoreValueType]
+pub fn ExportParameter::equal(Self, Self) -> Bool
+pub fn ExportParameter::not_equal(Self, Self) -> Bool
+pub fn ExportParameter::op_ge(Self, Self) -> Bool
+pub fn ExportParameter::op_gt(Self, Self) -> Bool
+pub fn ExportParameter::op_le(Self, Self) -> Bool
+pub fn ExportParameter::op_lt(Self, Self) -> Bool
+pub fn ExportParameter::to_repr(Self) -> @debug.Repr
 
 pub(all) enum ExportResult {
   Unit
   Direct(CoreValueType)
 } derive(Compare, Eq, @debug.Debug)
+pub fn ExportResult::compare(Self, Self) -> Int
 pub fn ExportResult::core_types(Self) -> Array[CoreValueType]
+pub fn ExportResult::equal(Self, Self) -> Bool
+pub fn ExportResult::not_equal(Self, Self) -> Bool
+pub fn ExportResult::op_ge(Self, Self) -> Bool
+pub fn ExportResult::op_gt(Self, Self) -> Bool
+pub fn ExportResult::op_le(Self, Self) -> Bool
+pub fn ExportResult::op_lt(Self, Self) -> Bool
+pub fn ExportResult::to_repr(Self) -> @debug.Repr
 
 pub(all) struct ImportContract {
   module_name : String
@@ -109,6 +133,7 @@ pub fn ImportResult::to_repr(Self) -> @debug.Repr
 
 pub(all) enum LaneRuntimeV1Import {
   RunCommand
+  TakeCommandOutput
 } derive(Eq, @debug.Debug)
 pub fn LaneRuntimeV1Import::contract(Self) -> ImportContract
 pub fn LaneRuntimeV1Import::equal(Self, Self) -> Bool
@@ -141,6 +166,7 @@ pub(all) struct RunCommandRequest {
   working_directory : String?
   environment : Array[RunCommandEnvironmentEntry]
   inherit_environment : Bool
+  stdin : Bytes
 } derive(Eq, @debug.Debug)
 pub fn RunCommandRequest::equal(Self, Self) -> Bool
 pub fn RunCommandRequest::not_equal(Self, Self) -> Bool

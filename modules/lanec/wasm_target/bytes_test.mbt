@@ -49,6 +49,7 @@ fn wasm_bytes_body(
 fn wasm_bytes_image(
   body : @physical.FunctionBody,
   constants? : Array[Bytes] = [],
+  layouts? : Array[@physical.LayoutRecipe] = [ByteSequence],
 ) -> @physical.PhysicalProgram {
   {
     exports: [@physical.physical_export(function={ value: 1, }, name="_start")],
@@ -57,7 +58,7 @@ fn wasm_bytes_image(
     data_family_count: 0,
     globals: [],
     functions: [PhysicalBody(body)],
-    layouts: [ByteSequence],
+    layouts,
     object_shapes: [],
     constants,
   }
@@ -94,8 +95,9 @@ fn execute_bytes_wasm(
 fn execute_bytes_backends(
   body : @physical.FunctionBody,
   constants? : Array[Bytes] = [],
+  layouts? : Array[@physical.LayoutRecipe] = [ByteSequence],
 ) -> BytesBackendOutcomes raise {
-  execute_bytes_image_backends(wasm_bytes_image(body, constants~))
+  execute_bytes_image_backends(wasm_bytes_image(body, constants~, layouts~))
 }
 
 ///|
@@ -113,11 +115,63 @@ fn assert_bytes_backends(
   body : @physical.FunctionBody,
   expected : BytesExecutionOutcome,
   constants? : Array[Bytes] = [],
+  layouts? : Array[@physical.LayoutRecipe] = [ByteSequence],
 ) -> Unit raise {
-  assert_eq(execute_bytes_backends(body, constants~), {
+  assert_eq(execute_bytes_backends(body, constants~, layouts~), {
     wasm_interpreter: expected,
     wasm_jit: expected,
   })
+}
+
+///|
+test "ByteBuffer conversion copies its contents into immutable Bytes" {
+  let byte_buffer : @physical.SlotMetadata = {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: ByteBufferValue,
+    erased_companion: None,
+  }
+  assert_bytes_backends(
+    wasm_bytes_body(
+      [
+        wasm_bytes_trivial_slot(I64),
+        byte_buffer,
+        wasm_bytes_trivial_slot(I64),
+        wasm_bytes_trivial_slot(I32),
+        wasm_bytes_owned_slot(),
+        wasm_bytes_owned_slot(),
+        wasm_bytes_trivial_slot(I32),
+      ],
+      [
+        {
+          parameters: [],
+          instructions: [
+            ConstI64({ value: 0, }, 4L),
+            ByteBufferMake({ value: 1, }, { value: 0, }),
+            ConstI64({ value: 2, }, 0L),
+            ConstI32({ value: 3, }, 0x64636261),
+            ByteBufferWriteI32({ value: 1, }, { value: 2, }, { value: 3, }),
+            ByteBufferToBytes({ value: 4, }, { value: 1, }),
+            ConstString({ value: 5, }, { value: 0, }),
+            ByteSequenceEqual({ value: 6, }, { value: 4, }, { value: 5, }),
+            Release({ value: 1, }),
+            Release({ value: 4, }),
+            Release({ value: 5, }),
+          ],
+          terminator: BranchBool(
+            { value: 6, },
+            { target: { value: 1, }, arguments: [], },
+            { target: { value: 2, }, arguments: [], },
+          ),
+        },
+        { parameters: [], instructions: [], terminator: Return(None), },
+        { parameters: [], instructions: [], terminator: Unreachable, },
+      ],
+    ),
+    Completed,
+    constants=[b"abcd"],
+    layouts=[ByteSequence, ByteBuffer],
+  )
 }
 
 ///|

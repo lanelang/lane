@@ -350,6 +350,7 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
     | ByteBufferWriteI32(_, _, _)
     | ByteBufferWriteAddress(_, _, _, _)
     | ByteBufferReadI32(_, _, _)
+    | ByteBufferToBytes(_, _)
     | EraseUnit(_)
     | BorrowGlobal(_, _) =>
       {

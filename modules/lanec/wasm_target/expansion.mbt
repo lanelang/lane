@@ -32,6 +32,7 @@ fn physical_opcode_family(
     | ByteBufferWriteI32(_, _, _)
     | ByteBufferWriteAddress(_, _, _, _)
     | ByteBufferReadI32(_, _, _)
+    | ByteBufferToBytes(_, _)
     | F32ToString(_, _)
     | F64ToString(_, _) => ByteSequence
     EraseI32(_, _)

@@ -250,6 +250,7 @@ fn wasm_runtime_name(role : @wasm_compiler.WasmRuntimeFunctionRole) -> String {
     ByteBufferWriteI32 => "byte buffer write i32"
     ByteBufferWriteAddress => "byte buffer write address"
     ByteBufferReadI32 => "byte buffer read i32"
+    ByteBufferToBytes => "byte buffer to bytes"
   }
 }
 

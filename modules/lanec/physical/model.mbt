@@ -228,6 +228,7 @@ pub(all) enum Instruction {
   ByteBufferWriteI32(SlotId, SlotId, SlotId)
   ByteBufferWriteAddress(SlotId, SlotId, SlotId, SlotId)
   ByteBufferReadI32(SlotId, SlotId, SlotId)
+  ByteBufferToBytes(SlotId, SlotId)
   I32Add(SlotId, SlotId, SlotId)
   I32Sub(SlotId, SlotId, SlotId)
   I32Mul(SlotId, SlotId, SlotId)

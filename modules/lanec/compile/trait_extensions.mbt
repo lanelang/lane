@@ -41,6 +41,12 @@ pub extend CompiledEntry with Debug::{to_repr}
 pub extend CompiledEntry with Eq::{not_equal, equal}
 
 ///|
+pub extend CompiledExport with Debug::{to_repr}
+
+///|
+pub extend CompiledExport with Eq::{not_equal, equal}
+
+///|
 pub extend CompiledModules with Debug::{to_repr}
 
 ///|

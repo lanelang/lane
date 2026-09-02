@@ -131,6 +131,24 @@ test "inspect file diagnostics name the inspect operation" {
 }
 
 ///|
+test "source inspection renders canonical module dependencies" {
+  json_inspect(
+    source_inspection({
+      source_id: "src/Main.lane",
+      module_path_text: "App.Main",
+      imports: ["Basic.Io", "App.Model"],
+    }),
+    content=(
+      #|{
+      #|  "schema": 1,
+      #|  "module": "App.Main",
+      #|  "imports": ["Basic.Io", "App.Model"]
+      #|}
+    ),
+  )
+}
+
+///|
 test "artifact load diagnostics render as command reports" {
   inspect(
     ArtifactLoad(

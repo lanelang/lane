@@ -182,6 +182,7 @@ test "ByteBuffer operations own effectful Wasm ABI memory contracts" {
       (ByteBufferWriteI32.name(), ByteBufferWriteI32.signature()),
       (ByteBufferWriteAddress.name(), ByteBufferWriteAddress.signature()),
       (ByteBufferReadI32.name(), ByteBufferReadI32.signature()),
+      (ByteBufferToBytes.name(), ByteBufferToBytes.signature()),
     ],
     [
       (
@@ -225,6 +226,15 @@ test "ByteBuffer operations own effectful Wasm ABI memory contracts" {
         Function(
           parameters=[ByteBuffer, I64],
           result=I32,
+          effect=BuiltinIo,
+          implementation=Direct,
+        ),
+      ),
+      (
+        "%byte_buffer_to_bytes",
+        Function(
+          parameters=[ByteBuffer],
+          result=Bytes,
           effect=BuiltinIo,
           implementation=Direct,
         ),

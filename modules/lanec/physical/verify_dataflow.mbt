@@ -1138,6 +1138,10 @@ fn PhysicalProgramVerifier::apply_instruction_flow(
       ignore(self.read_flow(site, state, length))
       self.write_from_metadata(site, body, state, destination)
     }
+    ByteBufferToBytes(destination, buffer) => {
+      ignore(self.read_flow(site, state, buffer))
+      self.write_from_metadata(site, body, state, destination)
+    }
     ByteBufferWriteBytes(buffer, index, source)
     | ByteBufferWriteI32(buffer, index, source) => {
       ignore(self.read_flow(site, state, buffer))

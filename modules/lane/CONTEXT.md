@@ -14,6 +14,12 @@ _Avoid_: compiler library, language semantics
 The source file named directly by a single-file command.
 _Avoid_: project root, module identity
 
+**Source Inspection**:
+The stable JSON projection produced by `lane inspect` for one `.lane` file. It
+contains the parser-owned module identity and ordered direct imports only; it
+does not discover a repository or schedule a build graph.
+_Avoid_: source parser in Basic.Build, compile-graph command, object-list protocol
+
 **Single-File Run**:
 Compilation and execution of one selected public entry from a Root Source and
 its [Library Inputs](../../CONTEXT.md).
@@ -22,10 +28,12 @@ _Avoid_: language-level `main`, project build
 **Run Command Host Adapter**:
 The Lane Command implementation of the canonical
 `lane_runtime_v1.run_command` capability. It borrows the generated module's
-request frame, launches the requested executable directly, waits for
-termination without blocking the host thread, and writes the fixed response.
-The adapter owns the async OS process call; Wasmoon owns parked Wasm execution,
-the ABI package owns framing, and Basic owns the source-level command model.
+request frame, launches the requested executable directly, writes supplied
+standard-input bytes, waits for termination without blocking the host thread,
+and captures standard output and standard error behind a single-use output
+handle. The adapter owns the async OS process call and captured output; Wasmoon
+owns parked Wasm execution, the ABI package owns framing, and Basic owns the
+source-level command model.
 _Avoid_: shell execution, compiler builtin, process logic in Wasmoon
 
 **Execution Profile**:

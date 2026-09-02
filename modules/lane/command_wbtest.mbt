@@ -25,6 +25,7 @@ test "argparse accepts complete Lane artifact commands" {
         "--output", "program.wasm", "Main.lmo",
       ]),
       lane_subcommand_values(["exec", "program.wasm:answer"]),
+      lane_subcommand_values(["inspect", "Main.lane"]),
     ],
     content=(
       #|[
@@ -49,6 +50,7 @@ test "argparse accepts complete Lane artifact commands" {
       #|    },
       #|  ),
       #|  ("exec", { "target": ["program.wasm:answer"] }),
+      #|  ("inspect", { "input": ["Main.lane"] }),
       #|]
     ),
   )

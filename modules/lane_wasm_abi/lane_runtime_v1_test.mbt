@@ -10,16 +10,16 @@ fn append_i32_le(bytes : Array[Byte], value : Int) -> Unit {
 ///|
 fn run_command_fixture() -> Bytes {
   let bytes = []
-  for value in [1, 68, 4, 36, 2, 88, 10, 52, 1] {
+  for value in [1, 76, 4, 44, 2, 96, 10, 60, 1, 117, 5] {
     append_i32_le(bytes, value)
   }
-  for value in [72, 11, 83, 5] {
+  for value in [80, 11, 91, 5] {
     append_i32_le(bytes, value)
   }
-  for value in [98, 4, 102, 7] {
+  for value in [106, 4, 110, 7] {
     append_i32_le(bytes, value)
   }
-  for byte in b"toolhello world$HOME/tmp/buildMODErelease" {
+  for byte in b"toolhello world$HOME/tmp/buildMODEreleaseinput" {
     bytes.push(byte)
   }
   Bytes::from_array(bytes)
@@ -35,6 +35,12 @@ test "Lane Runtime V1 catalog owns the run-command contract" {
       #|    module_name: "lane_runtime_v1",
       #|    field_name: "run_command",
       #|    parameters: [GuestAddress, Direct(I32), GuestAddress],
+      #|    result: Direct(I32),
+      #|  },
+      #|  {
+      #|    module_name: "lane_runtime_v1",
+      #|    field_name: "take_command_output",
+      #|    parameters: [Direct(I32), GuestAddress, Direct(I32)],
       #|    result: Direct(I32),
       #|  },
       #|]
@@ -71,6 +77,7 @@ test "run-command request frame decodes structured process input" {
       working_directory: Some("/tmp/build"),
       environment: [{ key: "MODE", value: "release", }],
       inherit_environment: true,
+      stdin: b"input",
     }),
   )
 }

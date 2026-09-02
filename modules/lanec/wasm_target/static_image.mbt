@@ -155,7 +155,8 @@ fn instruction_requires_byte_sequence_layout(
     | ByteSequenceConcat(_, _, _)
     | ByteSequenceSlice(_, _, _, _)
     | ByteSequenceIsValidUtf8(_, _)
-    | ByteBufferWriteBytes(_, _, _) => true
+    | ByteBufferWriteBytes(_, _, _)
+    | ByteBufferToBytes(_, _) => true
     _ => false
   }
 }
@@ -169,7 +170,8 @@ fn instruction_requires_byte_buffer_layout(
     | ByteBufferWriteBytes(_, _, _)
     | ByteBufferWriteI32(_, _, _)
     | ByteBufferWriteAddress(_, _, _, _)
-    | ByteBufferReadI32(_, _, _) => true
+    | ByteBufferReadI32(_, _, _)
+    | ByteBufferToBytes(_, _) => true
     _ => false
   }
 }

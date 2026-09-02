@@ -18,7 +18,7 @@ enum LaneCommand {
     verbose~ : Bool
   )
   Fmt(files~ : Array[String], check~ : Bool)
-  Inspect(artifact~ : String)
+  Inspect(input~ : String)
   Link(
     objects~ : Array[String],
     exports~ : Array[PublicExportRequest],
@@ -95,9 +95,17 @@ fn lane_command_spec() -> Command {
         flags=[verbose_flag()],
         positionals=[source_positional_arg()],
       ),
-      Command("inspect", about="Dump a compiled Lane module artifact.", positionals=[
-        artifact_positional_arg("artifact", "Artifact to dump."),
-      ]),
+      Command(
+        "inspect",
+        about="Inspect a Lane source file or compiled module artifact.",
+        positionals=[
+          PositionArg(
+            "input",
+            num_args=@argparse.ValueRange::single(),
+            about="Lane source file or compiled module artifact to inspect.",
+          ),
+        ],
+      ),
       Command(
         "link",
         about="Link compiled Lane module object artifacts.",
@@ -210,8 +218,7 @@ fn parse_lane_command() -> Result[LaneCommand, CliError] {
           verbose=flag(child, "verbose"),
         ),
       )
-    Some(("inspect", child)) =>
-      Ok(Inspect(artifact=single_value(child, "artifact")))
+    Some(("inspect", child)) => Ok(Inspect(input=single_value(child, "input")))
     Some(("link", child)) => {
       let exports = []
       for export_text in values(child, "export") {
@@ -380,14 +387,6 @@ fn exec_target_positional_arg() -> @argparse.PositionArg {
     num_args=@argparse.ValueRange::single(),
     about="WebAssembly module and exported entry to invoke, as PROGRAM:ENTRY.",
   )
-}
-
-///|
-fn artifact_positional_arg(
-  name : String,
-  about : String,
-) -> @argparse.PositionArg {
-  PositionArg(name, num_args=@argparse.ValueRange::single(), about~)
 }
 
 ///|

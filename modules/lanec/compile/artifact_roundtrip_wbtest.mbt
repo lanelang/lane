@@ -245,6 +245,7 @@ test "ByteBuffer intrinsic roundtrips through typed artifacts" {
     (
       #|module Main
       #|pub let make : (I64) -> ByteBuffer ! Io = builtin("%byte_buffer_make")
+      #|pub let freeze : (ByteBuffer) -> Bytes ! Io = builtin("%byte_buffer_to_bytes")
       #|pub fn run(action : () -> Unit ! Io) -> Unit ! Io {
       #|  action()
       #|}
@@ -280,6 +281,7 @@ test "ByteBuffer intrinsic roundtrips through typed artifacts" {
     .join("\n"),
     content=(
       #|make: (I64) -> ByteBuffer ! Io
+      #|freeze: (ByteBuffer) -> Bytes ! Io
       #|run: (() -> Unit ! Io) -> Unit ! Io
     ),
   )
@@ -293,7 +295,7 @@ test "ByteBuffer intrinsic roundtrips through typed artifacts" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 28
+      #|schema: 29
       #|
       #|imported interfaces:
       #|  (none)
@@ -303,30 +305,37 @@ test "ByteBuffer intrinsic roundtrips through typed artifacts" {
       #|  (none)
       #|exports:
       #|  value make
+      #|  value freeze
       #|  value run
       #|public entries:
       #|  Main.make : (I64) -> ByteBuffer ! Io
+      #|  Main.freeze : (ByteBuffer) -> Bytes ! Io
       #|  Main.run : (() -> Unit ! Io) -> Unit ! Io
       #|compiler intrinsics:
       #|  %byte_buffer_make : (I64) -> ByteBuffer ! Io
+      #|  %byte_buffer_to_bytes : (ByteBuffer) -> Bytes ! Io
       #|runtime imports:
       #|  (none)
       #|buslane:
       #|  buslane {
       #|    metadata {
-      #|      next_unique#4;
+      #|      next_unique#6;
       #|      value value#0 = "make"#0 value : (I64) -> ByteBuffer ! Io;
-      #|      value value#1 = "run"#1 function : (() -> Unit ! Io) -> Unit ! Io;
-      #|      value value#2 = "action"#2 parameter : () -> Unit ! Io;
-      #|      value value#3 = "%byte_buffer_make"#3 external : (I64) -> ByteBuffer ! Io;
+      #|      value value#1 = "freeze"#1 value : (ByteBuffer) -> Bytes ! Io;
+      #|      value value#2 = "run"#2 function : (() -> Unit ! Io) -> Unit ! Io;
+      #|      value value#3 = "action"#3 parameter : () -> Unit ! Io;
+      #|      value value#4 = "%byte_buffer_make"#4 external : (I64) -> ByteBuffer ! Io;
+      #|      value value#5 = "%byte_buffer_to_bytes"#5 external : (ByteBuffer) -> Bytes ! Io;
       #|    }
-      #|    external value#3
+      #|    external value#4
+      #|    external value#5
       #|    letrec {
-      #|      value#1 = fn(value#2) -> Unit {
-      #|        value#2()
+      #|      value#2 = fn(value#3) -> Unit {
+      #|        value#3()
       #|      }
       #|    }
-      #|    let value#0 = value#3
+      #|    let value#0 = value#4
+      #|    let value#1 = value#5
       #|  }
       #|
     ),
@@ -847,7 +856,7 @@ test "module artifact binary inspect renders human readable summaries" {
     content=(
       #|Lane object artifact
       #|module: Main
-      #|schema: 28
+      #|schema: 29
       #|
       #|imported interfaces:
       #|  (none)

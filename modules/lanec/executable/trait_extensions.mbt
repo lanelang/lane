@@ -11,6 +11,12 @@ pub extend ExecutableElaborationError with Debug::{to_repr}
 pub extend ExecutableElaborationError with Eq::{not_equal, equal}
 
 ///|
+pub extend ExecutableExport with Debug::{to_repr}
+
+///|
+pub extend ExecutableExport with Eq::{not_equal, equal}
+
+///|
 pub extend ExecutableProgram with @prettyprinter.Pretty::{pretty}
 
 ///|
@@ -24,3 +30,9 @@ pub extend ExecutionProfile with Debug::{to_repr}
 
 ///|
 pub extend ExecutionProfile with Eq::{not_equal, equal}
+
+///|
+pub extend ExportRequest with Debug::{to_repr}
+
+///|
+pub extend ExportRequest with Eq::{not_equal, equal}

@@ -193,6 +193,8 @@ fn emit_instruction(
       )
     ByteBufferReadI32(destination, buffer, index) =>
       ByteBufferReadI32(slot(destination), slot(buffer), slot(index))
+    ByteBufferToBytes(destination, buffer) =>
+      ByteBufferToBytes(slot(destination), slot(buffer))
     I32Add(destination, left, right) =>
       I32Add(slot(destination), slot(left), slot(right))
     I32Sub(destination, left, right) =>

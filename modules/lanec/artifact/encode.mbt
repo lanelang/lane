@@ -172,6 +172,7 @@ fn write_intrinsic(
       ByteBufferWriteI32 => 64
       ByteBufferWriteAddress => 65
       ByteBufferReadI32 => 66
+      ByteBufferToBytes => 67
     },
   )
 }

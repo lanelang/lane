@@ -26,20 +26,29 @@ _Avoid_: second import catalog, backend signature guess, platform policy
 
 **Lane Runtime V1 Catalog**:
 The versioned non-WASI host capability catalog implemented by the Lane Command
-execution target. Its first operation is the synchronous
-`lane_runtime_v1.run_command` import. The catalog owns the exact Core Wasm
-contract and normative wire semantics. Basic implements the guest encoder and
-the host uses the catalog decoder; neither endpoint may infer or alter the
-protocol. Runtime adapters derive host registration and response projection
-from the catalog rather than restating those facts.
+execution target. Its process capability consists of synchronous-guest
+`lane_runtime_v1.run_command` and `lane_runtime_v1.take_command_output` imports.
+The catalog owns their exact Core Wasm contracts and normative wire semantics.
+Basic implements the guest encoder and the host uses the catalog decoder;
+neither endpoint may infer or alter the protocol. Runtime adapters derive host
+registration and response projection from the catalog rather than restating
+those facts.
 _Avoid_: compiler intrinsic, shell command string, Wasmoon-specific callback
 
 **Run Command Request Frame**:
 A little-endian guest-memory record containing flags, executable, argv, optional
-working directory, and environment overrides. All strings are length-delimited
-UTF-8 ranges relative to the frame start. The import borrows the frame only for
-the duration of a synchronous call and never invokes a shell.
+working directory, environment overrides, and standard-input bytes. All strings
+are length-delimited UTF-8 ranges relative to the frame start. The import
+borrows the frame only for the duration of a synchronous guest call and never
+invokes a shell.
 _Avoid_: retained guest pointer, NUL-delimited command string, implicit argv parsing
+
+**Command Output Handle**:
+A host-owned, single-use identity for captured standard output and standard
+error after a successful Run Command call. The response reports exact lengths;
+Take Command Output copies `stdout || stderr` into an exact-size guest buffer
+and consumes the identity.
+_Avoid_: retained guest pointer, fixed output limit, truncated output, repeated process execution
 
 The normative byte layout and result codes are defined in
 [`run-command-v1.md`](run-command-v1.md).

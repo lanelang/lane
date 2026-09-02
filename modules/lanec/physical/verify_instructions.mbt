@@ -413,6 +413,12 @@ fn PhysicalProgramVerifier::verify_instruction(
       self.expect_slot(site, body, index, I64, Trivial)
       self.expect_kind(site, body, index, ScalarValue)
     }
+    ByteBufferToBytes(destination, buffer) => {
+      self.expect_slot(site, body, destination, I32, OwnedRef)
+      self.expect_kind(site, body, destination, ByteSequenceValue)
+      self.expect_slot(site, body, buffer, I32, OwnedRef)
+      self.expect_kind(site, body, buffer, ByteBufferValue)
+    }
     I32Add(destination, left, right)
     | I32Sub(destination, left, right)
     | I32Mul(destination, left, right)
