@@ -31,6 +31,7 @@ pub struct ExecutionInstance {
   // private fields
 }
 pub fn ExecutionInstance::execute(Self, cancel? : (() -> Bool)?) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
+pub async fn ExecutionInstance::execute_async(Self) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
 
 pub(all) enum ExecutionMode {
   Jit
@@ -49,6 +50,7 @@ pub struct LoadedImage {
   // private fields
 }
 pub fn LoadedImage::execute(Self) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
+pub async fn LoadedImage::execute_async(Self) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError]
 pub fn LoadedImage::new_instance(Self) -> Result[ExecutionInstance, @lane_runtime.ExecutionError]
 pub fn LoadedImage::wasm_module(Self) -> @types.Module
 

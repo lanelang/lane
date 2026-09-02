@@ -1,76 +1,40 @@
 ///|
-let native_command_exited = 0
-
-///|
-let native_command_signaled = 1
-
-///|
-let native_command_not_found = 2
-
-///|
-let native_command_permission_denied = 3
-
-///|
-#borrow(executable, arguments, working_directory, environment_keys, environment_values, outcome)
-extern "C" fn run_command_native(
-  executable : String,
-  arguments : FixedArray[String],
-  working_directory : String,
-  has_working_directory : Bool,
-  environment_keys : FixedArray[String],
-  environment_values : FixedArray[String],
-  inherit_environment : Bool,
-  outcome : FixedArray[Int],
-) -> Unit = "lane_run_command"
-
-///|
-fn execute_native_command(
+async fn execute_native_command(
   request : @wasm_abi.RunCommandRequest,
 ) -> (@wasm_abi.RunCommandHostStatus, @wasm_abi.RunCommandTermination?) {
-  let arguments = FixedArray::from_array(request.arguments)
-  let environment_keys = FixedArray::from_array(
-    request.environment.map(entry => entry.key),
-  )
-  let environment_values = FixedArray::from_array(
-    request.environment.map(entry => entry.value),
-  )
-  let (working_directory, has_working_directory) = match
-    request.working_directory {
-    Some(directory) => (directory, true)
-    None => ("", false)
+  let environment : Map[String, String] = Map([])
+  for entry in request.environment {
+    environment[entry.key] = entry.value
   }
-  let outcome = FixedArray::make(2, 0)
-  run_command_native(
-    request.executable,
-    arguments,
-    working_directory,
-    has_working_directory,
-    environment_keys,
-    environment_values,
-    request.inherit_environment,
-    outcome,
-  )
-  match outcome[0] {
-    category if category == native_command_exited =>
-      (Succeeded, Some(Exited(code=outcome[1])))
-    category if category == native_command_signaled =>
-      (Succeeded, Some(Signaled(signal=outcome[1])))
-    category if category == native_command_not_found =>
+  try
+    @process.run(
+      request.executable,
+      request.arguments,
+      extra_env=environment,
+      inherit_env=request.inherit_environment,
+      cwd?=request.working_directory.map(directory => directory[:]),
+    )
+  catch {
+    error if @async.is_cancellation_error(error) => raise error
+    @os_error.OSError(_) as error if error.is_ENOENT() =>
       (ExecutableNotFound, None)
-    category if category == native_command_permission_denied =>
+    @os_error.OSError(_) as error if error.is_EACCES() =>
       (PermissionDenied, None)
     _ => (SystemFailure, None)
+  } noraise {
+    code if code < 0 => (Succeeded, Some(Signaled(signal=-code)))
+    code => (Succeeded, Some(Exited(code~)))
   }
 }
 
 ///|
-fn run_command_host_call(
+async fn run_command_host_call(
   caller : @wasmoon_runtime.Caller,
   values : Array[@wasm_types.Value],
-) -> Array[@wasm_types.Value] raise @wasmoon_runtime.RuntimeError {
+) -> Array[@wasm_types.Value] {
   guard values
     is [I32(request_address), I32(request_length), I32(response_address)] else {
-    raise TypeMismatch
+    raise @wasmoon_runtime.TypeMismatch
   }
   guard caller.get_exported_memory("memory") is Some(memory) else {
     return [I32(@wasm_abi.RunCommandHostStatus::InvalidRequest.wire_code())]
@@ -106,7 +70,7 @@ fn configure_lane_runtime_v1(
   linker : @wasmoon_runtime.Linker,
 ) -> Unit raise @wasmoon_runtime.RuntimeError {
   let contract = @wasm_abi.LaneRuntimeV1Import::RunCommand.contract()
-  linker.add_host_func_with_caller(
+  linker.add_async_host_func_with_caller(
     contract.module_name,
     contract.field_name,
     run_command_host_call,

@@ -23,8 +23,9 @@ _Avoid_: language-level `main`, project build
 The Lane Command implementation of the canonical
 `lane_runtime_v1.run_command` capability. It borrows the generated module's
 request frame, launches the requested executable directly, waits for
-termination, and writes the fixed response. The adapter owns OS process calls;
-the ABI package owns framing and Basic owns the source-level command model.
+termination without blocking the host thread, and writes the fixed response.
+The adapter owns the async OS process call; Wasmoon owns parked Wasm execution,
+the ABI package owns framing, and Basic owns the source-level command model.
 _Avoid_: shell execution, compiler builtin, process logic in Wasmoon
 
 **Execution Profile**:

@@ -706,7 +706,7 @@ test "run rejects functions with non-Unit results" {
 }
 
 ///|
-test "run executes pure unit function entries without rendering Unit" {
+async test "run executes pure unit function entries without rendering Unit" {
   let result = @compile.compile_source(
     (
       #|module Test
@@ -724,7 +724,7 @@ test "run executes pure unit function entries without rendering Unit" {
 }
 
 ///|
-test "run accepts built-in Io through an explicit Basic extern" {
+async test "run accepts built-in Io through an explicit Basic extern" {
   let basic_io = wasi_basic_io_source()
   let result = compile_program_for_test(
     (
@@ -757,7 +757,7 @@ test "run accepts built-in Io through an explicit Basic extern" {
 }
 
 ///|
-test "run lowers lexical handlers before runtime effects" {
+async test "run lowers lexical handlers before runtime effects" {
   let basic_io = wasi_basic_io_source()
   let result = compile_program_for_test(
     (

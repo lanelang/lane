@@ -190,6 +190,19 @@ pub fn LoadedImage::execute(
 }
 
 ///|
+/// Executes one fresh instance through the asynchronous Wasm entry path.
+/// Async host imports suspend the interpreter continuation or JIT native fiber
+/// while the host operation is pending.
+pub async fn LoadedImage::execute_async(
+  self : LoadedImage,
+) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
+  match self.new_instance() {
+    Ok(instance) => instance.execute_async()
+    Err(error) => Err(error)
+  }
+}
+
+///|
 fn LoadedImage::new_instance_or_raise(
   self : LoadedImage,
 ) -> ExecutionInstance raise @wasmoon_runtime.RuntimeError {
@@ -326,6 +339,75 @@ pub fn ExecutionInstance::execute(
   match self.backend {
     Interpreter => self.execute_interpreted(cancel)
     Jit(jit_module, context) => self.execute_jit(jit_module, context, cancel)
+  }
+}
+
+///|
+/// Executes this instance while permitting asynchronous host imports.
+pub async fn ExecutionInstance::execute_async(
+  self : ExecutionInstance,
+) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
+  if !self.ready {
+    return Err(InstanceNotReady)
+  }
+  self.ready = false
+  match self.backend {
+    Interpreter => self.execute_interpreted_async()
+    Jit(_, context) => self.execute_jit_async(context)
+  }
+}
+
+///|
+async fn ExecutionInstance::execute_interpreted_async(
+  self : ExecutionInstance,
+) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
+  let result = try
+    @executor.call_exported_func_async(self.store, self.instance, "_start", [])
+  catch {
+    error => Err(error)
+  } noraise {
+    values => Ok(values)
+  }
+  if self.wasi_context.get_exit_code() is Some(code) {
+    return process_exit_result(code)
+  }
+  match result {
+    Ok(_) => Ok(Returned)
+    Err(AsyncHostCallCancelled) => Err(Interrupted)
+    Err(error) => execution_failure(error.to_string())
+  }
+}
+
+///|
+async fn ExecutionInstance::execute_jit_async(
+  self : ExecutionInstance,
+  context : @wasmoon_wast.JITModuleContext,
+) -> Result[@lane_runtime.ExecutionOutcome, @lane_runtime.ExecutionError] {
+  let mut entry : Int? = None
+  for export_ in self.instance.exports {
+    if export_.name == "_start" && export_.desc is Func(function_index) {
+      entry = Some(function_index)
+      break
+    }
+  }
+  guard entry is Some(entry) else {
+    return Err(EngineTrap(detail="Wasmoon JIT entry `_start` is missing"))
+  }
+  let result = try
+    context.call_core_func_async(self.store, self.instance, entry, [])
+  catch {
+    error => Err(error)
+  } noraise {
+    values => Ok(values)
+  }
+  if self.wasi_context.get_exit_code() is Some(code) {
+    return process_exit_result(code)
+  }
+  match result {
+    Ok(_) => Ok(Returned)
+    Err(Cancelled) => Err(Interrupted)
+    Err(Exit(code)) => process_exit_result(code)
+    Err(error) => execution_failure(error.to_string())
   }
 }
 

@@ -30,6 +30,12 @@ An embedding callback that adds implementations for non-WASI core Wasm imports
 to the Wasmoon Linker before instantiation. Wasmoon owns signature matching.
 _Avoid_: Runtime Registry, per-call symbol lookup
 
+**Async Host Import**:
+A Core Wasm Host Import whose host implementation may suspend. Wasmoon parks
+the active Wasm continuation or JIT native fiber and resumes it when the host
+task completes; the guest observes one ordinary blocking import call.
+_Avoid_: blocking native callback, guest-visible future, polling in Lane code
+
 **Core Import Type Projection**:
 The sole adapter from a canonical Core Wasm Import Contract to Wasmoon's
 function-type representation. Loader validation and host registration consume
@@ -39,8 +45,8 @@ _Avoid_: handwritten host signature, backend-specific import catalog
 **Lane Runtime V1 Host**:
 The Lane Command adapter implementing the canonical non-WASI
 `lane_runtime_v1` import catalog. `run_command` decodes the catalog-owned guest
-frame and performs a synchronous direct process launch. It is not a compiler
-intrinsic and does not interpret a shell command.
+frame and performs an asynchronous direct process launch while Wasm is parked.
+It is not a compiler intrinsic and does not interpret a shell command.
 _Avoid_: Basic command builder, generic runtime registry, implicit shell
 
 **Loaded Wasm Executable**:
@@ -65,6 +71,14 @@ _Avoid_: separate compiler backend, fallback execution language
 **Execution Instance**:
 The single-shot Wasm instance used by one execution attempt.
 _Avoid_: Loaded Wasm Executable, reusable failed instance
+
+**Async Wasm Execution**:
+The execution entry that permits an Async Host Import to park an interpreter
+continuation or JIT native fiber while its host task is pending. Cancellation
+belongs to the surrounding structured host task. The synchronous controlled
+entry remains distinct because it polls an explicit Wasm safepoint predicate
+and rejects async imports.
+_Avoid_: blocking the host thread, sync fallback for an async import
 
 **Process Exit**:
 A `wasi_snapshot_preview1.proc_exit` status observed consistently from the

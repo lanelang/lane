@@ -59,7 +59,7 @@ async fn lane_run(
 }
 
 ///|
-fn execute_entry(
+async fn execute_entry(
   program : @compile.CompiledProgram,
   entry : @compile.CompiledEntry,
   no_jit? : Bool = false,
@@ -68,7 +68,7 @@ fn execute_entry(
 }
 
 ///|
-fn execute_entry_with_output(
+async fn execute_entry_with_output(
   program : @compile.CompiledProgram,
   entry : @compile.CompiledEntry,
   write_stdout? : ((Bytes) -> Unit)? = None,
@@ -112,12 +112,15 @@ fn elaborate_command_entry(
 }
 
 ///|
-fn execute_wasm(wasm : Bytes, no_jit? : Bool = false) -> LaneCommandOutcome {
+async fn execute_wasm(
+  wasm : Bytes,
+  no_jit? : Bool = false,
+) -> LaneCommandOutcome {
   execute_wasm_with_wasi_stdout(wasm, None, no_jit~)
 }
 
 ///|
-fn execute_wasm_with_wasi_stdout(
+async fn execute_wasm_with_wasi_stdout(
   wasm : Bytes,
   wasi_stdout : ((Bytes) -> Unit)?,
   no_jit? : Bool = false,
@@ -147,7 +150,7 @@ fn execute_wasm_with_wasi_stdout(
         ExecutionImageLoad(message="\{Repr(error)}"),
       )
   }
-  match instance.execute() {
+  match instance.execute_async() {
     Ok(Returned) => Succeeded
     Ok(ProcessExit(code~)) => ProcessExited(code~)
     Err(error) => LaneCommandOutcome::user_error(ExecutionFailed(error))

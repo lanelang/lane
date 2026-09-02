@@ -1,8 +1,9 @@
 # Lane Runtime V1: Run Command
 
-`lane_runtime_v1.run_command` is a synchronous Core WebAssembly host import.
-It executes an executable directly with a structured argument vector. It never
-parses a shell command and never invokes a shell implicitly.
+`lane_runtime_v1.run_command` is a Core WebAssembly host import with blocking
+guest semantics and an asynchronous host implementation. It executes an
+executable directly with a structured argument vector. It never parses a shell
+command and never invokes a shell implicitly.
 
 The Basic wrapper is the guest-side encoder for this protocol. Runtime hosts
 consume the catalog decoder and wire projections; they do not independently
@@ -21,9 +22,9 @@ After projecting both guest addresses, its Core Wasm type is:
 ```
 
 The parameters are the request address, request byte length, and address of an
-eight-byte response record. Both addresses borrow guest memory only until the
-host call returns. Standard input, output, and error are inherited from the
-host running the Lane program.
+eight-byte response record. Both addresses borrow guest memory while the Wasm
+invocation is parked and only until the host call returns. Standard input,
+output, and error are inherited from the host running the Lane program.
 
 ## Request frame
 
@@ -69,6 +70,8 @@ On success, the response record contains a termination tag at offset 0 and its
 code at offset 4. Tag 0 is normal exit and tag 1 is signal termination. Windows
 does not produce the signal form.
 
-The operation blocks until the child terminates. Output capture, process
-handles, cancellation, and asynchronous execution are not part of this
-interface.
+The guest call completes only after the child terminates, but the host process
+operation suspends the Wasm continuation or JIT native fiber instead of
+blocking the host thread. Cancelling the surrounding host task cancels the
+child process through structured concurrency. Output capture and process
+handles are not part of this interface.
