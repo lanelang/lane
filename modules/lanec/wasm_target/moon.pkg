@@ -14,8 +14,8 @@ import {
   "Milky2018/wasm_core/types" @wasm_types,
   "Milky2018/wasmoon/executor",
   "Milky2018/wasmoon/runtime" @wasmoon_runtime,
-  "Milky2018/wasmoon/validator",
-  "Milky2018/wasmoon/wat",
+  "Milky2018/wasm_core/validator",
+  "Milky2018/wasm_core/wat",
 } for "test"
 
 supported_targets = "+all"

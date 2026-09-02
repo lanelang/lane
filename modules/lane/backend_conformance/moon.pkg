@@ -13,7 +13,7 @@ import {
   "Milky2018/wasm_core/encoder" @wasm_encoder,
   "Milky2018/wasm_core/types" @wasm_types,
   "Milky2018/wasmoon/runtime" @wasmoon_runtime,
-  "Milky2018/wasmoon/wat" @wasmoon_wat,
+  "Milky2018/wasm_core/wat",
   "moonbitlang/core/encoding/utf8",
 } for "test"
 

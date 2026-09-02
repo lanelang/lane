@@ -6,8 +6,8 @@ fn encode_test_wasm_module(module_ : @wasm_types.Module) -> Bytes {
 
 ///|
 fn encode_profile_probe(source : String) -> Bytes raise {
-  let module_ = @wasmoon_wat.parse(source) catch {
-    error => fail(@wasmoon_wat.format_wat_error(error, source))
+  let module_ = @wat.parse(source) catch {
+    error => fail(@wat.format_wat_error(error, source))
   }
   encode_test_wasm_module(module_)
 }
