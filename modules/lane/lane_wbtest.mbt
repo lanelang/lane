@@ -403,8 +403,10 @@ fn wasi_basic_abi_source() -> String {
     #|let bytes_length : (Bytes) -> I64 = builtin("%bytes_length")
     #|let i64_add : (I64, I64) -> I64 = builtin("%i64_add")
     #|let i64_to_i32 : (I64) -> I32 = builtin("%i64_to_i32")
+    #|let string_to_bytes : (String) -> Bytes = builtin("%string_to_bytes")
     #|pub struct WasmAddress { storage : ByteBuffer; offset : I32 }
     #|let fd_write : (I32, WasmAddress, I32, WasmAddress) -> I32 ! Io = extern("wasi_snapshot_preview1", "fd_write")
+    #|let path_create_directory : (I32, WasmAddress, I32) -> I32 ! Io = extern("wasi_snapshot_preview1", "path_create_directory")
     #|pub fn write_stdout(source : Bytes) -> Unit ! Io {
     #|  let length = bytes_length(source)
     #|  let frame = make(i64_add(12, length))
@@ -413,6 +415,14 @@ fn wasi_basic_abi_source() -> String {
     #|  write_i32(frame, 4, i64_to_i32(length))
     #|  write_i32(frame, 8, 0i32)
     #|  let _errno = fd_write(1i32, WasmAddress::{ storage: frame, offset: 0i32 }, 1i32, WasmAddress::{ storage: frame, offset: 8i32 })
+    #|  ()
+    #|}
+    #|pub fn create_directory(path : String) -> Unit ! Io {
+    #|  let bytes = string_to_bytes(path)
+    #|  let length = bytes_length(bytes)
+    #|  let frame = make(length)
+    #|  write_bytes(frame, 0, bytes)
+    #|  let _errno = path_create_directory(3i32, WasmAddress::{ storage: frame, offset: 0i32 }, i64_to_i32(length))
     #|  ()
     #|}
   )
@@ -928,6 +938,35 @@ async test "run accepts built-in Io through an explicit Basic extern" {
     abort("expected run entry to succeed through WebAssembly: \{Repr(outcome)}")
   }
   assert_eq(Bytes::from_array(output), b"hello\n")
+}
+
+///|
+async test "run preopens the current directory for WASIp1 guests" {
+  let directory = ".tmp-lane-wasi-current-directory"
+  @fs.rmdir(directory) catch {
+    _ => ()
+  }
+  let result = compile_program_for_test(
+    (
+      #|module Test
+      #|import Basic.Wasm.Abi.{ create_directory }
+      #|pub fn main() -> Unit ! Io {
+      #|  create_directory(".tmp-lane-wasi-current-directory")
+      #|}
+    ),
+    [wasi_basic_abi_source()],
+  )
+  debug_inspect(result.diagnostics(), content="[]")
+  let program = successful_compilation(result)
+  let entry = find_entry(program.entries(), "main")
+  guard entry is Ok(entry) else { abort("expected entry") }
+  for no_jit in [false, true] {
+    let outcome = execute_entry(program, entry, no_jit~)
+    guard outcome is Succeeded else {
+      abort("expected WASIp1 directory creation to succeed: \{Repr(outcome)}")
+    }
+    @fs.rmdir(directory)
+  }
 }
 
 ///|

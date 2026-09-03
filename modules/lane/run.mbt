@@ -207,11 +207,21 @@ async fn execute_wasm_with_wasi_stdout(
   } else {
     Jit
   }
+  let current_directory = match @env.current_dir() {
+    Some(directory) => directory
+    None =>
+      return LaneCommandOutcome::user_error(
+        Internal(message="cannot determine the current working directory"),
+      )
+  }
   let loaded = match
     @lane_wasm_runtime.load_wasm(
       wasm,
       mode~,
       wasi_stdout~,
+      wasi_preopens=[
+        @lane_wasm_runtime.WasiPreopen::new(current_directory, "."),
+      ],
       configure_host=configure_lane_runtime_v1,
     ) {
     Ok(loaded) => loaded

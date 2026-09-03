@@ -10,7 +10,7 @@ import {
 }
 
 // Values
-pub fn load_wasm(Bytes, mode? : ExecutionMode, wasi_stdout? : ((Bytes) -> Unit)?, wasi_stderr? : ((Bytes) -> Unit)?, configure_host? : (@runtime.Linker) -> Unit raise @runtime.RuntimeError) -> Result[LoadedImage, WasmLoadError]
+pub fn load_wasm(Bytes, mode? : ExecutionMode, wasi_stdout? : ((Bytes) -> Unit)?, wasi_stderr? : ((Bytes) -> Unit)?, wasi_preopens? : Array[WasiPreopen], configure_host? : (@runtime.Linker) -> Unit raise @runtime.RuntimeError) -> Result[LoadedImage, WasmLoadError]
 
 pub fn project_core_import_func_type(@lane_wasm_abi.ImportContract) -> @types.FuncType
 
@@ -55,6 +55,12 @@ pub async fn LoadedImage::execute_export_async(Self, String) -> Result[@lane_run
 pub fn LoadedImage::new_instance(Self) -> Result[ExecutionInstance, @lane_runtime.ExecutionError]
 pub async fn LoadedImage::new_instance_async(Self) -> Result[ExecutionInstance, @lane_runtime.ExecutionError]
 pub fn LoadedImage::wasm_module(Self) -> @types.Module
+
+pub struct WasiPreopen {
+  host_path : String
+  guest_path : String
+}
+pub fn WasiPreopen::new(String, String) -> Self
 
 // Type aliases
 pub type HostLinkerConfiguration = (@runtime.Linker) -> Unit raise @runtime.RuntimeError

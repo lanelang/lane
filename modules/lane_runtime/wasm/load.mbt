@@ -26,11 +26,23 @@ enum InstanceExecutionBackend {
 pub type HostLinkerConfiguration = (@wasmoon_runtime.Linker) -> Unit raise @wasmoon_runtime.RuntimeError
 
 ///|
+pub struct WasiPreopen {
+  host_path : String
+  guest_path : String
+}
+
+///|
+pub fn WasiPreopen::new(host_path : String, guest_path : String) -> WasiPreopen {
+  { host_path, guest_path, }
+}
+
+///|
 pub struct LoadedImage {
   wasm_module : @wasm_types.Module
   priv backend : LoadedExecutionBackend
   priv wasi_stdout : ((Bytes) -> Unit)?
   priv wasi_stderr : ((Bytes) -> Unit)?
+  priv wasi_preopens : Array[WasiPreopen]
   priv configure_host : HostLinkerConfiguration
 }
 
@@ -51,6 +63,7 @@ pub fn load_wasm(
   mode? : ExecutionMode = Jit,
   wasi_stdout? : ((Bytes) -> Unit)? = None,
   wasi_stderr? : ((Bytes) -> Unit)? = None,
+  wasi_preopens? : Array[WasiPreopen] = [],
   configure_host? : HostLinkerConfiguration = _ => (),
 ) -> Result[LoadedImage, WasmLoadError] {
   let module_ = @parser.parse_module(wasm) catch {
@@ -60,7 +73,9 @@ pub fn load_wasm(
     error =>
       return Err(InvalidWasm(detail=@validator.format_validation_error(error)))
   }
-  load_module(module_, mode, wasi_stdout, wasi_stderr, configure_host)
+  load_module(
+    module_, mode, wasi_stdout, wasi_stderr, wasi_preopens, configure_host,
+  )
 }
 
 ///|
@@ -69,6 +84,7 @@ fn load_module(
   mode : ExecutionMode,
   wasi_stdout : ((Bytes) -> Unit)?,
   wasi_stderr : ((Bytes) -> Unit)?,
+  wasi_preopens : Array[WasiPreopen],
   configure_host : HostLinkerConfiguration,
 ) -> Result[LoadedImage, WasmLoadError] {
   if !wasm_imports_are_functions(wasm_module) {
@@ -91,7 +107,14 @@ fn load_module(
       }
     Interpreter => Interpreter
   }
-  Ok({ wasm_module, backend, wasi_stdout, wasi_stderr, configure_host, })
+  Ok({
+    wasm_module,
+    backend,
+    wasi_stdout,
+    wasi_stderr,
+    wasi_preopens,
+    configure_host,
+  })
 }
 
 ///|
@@ -242,6 +265,9 @@ fn LoadedImage::new_instance_or_raise(
   if self.wasi_stderr is Some(write) {
     ignore(wasi_builder.stderr(write))
   }
+  for preopen in self.wasi_preopens {
+    ignore(wasi_builder.preopen_dir(preopen.host_path, preopen.guest_path))
+  }
   let wasi_context = wasi_builder.build()
   @wasi.register_wasi(linker, wasi_context)
   (self.configure_host)(linker)
@@ -266,6 +292,9 @@ async fn LoadedImage::new_instance_or_raise_async(
   }
   if self.wasi_stderr is Some(write) {
     ignore(wasi_builder.stderr(write))
+  }
+  for preopen in self.wasi_preopens {
+    ignore(wasi_builder.preopen_dir(preopen.host_path, preopen.guest_path))
   }
   let wasi_context = wasi_builder.build()
   @wasi.register_wasi(linker, wasi_context)
@@ -317,7 +346,9 @@ fn LoadedImage::create_instance_backend(
       jit_module.init_wasi_with_stdio(
         [],
         [],
-        [],
+        self.wasi_preopens.map(preopen => {
+          (preopen.host_path, preopen.guest_path)
+        }),
         self.wasi_stdout,
         self.wasi_stderr,
         None,
