@@ -289,6 +289,15 @@ pub fn HandlerWithBlock::equal(Self, Self) -> Bool
 pub fn HandlerWithBlock::not_equal(Self, Self) -> Bool
 pub fn HandlerWithBlock::to_repr(Self) -> @debug.Repr
 
+pub(all) struct ImportAlias {
+  name : String
+  name_loc : @basic.SourceSpan
+  loc : @basic.SourceSpan
+} derive(Eq, @debug.Debug)
+pub fn ImportAlias::equal(Self, Self) -> Bool
+pub fn ImportAlias::not_equal(Self, Self) -> Bool
+pub fn ImportAlias::to_repr(Self) -> @debug.Repr
+
 pub(all) enum ImportDeclaration {
   Qualified(module_path~ : ModulePath, module_alias~ : ModuleAlias?, loc~ : @basic.SourceSpan)
   Open(module_path~ : ModulePath, loc~ : @basic.SourceSpan)
@@ -304,6 +313,8 @@ pub impl @prettyprinter.Pretty for ImportDeclaration
 
 pub(all) struct ImportItem {
   name : String
+  name_loc : @basic.SourceSpan
+  alias_ : ImportAlias?
   loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub fn ImportItem::equal(Self, Self) -> Bool

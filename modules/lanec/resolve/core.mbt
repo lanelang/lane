@@ -19,14 +19,19 @@ pub(all) struct ResolvedSourceFile {
 pub(all) enum ResolvedImportExposureKind {
   QualifiedModuleBinding(name~ : String, name_loc~ : SourceSpan)
   OpenBinding
-  SelectiveBinding(name~ : String, is_public~ : Bool)
+  SelectiveBinding(
+    imported_name~ : String,
+    binding_name~ : String,
+    is_public~ : Bool
+  )
 } derive(Debug, Eq)
 
 ///|
 pub(all) struct ResolvedPublicExport {
   export_ : @module_interface.ModuleInterfaceExport
   declaration : @module_interface.ModuleInterfaceDeclaration
-  loc : SourceSpan
+  target_loc : SourceSpan
+  exposed_loc : SourceSpan
 } derive(Debug, Eq)
 
 ///|

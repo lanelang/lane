@@ -415,6 +415,33 @@ test "operator syntax resolves through an authored re-export facade" {
 }
 
 ///|
+test "operator syntax keeps canonical identity through an import item alias" {
+  let outcome = check({
+    root: {
+      source_id: "main",
+      text: (
+        #|module Main
+        #|import Basic.Ops.{ op_add as add }
+        #|pub let symbolic : I64 = 1 + 2
+        #|pub let explicit : I64 = add(1, 2)
+      ),
+    },
+    libraries: [
+      {
+        source_id: "ops",
+        text: (
+          #|module Basic.Ops
+          #|pub fn op_add(a : I64, b : I64) -> I64 {
+          #|  builtin("%i64_add")(a, b)
+          #|}
+        ),
+      },
+    ],
+  })
+  assert_true(outcome is Succeeded(_))
+}
+
+///|
 test "canonical Basic ABI resolves providers from the module input closure" {
   let outcome = check({
     root: {

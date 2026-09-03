@@ -166,11 +166,20 @@ fn SemanticIndex::add_public_export_references(
     }
     self.add_reference(
       symbol,
-      export_.loc,
+      export_.target_loc,
       Some(
         "public import of \{export_.export_.target.provider_module}.\{export_.export_.target.declaration_name}",
       ),
     )
+    if export_.exposed_loc != export_.target_loc {
+      self.add_reference(
+        symbol,
+        export_.exposed_loc,
+        Some(
+          "public import alias for \{export_.export_.target.provider_module}.\{export_.export_.target.declaration_name}",
+        ),
+      )
+    }
   }
 }
 

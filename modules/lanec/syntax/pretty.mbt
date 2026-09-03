@@ -335,7 +335,24 @@ fn ImportItem::to_doc(
   self : ImportItem,
   trivia? : SourceFormatTrivia = SourceFormatTrivia::empty(),
 ) -> Document {
-  trivia.decorate(self.loc, text(self.name))
+  let doc = match self.alias_ {
+    None => text(self.name)
+    Some(alias_) =>
+      boundary_separated(
+        text(self.name),
+        boundary_separated(
+          keyword("as"),
+          text(alias_.name),
+          alias_.loc.ascii_prefix(2).end_offset,
+          alias_.name_loc.start_offset,
+          trivia,
+        ),
+        self.name_loc.end_offset,
+        alias_.loc.start_offset,
+        trivia,
+      )
+  }
+  trivia.decorate(self.loc, doc)
 }
 
 ///|

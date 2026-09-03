@@ -415,6 +415,27 @@ test "parse selective public import as an explicit import property" {
 }
 
 ///|
+test "parse selective import item aliases" {
+  let file = expect_parse_ok(
+    "import Basic.Data.List.{ List as Sequence, empty }",
+  )
+  guard file.imports is [Selective(items~, is_public~, ..)] &&
+    items is [list, empty] else {
+    abort("expected one selective import with two items")
+  }
+  assert_eq(
+    (
+      list.name,
+      list.alias_.map(fn(alias_) { alias_.name }),
+      empty.name,
+      empty.alias_.map(fn(alias_) { alias_.name }),
+      is_public,
+    ),
+    ("List", Some("Sequence"), "empty", None, false),
+  )
+}
+
+///|
 test "import aliases are rejected on open and selective imports" {
   debug_inspect(
     parse_error_kinds("import Basic.Data.List.* as List"),

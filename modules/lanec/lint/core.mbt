@@ -1178,10 +1178,14 @@ fn unused_import_exposure_diagnostic(
         "unused open import",
         "open import `\{exposure.module_path_text}.*` contributes no used names",
       )
-    SelectiveBinding(name~, ..) =>
+    SelectiveBinding(imported_name~, binding_name~, ..) =>
       (
         "unused import item",
-        "imported item `\{name}` from `\{exposure.module_path_text}` is never used",
+        if imported_name == binding_name {
+          "imported item `\{imported_name}` from `\{exposure.module_path_text}` is never used"
+        } else {
+          "imported item `\{imported_name}` as `\{binding_name}` from `\{exposure.module_path_text}` is never used"
+        },
       )
   }
   diagnostic(

@@ -355,7 +355,7 @@ pub fn ResolvedImportExposure::to_repr(Self) -> @debug.Repr
 pub(all) enum ResolvedImportExposureKind {
   QualifiedModuleBinding(name~ : String, name_loc~ : @basic.SourceSpan)
   OpenBinding
-  SelectiveBinding(name~ : String, is_public~ : Bool)
+  SelectiveBinding(imported_name~ : String, binding_name~ : String, is_public~ : Bool)
 } derive(Eq, @debug.Debug)
 pub fn ResolvedImportExposureKind::equal(Self, Self) -> Bool
 pub fn ResolvedImportExposureKind::not_equal(Self, Self) -> Bool
@@ -506,7 +506,8 @@ pub impl @prettyprinter.Pretty for ResolvedPatternLetDeclaration
 pub(all) struct ResolvedPublicExport {
   export_ : @module.ModuleInterfaceExport
   declaration : @module.ModuleInterfaceDeclaration
-  loc : @basic.SourceSpan
+  target_loc : @basic.SourceSpan
+  exposed_loc : @basic.SourceSpan
 } derive(Eq, @debug.Debug)
 pub fn ResolvedPublicExport::equal(Self, Self) -> Bool
 pub fn ResolvedPublicExport::not_equal(Self, Self) -> Bool

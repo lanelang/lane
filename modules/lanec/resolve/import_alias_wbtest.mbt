@@ -238,7 +238,11 @@ test "selective import does not conflict with a qualified module binding" {
       #|      end_column: 11,
       #|    },
       #|  ),
-      #|  SelectiveBinding(name="value", is_public=false),
+      #|  SelectiveBinding(
+      #|    imported_name="value",
+      #|    binding_name="value",
+      #|    is_public=false,
+      #|  ),
       #|]
     ),
   )
@@ -412,7 +416,11 @@ test "missing selective item does not discard a valid sibling" {
       #|    {
       #|      id: 0,
       #|      module_path_text: "Lib",
-      #|      kind: SelectiveBinding(name="value", is_public=false),
+      #|      kind: SelectiveBinding(
+      #|        imported_name="value",
+      #|        binding_name="value",
+      #|        is_public=false,
+      #|      ),
       #|      loc: {
       #|        start_offset: 25,
       #|        end_offset: 30,

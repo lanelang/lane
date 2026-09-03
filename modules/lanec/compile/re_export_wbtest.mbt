@@ -103,7 +103,7 @@ test "public exports survive separate interface artifact compilation" {
   let facade = compile_module_with_interfaces_for_test(
     (
       #|module Facade
-      #|pub import Provider.{ Box, Choice }
+      #|pub import Provider.{ Box as Container, Choice as Decision }
     ),
     [provider_interface],
   )
@@ -122,9 +122,9 @@ test "public exports survive separate interface artifact compilation" {
   let consumer = compile_module_with_interfaces_for_test(
     (
       #|module Main
-      #|import Facade.{ Box, Choice }
-      #|pub let box : Box = Box::{ value: 42 }
-      #|pub let choice : Choice = yes(42)
+      #|import Facade.{ Container, Decision }
+      #|pub let box : Container = Container::{ value: 42 }
+      #|pub let choice : Decision = yes(42)
     ),
     [provider_interface, decoded],
   )

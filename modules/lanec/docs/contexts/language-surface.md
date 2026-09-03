@@ -29,6 +29,18 @@ _Avoid_: forward declarations, hoisted statements
 The rule that top-level immutable values may refer only to earlier available values.
 _Avoid_: recursive top-level values, forward top-level value reference
 
+**Selective Import Item**:
+An import-list entry that selects all public declarations matching one provider name across Lane's existing semantic namespaces and introduces them into the current Module under one access name.
+_Avoid_: copied declaration, namespace-specific import item
+
+**Import Item Alias**:
+The optional `as` name on a Selective Import Item. It replaces the provider name as the local access name and, on `pub import`, as the Public Export name, without changing provider identity or subordinate nominal members.
+_Avoid_: declaration rename, forwarding binding, runtime adapter
+
+**Public Export**:
+A Module Interface access entry pairing an exposed name with a provider-owned declaration reference. A public import alias changes only the exposed name.
+_Avoid_: copied declaration, facade-owned implementation
+
 **Strict Evaluation**:
 The rule that an expression is evaluated when it is reached, and function arguments are evaluated before the function body runs.
 _Avoid_: eager mode, non-lazy evaluation
@@ -207,6 +219,10 @@ _Avoid_: F64-mediated literal conversion, double rounding
 - Byte and Bytes Values have no dedicated literal syntax; construction and conversion use ordinary functions backed by closed compiler primitives.
 - Top-level functions and types may form a **Recursive Definition Group**.
 - Top-level immutable values follow **Ordered Top-Level Value Scope**.
+- A **Selective Import Item** resolves by its provider name and binds under its
+  **Import Item Alias** when present.
+- A public **Import Item Alias** becomes the **Public Export** name while the
+  provider declaration remains the sole semantic identity owner.
 - A top-level **Immutable Value Definition** must include an explicit type annotation.
 - An **Offered Function Definition** offers its own function value and does not introduce a second value binding.
 - A local **Offered Function Definition** follows the sequential scope of a **Sequential Local Function**.

@@ -209,19 +209,33 @@ fn Resolver::publish_selective_import(
     if bindings.is_empty() {
       self.report(
         UnresolvedImportItem(module_path=module_path_text, name=item.name),
-        item.loc,
+        item.name_loc,
       )
       continue
     }
+    let (binding_name, binding_loc) = match item.alias_ {
+      Some(alias_) => (alias_.name, alias_.name_loc)
+      None => (item.name, item.name_loc)
+    }
     let origin = self.define_import_exposure(
       module_path_text,
-      SelectiveBinding(name=item.name, is_public~),
+      SelectiveBinding(imported_name=item.name, binding_name~, is_public~),
       item.loc,
     )
     for binding in bindings {
-      self.publish_selective_import_binding(binding, Some(origin), item.loc)
+      self.publish_selective_import_binding(
+        binding,
+        binding_name,
+        Some(origin),
+        binding_loc,
+      )
       if is_public {
-        self.publish_public_export(binding, item.loc)
+        self.publish_public_export(
+          binding,
+          binding_name,
+          item.name_loc,
+          binding_loc,
+        )
         self.record_import_use(Some(origin), item.loc)
       }
     }
@@ -232,9 +246,11 @@ fn Resolver::publish_selective_import(
 fn Resolver::publish_public_export(
   self : Resolver,
   binding : @module_interface.ResolvedModuleInterfaceExport,
-  loc : SourceSpan,
+  exposed_name : String,
+  target_loc : SourceSpan,
+  exposed_loc : SourceSpan,
 ) -> Unit {
-  let export_ = binding.export_
+  let export_ = { ..binding.export_, exposed_name, }
   for existing in self.public_exports {
     if existing.export_.export_namespace == export_.export_namespace &&
       existing.export_.exposed_name == export_.exposed_name {
@@ -242,14 +258,19 @@ fn Resolver::publish_public_export(
         ConflictingPublicExport(
           name=export_.exposed_name,
           export_namespace=export_.export_namespace,
-          existing_loc=existing.loc,
+          existing_loc=existing.exposed_loc,
         ),
-        loc,
+        exposed_loc,
       )
       return
     }
   }
-  self.public_exports.push({ export_, declaration: binding.declaration, loc, })
+  self.public_exports.push({
+    export_,
+    declaration: binding.declaration,
+    target_loc,
+    exposed_loc,
+  })
 }
 
 ///|
@@ -315,20 +336,26 @@ fn Resolver::publish_imported_public_bindings(
   import_origin : Int?,
 ) -> Unit {
   for binding in bindings {
-    self.publish_selective_import_binding(binding, import_origin, loc)
+    self.publish_selective_import_binding(
+      binding,
+      binding.export_.exposed_name,
+      import_origin,
+      loc,
+    )
   }
 }
 
 ///|
 fn Resolver::publish_imported_type(
   self : Resolver,
+  exposed_name : String,
   type_ : @module_interface.ModuleInterfaceType,
   import_origin : Int?,
 ) -> Unit {
   match type_ {
     Struct(declaration) =>
       self.publish_type_binding(
-        declaration.name,
+        exposed_name,
         declaration.symbol,
         interface_type_parameter_kinds(declaration.type_parameters),
         type_members=declaration.type_members.map(fn(item) { item.name }),
@@ -339,7 +366,7 @@ fn Resolver::publish_imported_type(
       )
     Enum(declaration) =>
       self.publish_type_binding(
-        declaration.name,
+        exposed_name,
         declaration.symbol,
         interface_type_parameter_kinds(declaration.type_parameters),
         variants=declaration.variants.map(fn(variant) {
@@ -349,7 +376,7 @@ fn Resolver::publish_imported_type(
       )
     External(declaration) =>
       self.publish_type_binding(
-        declaration.name,
+        exposed_name,
         declaration.symbol,
         [],
         import_origin,
@@ -361,12 +388,13 @@ fn Resolver::publish_imported_type(
 fn Resolver::publish_imported_type_alias(
   self : Resolver,
   module_path : String,
+  exposed_name : String,
   type_alias : @module_interface.ModuleInterfaceTypeAlias,
   import_origin : Int?,
 ) -> Unit {
   self.type_aliases.push({
     symbol: type_alias.symbol,
-    name: type_alias.name,
+    name: exposed_name,
     owner_module_path: Some(module_path),
     is_effect: type_alias.kind == Effect,
     parameter_kinds: interface_type_parameter_kinds(type_alias.type_parameters),
@@ -410,11 +438,12 @@ fn @syntax.Kind::to_binding_kind(self : @syntax.Kind) -> @types.Kind {
 ///|
 fn Resolver::publish_imported_effect(
   self : Resolver,
+  exposed_name : String,
   effect : @module_interface.ModuleInterfaceEffect,
   import_origin : Int?,
 ) -> Unit {
   self.publish_effect_binding(
-    effect.name,
+    exposed_name,
     effect.symbol,
     interface_type_parameter_kinds(effect.type_parameters),
     operations=effect.operations.map(fn(operation) {
@@ -429,12 +458,13 @@ fn Resolver::publish_imported_value(
   self : Resolver,
   provider_module : String,
   provider_source_id : String?,
+  exposed_name : String,
   value : @module_interface.ModuleInterfaceValue,
   loc : SourceSpan,
   import_origin : Int?,
 ) -> Unit {
   let binding = imported_interface_value_binding(
-    provider_module, provider_source_id, value, import_origin,
+    provider_module, provider_source_id, exposed_name, value, import_origin,
   )
   self.publish_complete_top_level_binding(binding, loc)
   self.publish_ordered_top_level_binding(binding, loc)
@@ -445,22 +475,26 @@ fn Resolver::publish_imported_value(
 fn Resolver::publish_selective_import_binding(
   self : Resolver,
   binding : @module_interface.ResolvedModuleInterfaceExport,
+  exposed_name : String,
   origin : Int?,
   loc : SourceSpan,
 ) -> Unit {
   match binding.declaration {
-    NominalType(type_) => self.publish_imported_type(type_, origin)
+    NominalType(type_) =>
+      self.publish_imported_type(exposed_name, type_, origin)
     TypeAlias(type_alias) =>
       self.publish_imported_type_alias(
         binding.export_.target.provider_module,
+        exposed_name,
         type_alias,
         origin,
       )
-    Effect(effect) => self.publish_imported_effect(effect, origin)
+    Effect(effect) => self.publish_imported_effect(exposed_name, effect, origin)
     Value(value) =>
       self.publish_imported_value(
         binding.export_.target.provider_module,
         binding.provider_source_id,
+        exposed_name,
         value,
         loc,
         origin,
@@ -472,6 +506,7 @@ fn Resolver::publish_selective_import_binding(
 fn imported_interface_value_binding(
   provider_module : String,
   provider_source_id : String?,
+  exposed_name : String,
   value : @module_interface.ModuleInterfaceValue,
   import_origin : Int?,
 ) -> ValueBinding {
@@ -480,7 +515,7 @@ fn imported_interface_value_binding(
     None => NoSource(origin="module `\{provider_module}`")
   }
   {
-    name: value.name,
+    name: exposed_name,
     reference: Symbol(value.symbol),
     type_: None,
     kind: Plain,

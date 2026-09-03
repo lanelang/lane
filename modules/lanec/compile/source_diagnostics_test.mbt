@@ -841,7 +841,7 @@ test "check reports unused imports and opens as warnings" {
       #|import UnusedQualified
       #|import UnusedOpen.*
       #|import OpenLib.*
-      #|import SelectiveLib.{ used, unused }
+      #|import SelectiveLib.{ used, unused as spare }
       #|
       #|pub fn answer() -> I64 {
       #|  let _qualified = UsedQualified.value
@@ -890,7 +890,7 @@ test "check reports unused imports and opens as warnings" {
       #|  {
       #|    message: "unused import item",
       #|    code: Some("W2004"),
-      #|    labels: ["imported item `unused` from `SelectiveLib` is never used"],
+      #|    labels: ["imported item `unused` as `spare` from `SelectiveLib` is never used"],
       #|  },
       #|]
     ),

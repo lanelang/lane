@@ -38,6 +38,15 @@ pub(all) struct ModuleAlias {
 ///|
 pub(all) struct ImportItem {
   name : String
+  name_loc : SourceSpan
+  alias_ : ImportAlias?
+  loc : SourceSpan
+} derive(Debug, Eq)
+
+///|
+pub(all) struct ImportAlias {
+  name : String
+  name_loc : SourceSpan
   loc : SourceSpan
 } derive(Debug, Eq)
 

@@ -571,6 +571,10 @@ priv suberror YYObj_EnumVariant {
   YYObj_EnumVariant(EnumVariant)
 }
 
+priv suberror YYObj_ImportAlias {
+  YYObj_ImportAlias(ImportAlias)
+}
+
 priv suberror YYObj_ModuleAlias {
   YYObj_ModuleAlias(ModuleAlias)
 }
@@ -847,6 +851,7 @@ priv enum YYSymbol {
   NT_import_item_list
   NT_non_empty_import_item_list
   NT_import_item
+  NT_import_alias
   NT_identifier
   NT_top_level_declarations
   NT_top_level_declaration
@@ -1032,7 +1037,7 @@ fn yy_action_2(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, Sou
 }
 
 // file:///./parser.mbty
-// 204|    top_level_declarations top_level_declaration layout_semicolons { comma_push($1, $2) }
+// 220|    top_level_declarations top_level_declaration layout_semicolons { comma_push($1, $2) }
 fn yy_action_3(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_TopLevelDeclaration_(_dollar1)
   guard _args[1].0 is YYObj_TopLevelDeclaration(_dollar2)
@@ -1052,7 +1057,7 @@ fn yy_action_4(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, Sou
 }
 
 // file:///./parser.mbty
-// 203|    { [] }
+// 219|    { [] }
 fn yy_action_5(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_TopLevelDeclaration_({();  [] })
 }
@@ -1072,7 +1077,7 @@ fn yy_action_6(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, Sou
 }
 
 // file:///./parser.mbty
-// 209|    "pub" public_top_level_declaration { with_public_loc($2, span($sloc)) }
+// 225|    "pub" public_top_level_declaration { with_public_loc($2, span($sloc)) }
 fn yy_action_7(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_TopLevelDeclaration(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -1081,63 +1086,63 @@ fn yy_action_7(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, Sou
 }
 
 // file:///./parser.mbty
-// 224|    public_struct_declaration { Struct($1) }
+// 240|    public_struct_declaration { Struct($1) }
 fn yy_action_8(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_StructDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Struct(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 225|    public_enum_declaration { Enum($1) }
+// 241|    public_enum_declaration { Enum($1) }
 fn yy_action_9(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_EnumDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Enum(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 226|    public_effect_declaration { Effect($1) }
+// 242|    public_effect_declaration { Effect($1) }
 fn yy_action_10(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_EffectDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Effect(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 227|    public_external_type_declaration { ExternalType($1) }
+// 243|    public_external_type_declaration { ExternalType($1) }
 fn yy_action_11(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_ExternalTypeDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  ExternalType(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 228|    public_type_alias_declaration { TypeAlias($1) }
+// 244|    public_type_alias_declaration { TypeAlias($1) }
 fn yy_action_12(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_TypeAliasDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  TypeAlias(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 229|    public_function_declaration { Function($1) }
+// 245|    public_function_declaration { Function($1) }
 fn yy_action_13(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_FunctionDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Function(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 230|    public_top_level_let_declaration { Let($1) }
+// 246|    public_top_level_let_declaration { Let($1) }
 fn yy_action_14(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_LetDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Let(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 231|    public_offer_value_declaration { Let($1) }
+// 247|    public_offer_value_declaration { Let($1) }
 fn yy_action_15(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_LetDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Let(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 239|    "extern" "type" identifier type_parameters ":" external_type_result_kind { make_external_type(true, $3, $4, $6, span($sloc)) }
+// 255|    "extern" "type" identifier type_parameters ":" external_type_result_kind { make_external_type(true, $3, $4, $6, span($sloc)) }
 fn yy_action_16(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_Identifier(_dollar3)
   guard _args[3].0 is YYObj_Array_TypeParameter_(_dollar4)
@@ -1148,9 +1153,9 @@ fn yy_action_16(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 254|    "type" identifier type_parameters type_alias_result_kind_opt "=" type_alias_body {
-// 255|    { is_public: true, name: $2.name, name_loc: $2.loc, type_parameters: $3, result_kind: $4, body: $6, loc: span($sloc) }
-// 256|  }
+// 270|    "type" identifier type_parameters type_alias_result_kind_opt "=" type_alias_body {
+// 271|    { is_public: true, name: $2.name, name_loc: $2.loc, type_parameters: $3, result_kind: $4, body: $6, loc: span($sloc) }
+// 272|  }
 fn yy_action_17(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
@@ -1164,9 +1169,9 @@ fn yy_action_17(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 273|    "struct" identifier nominal_body_open layout_semicolons struct_members "}" {
-// 274|    { is_public: true, name: $2.name, name_loc: $2.loc, type_parameters: $3, members: $5, loc: span($sloc) }
-// 275|  }
+// 289|    "struct" identifier nominal_body_open layout_semicolons struct_members "}" {
+// 290|    { is_public: true, name: $2.name, name_loc: $2.loc, type_parameters: $3, members: $5, loc: span($sloc) }
+// 291|  }
 fn yy_action_18(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
@@ -1179,9 +1184,9 @@ fn yy_action_18(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 336|    "enum" identifier nominal_body_open layout_semicolons enum_variants "}" {
-// 337|    { is_public: true, name: $2.name, name_loc: $2.loc, type_parameters: $3, variants: $5, loc: span($sloc) }
-// 338|  }
+// 352|    "enum" identifier nominal_body_open layout_semicolons enum_variants "}" {
+// 353|    { is_public: true, name: $2.name, name_loc: $2.loc, type_parameters: $3, variants: $5, loc: span($sloc) }
+// 354|  }
 fn yy_action_19(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
@@ -1194,9 +1199,9 @@ fn yy_action_19(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 368|    "effect" identifier nominal_body_open layout_semicolons effect_operations "}" {
-// 369|    { is_public: true, name: $2.name, name_loc: $2.loc, type_parameters: $3, operations: $5, loc: span($sloc) }
-// 370|  }
+// 384|    "effect" identifier nominal_body_open layout_semicolons effect_operations "}" {
+// 385|    { is_public: true, name: $2.name, name_loc: $2.loc, type_parameters: $3, operations: $5, loc: span($sloc) }
+// 386|  }
 fn yy_action_20(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
@@ -1209,20 +1214,20 @@ fn yy_action_20(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 411|    function_prefix type_parameters identifier parameters "->" type effect_annotation_opt layout_continuation_opt block_expression {
-// 412|    {
-// 413|      is_public: true,
-// 414|      is_offered: $1,
-// 415|      type_parameters: $2,
-// 416|      name: $3.name,
-// 417|      name_loc: $3.loc,
-// 418|      parameters: $4,
-// 419|      return_type: $6,
-// 420|      effect: effect_or_empty($7, $6),
-// 421|      body: $9,
-// 422|      loc: span($sloc),
-// 423|    }
-// 424|  }
+// 427|    function_prefix type_parameters identifier parameters "->" type effect_annotation_opt layout_continuation_opt block_expression {
+// 428|    {
+// 429|      is_public: true,
+// 430|      is_offered: $1,
+// 431|      type_parameters: $2,
+// 432|      name: $3.name,
+// 433|      name_loc: $3.loc,
+// 434|      parameters: $4,
+// 435|      return_type: $6,
+// 436|      effect: effect_or_empty($7, $6),
+// 437|      body: $9,
+// 438|      loc: span($sloc),
+// 439|    }
+// 440|  }
 fn yy_action_21(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _sub_action_0_result = yy_action_22(_last_pos, _args[0:1])
   guard _sub_action_0_result is YYObj_Bool(_dollar1)
@@ -1251,20 +1256,20 @@ fn yy_action_21(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 411|    function_prefix type_parameters identifier parameters "->" type effect_annotation_opt layout_continuation_opt block_expression {
-// 412|    {
-// 413|      is_public: true,
-// 414|      is_offered: $1,
-// 415|      type_parameters: $2,
-// 416|      name: $3.name,
-// 417|      name_loc: $3.loc,
-// 418|      parameters: $4,
-// 419|      return_type: $6,
-// 420|      effect: effect_or_empty($7, $6),
-// 421|      body: $9,
-// 422|      loc: span($sloc),
-// 423|    }
-// 424|  }
+// 427|    function_prefix type_parameters identifier parameters "->" type effect_annotation_opt layout_continuation_opt block_expression {
+// 428|    {
+// 429|      is_public: true,
+// 430|      is_offered: $1,
+// 431|      type_parameters: $2,
+// 432|      name: $3.name,
+// 433|      name_loc: $3.loc,
+// 434|      parameters: $4,
+// 435|      return_type: $6,
+// 436|      effect: effect_or_empty($7, $6),
+// 437|      body: $9,
+// 438|      loc: span($sloc),
+// 439|    }
+// 440|  }
 fn yy_action_23(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _sub_action_0_result = yy_action_24(_last_pos, _args[0:2])
   guard _sub_action_0_result is YYObj_Bool(_dollar1)
@@ -1293,9 +1298,9 @@ fn yy_action_23(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 484|    "offer" identifier ":" type "=" expression {
-// 485|    { is_public: true, is_offered: true, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
-// 486|  }
+// 500|    "offer" identifier ":" type "=" expression {
+// 501|    { is_public: true, is_offered: true, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+// 502|  }
 fn yy_action_25(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[3].0 is YYObj_Type(_dollar4)
@@ -1308,9 +1313,9 @@ fn yy_action_25(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 463|    "let" identifier ":" type "=" expression {
-// 464|    { is_public: true, is_offered: false, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
-// 465|  }
+// 479|    "let" identifier ":" type "=" expression {
+// 480|    { is_public: true, is_offered: false, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+// 481|  }
 fn yy_action_26(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[3].0 is YYObj_Type(_dollar4)
@@ -1393,17 +1398,58 @@ fn yy_action_33(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 195|    IDENT { { name: $1, loc: span($sloc) } }
+// 198|    identifier import_alias {
+// 199|    {
+// 200|      name: $1.name,
+// 201|      name_loc: $1.loc,
+// 202|      alias_: Some($2),
+// 203|      loc: span($sloc),
+// 204|    }
+// 205|  }
 fn yy_action_34(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_String(_dollar1)
+  guard _args[0].0 is YYObj_Identifier(_dollar1)
+  guard _args[1].0 is YYObj_ImportAlias(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
-  YYObj_ImportItem({();  { name: _dollar1, loc: span((_symbol_start_pos, _end_pos)) } })
+  YYObj_ImportItem({(); 
+    {
+      name: _dollar1.name,
+      name_loc: _dollar1.loc,
+      alias_: Some(_dollar2),
+      loc: span((_symbol_start_pos, _end_pos)),
+    }
+  })
+}
+
+// file:///./parser.mbty
+// 209|    "as" identifier {
+// 210|    { name: $2.name, name_loc: $2.loc, loc: span($sloc) }
+// 211|  }
+fn yy_action_35(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[1].0 is YYObj_Identifier(_dollar2)
+  let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
+  let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
+  YYObj_ImportAlias({(); 
+    { name: _dollar2.name, name_loc: _dollar2.loc, loc: span((_symbol_start_pos, _end_pos)) }
+  })
+}
+
+// file:///./parser.mbty
+// 195|    identifier {
+// 196|    { name: $1.name, name_loc: $1.loc, alias_: None, loc: span($sloc) }
+// 197|  }
+fn yy_action_36(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Identifier(_dollar1)
+  let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
+  let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
+  YYObj_ImportItem({(); 
+    { name: _dollar1.name, name_loc: _dollar1.loc, alias_: None, loc: span((_symbol_start_pos, _end_pos)) }
+  })
 }
 
 // file:///./parser.mbty
 // 184|    { [] }
-fn yy_action_35(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_37(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_ImportItem_({();  [] })
 }
 
@@ -1411,7 +1457,7 @@ fn yy_action_35(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 // 178|    "as" identifier {
 // 179|    { name: $2.name, name_loc: $2.loc, loc: span($sloc) }
 // 180|  }
-fn yy_action_36(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_38(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -1424,7 +1470,7 @@ fn yy_action_36(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 // 163|    "import" module_path {
 // 164|    Qualified(module_path=$2, module_alias=None, loc=span($sloc))
 // 165|  }
-fn yy_action_37(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_39(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_ModulePath(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -1434,71 +1480,71 @@ fn yy_action_37(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 208|    non_public_top_level_declaration { $1 }
-fn yy_action_38(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 224|    non_public_top_level_declaration { $1 }
+fn yy_action_40(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_TopLevelDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 213|    struct_declaration { Struct($1) }
-fn yy_action_39(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 229|    struct_declaration { Struct($1) }
+fn yy_action_41(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_StructDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Struct(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 214|    enum_declaration { Enum($1) }
-fn yy_action_40(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 230|    enum_declaration { Enum($1) }
+fn yy_action_42(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_EnumDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Enum(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 215|    effect_declaration { Effect($1) }
-fn yy_action_41(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 231|    effect_declaration { Effect($1) }
+fn yy_action_43(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_EffectDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Effect(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 216|    external_type_declaration { ExternalType($1) }
-fn yy_action_42(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 232|    external_type_declaration { ExternalType($1) }
+fn yy_action_44(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_ExternalTypeDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  ExternalType(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 217|    type_alias_declaration { TypeAlias($1) }
-fn yy_action_43(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 233|    type_alias_declaration { TypeAlias($1) }
+fn yy_action_45(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_TypeAliasDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  TypeAlias(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 218|    function_declaration { Function($1) }
-fn yy_action_44(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 234|    function_declaration { Function($1) }
+fn yy_action_46(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_FunctionDeclaration(_dollar1)
   YYObj_TopLevelDeclaration({();  Function(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 219|    top_level_let_declaration { Let($1) }
-fn yy_action_45(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_LetDeclaration(_dollar1)
-  YYObj_TopLevelDeclaration({();  Let(_dollar1) })
-}
-
-// file:///./parser.mbty
-// 220|    offer_value_declaration { Let($1) }
-fn yy_action_46(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_LetDeclaration(_dollar1)
-  YYObj_TopLevelDeclaration({();  Let(_dollar1) })
-}
-
-// file:///./parser.mbty
-// 235|    "extern" "type" identifier type_parameters ":" external_type_result_kind { make_external_type(false, $3, $4, $6, span($sloc)) }
+// 235|    top_level_let_declaration { Let($1) }
 fn yy_action_47(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_LetDeclaration(_dollar1)
+  YYObj_TopLevelDeclaration({();  Let(_dollar1) })
+}
+
+// file:///./parser.mbty
+// 236|    offer_value_declaration { Let($1) }
+fn yy_action_48(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_LetDeclaration(_dollar1)
+  YYObj_TopLevelDeclaration({();  Let(_dollar1) })
+}
+
+// file:///./parser.mbty
+// 251|    "extern" "type" identifier type_parameters ":" external_type_result_kind { make_external_type(false, $3, $4, $6, span($sloc)) }
+fn yy_action_49(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_Identifier(_dollar3)
   guard _args[3].0 is YYObj_Array_TypeParameter_(_dollar4)
   guard _args[5].0 is YYObj_ExternalTypeKind(_dollar6)
@@ -1508,26 +1554,26 @@ fn yy_action_47(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 243|    "Type" { Type(loc=span($sloc)) }
-fn yy_action_48(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 259|    "Type" { Type(loc=span($sloc)) }
+fn yy_action_50(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_ExternalTypeKind({();  Type(loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 244|    "Effect" { Effect(loc=span($sloc)) }
-fn yy_action_49(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 260|    "Effect" { Effect(loc=span($sloc)) }
+fn yy_action_51(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_ExternalTypeKind({();  Effect(loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 248|    "type" identifier type_parameters type_alias_result_kind_opt "=" type_alias_body {
-// 249|    { is_public: false, name: $2.name, name_loc: $2.loc, type_parameters: $3, result_kind: $4, body: $6, loc: span($sloc) }
-// 250|  }
-fn yy_action_50(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 264|    "type" identifier type_parameters type_alias_result_kind_opt "=" type_alias_body {
+// 265|    { is_public: false, name: $2.name, name_loc: $2.loc, type_parameters: $3, result_kind: $4, body: $6, loc: span($sloc) }
+// 266|  }
+fn yy_action_52(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
   guard _args[3].0 is YYObj_Kind_(_dollar4)
@@ -1540,17 +1586,17 @@ fn yy_action_50(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 260|    type { TypeBody($1) }
-fn yy_action_51(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 276|    type { TypeBody($1) }
+fn yy_action_53(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   YYObj_TypeAliasBody({();  TypeBody(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 261|    "{" type_list "}" {
-// 262|    EffectBody(effect_set($2, span($sloc)))
-// 263|  }
-fn yy_action_52(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 277|    "{" type_list "}" {
+// 278|    EffectBody(effect_set($2, span($sloc)))
+// 279|  }
+fn yy_action_54(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_Type_(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -1560,23 +1606,23 @@ fn yy_action_52(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 1175|    ":" kind { Some($2) }
-fn yy_action_53(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1191|    ":" kind { Some($2) }
+fn yy_action_55(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Kind(_dollar2)
   YYObj_Kind_({();  Some(_dollar2) })
 }
 
 // file:///./parser.mbty
-// 1174|    { None }
-fn yy_action_54(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1190|    { None }
+fn yy_action_56(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Kind_({();  None })
 }
 
 // file:///./parser.mbty
-// 267|    "struct" identifier nominal_body_open layout_semicolons struct_members "}" {
-// 268|    { is_public: false, name: $2.name, name_loc: $2.loc, type_parameters: $3, members: $5, loc: span($sloc) }
-// 269|  }
-fn yy_action_55(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 283|    "struct" identifier nominal_body_open layout_semicolons struct_members "}" {
+// 284|    { is_public: false, name: $2.name, name_loc: $2.loc, type_parameters: $3, members: $5, loc: span($sloc) }
+// 285|  }
+fn yy_action_57(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
   guard _args[4].0 is YYObj_Array_StructMember_(_dollar5)
@@ -1588,53 +1634,53 @@ fn yy_action_55(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 285|    non_empty_struct_members item_semicolon struct_member { comma_push($1, $3) }
-fn yy_action_56(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 301|    non_empty_struct_members item_semicolon struct_member { comma_push($1, $3) }
+fn yy_action_58(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_StructMember_(_dollar1)
   guard _args[2].0 is YYObj_StructMember(_dollar3)
   YYObj_Array_StructMember_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 286|    non_empty_struct_members item_semicolon { $1 }
-fn yy_action_57(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_StructMember_(_dollar1)
-  YYObj_Array_StructMember_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 280|    non_empty_struct_members { $1 }
-fn yy_action_58(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_StructMember_(_dollar1)
-  YYObj_Array_StructMember_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 284|    struct_member { [ $1 ] }
+// 302|    non_empty_struct_members item_semicolon { $1 }
 fn yy_action_59(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_StructMember_(_dollar1)
+  YYObj_Array_StructMember_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 296|    non_empty_struct_members { $1 }
+fn yy_action_60(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_StructMember_(_dollar1)
+  YYObj_Array_StructMember_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 300|    struct_member { [ $1 ] }
+fn yy_action_61(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_StructMember(_dollar1)
   YYObj_Array_StructMember_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 290|    type_member_declaration { TypeMember($1) }
-fn yy_action_60(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 306|    type_member_declaration { TypeMember($1) }
+fn yy_action_62(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_TypeMemberDeclaration(_dollar1)
   YYObj_StructMember({();  TypeMember(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 291|    field_declaration { Field($1) }
-fn yy_action_61(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 307|    field_declaration { Field($1) }
+fn yy_action_63(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_FieldDeclaration(_dollar1)
   YYObj_StructMember({();  Field(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 298|    "type" identifier ":" kind {
-// 299|    { name: $2.name, name_loc: $2.loc, kind: Some($4), loc: span($sloc) }
-// 300|  }
-fn yy_action_62(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 314|    "type" identifier ":" kind {
+// 315|    { name: $2.name, name_loc: $2.loc, kind: Some($4), loc: span($sloc) }
+// 316|  }
+fn yy_action_64(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[3].0 is YYObj_Kind(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -1645,10 +1691,10 @@ fn yy_action_62(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 295|    "type" identifier {
-// 296|    { name: $2.name, name_loc: $2.loc, kind: None, loc: span($sloc) }
-// 297|  }
-fn yy_action_63(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 311|    "type" identifier {
+// 312|    { name: $2.name, name_loc: $2.loc, kind: None, loc: span($sloc) }
+// 313|  }
+fn yy_action_65(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -1658,10 +1704,10 @@ fn yy_action_63(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 324|    identifier ":" type {
-// 325|    { name: $1.name, name_loc: $1.loc, type_: $3, loc: span($sloc) }
-// 326|  }
-fn yy_action_64(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 340|    identifier ":" type {
+// 341|    { name: $1.name, name_loc: $1.loc, type_: $3, loc: span($sloc) }
+// 342|  }
+fn yy_action_66(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[2].0 is YYObj_Type(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -1672,16 +1718,16 @@ fn yy_action_64(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 279|    { [] }
-fn yy_action_65(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 295|    { [] }
+fn yy_action_67(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_StructMember_({();  [] })
 }
 
 // file:///./parser.mbty
-// 330|    "enum" identifier nominal_body_open layout_semicolons enum_variants "}" {
-// 331|    { is_public: false, name: $2.name, name_loc: $2.loc, type_parameters: $3, variants: $5, loc: span($sloc) }
-// 332|  }
-fn yy_action_66(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 346|    "enum" identifier nominal_body_open layout_semicolons enum_variants "}" {
+// 347|    { is_public: false, name: $2.name, name_loc: $2.loc, type_parameters: $3, variants: $5, loc: span($sloc) }
+// 348|  }
+fn yy_action_68(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
   guard _args[4].0 is YYObj_Array_EnumVariant_(_dollar5)
@@ -1693,39 +1739,39 @@ fn yy_action_66(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 348|    non_empty_enum_variants item_semicolon enum_variant { comma_push($1, $3) }
-fn yy_action_67(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 364|    non_empty_enum_variants item_semicolon enum_variant { comma_push($1, $3) }
+fn yy_action_69(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_EnumVariant_(_dollar1)
   guard _args[2].0 is YYObj_EnumVariant(_dollar3)
   YYObj_Array_EnumVariant_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 349|    non_empty_enum_variants item_semicolon { $1 }
-fn yy_action_68(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_EnumVariant_(_dollar1)
-  YYObj_Array_EnumVariant_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 343|    non_empty_enum_variants { $1 }
-fn yy_action_69(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_EnumVariant_(_dollar1)
-  YYObj_Array_EnumVariant_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 347|    enum_variant { [ $1 ] }
+// 365|    non_empty_enum_variants item_semicolon { $1 }
 fn yy_action_70(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_EnumVariant_(_dollar1)
+  YYObj_Array_EnumVariant_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 359|    non_empty_enum_variants { $1 }
+fn yy_action_71(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_EnumVariant_(_dollar1)
+  YYObj_Array_EnumVariant_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 363|    enum_variant { [ $1 ] }
+fn yy_action_72(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_EnumVariant(_dollar1)
   YYObj_Array_EnumVariant_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 353|    identifier layout_continuation_opt "(" type_list ")" {
-// 354|    { name: $1.name, name_loc: $1.loc, type_parameters: [], payload: $4, loc: span($sloc) }
-// 355|  }
-fn yy_action_71(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 369|    identifier layout_continuation_opt "(" type_list ")" {
+// 370|    { name: $1.name, name_loc: $1.loc, type_parameters: [], payload: $4, loc: span($sloc) }
+// 371|  }
+fn yy_action_73(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[3].0 is YYObj_Array_Type_(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -1736,10 +1782,10 @@ fn yy_action_71(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 356|    identifier layout_continuation_opt type_parameter_bracket_list layout_continuation_opt "(" type_list ")" {
-// 357|    { name: $1.name, name_loc: $1.loc, type_parameters: $3, payload: $6, loc: span($sloc) }
-// 358|  }
-fn yy_action_72(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 372|    identifier layout_continuation_opt type_parameter_bracket_list layout_continuation_opt "(" type_list ")" {
+// 373|    { name: $1.name, name_loc: $1.loc, type_parameters: $3, payload: $6, loc: span($sloc) }
+// 374|  }
+fn yy_action_74(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
   guard _args[5].0 is YYObj_Array_Type_(_dollar6)
@@ -1751,16 +1797,16 @@ fn yy_action_72(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 342|    { [] }
-fn yy_action_73(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 358|    { [] }
+fn yy_action_75(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_EnumVariant_({();  [] })
 }
 
 // file:///./parser.mbty
-// 362|    "effect" identifier nominal_body_open layout_semicolons effect_operations "}" {
-// 363|    { is_public: false, name: $2.name, name_loc: $2.loc, type_parameters: $3, operations: $5, loc: span($sloc) }
-// 364|  }
-fn yy_action_74(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 378|    "effect" identifier nominal_body_open layout_semicolons effect_operations "}" {
+// 379|    { is_public: false, name: $2.name, name_loc: $2.loc, type_parameters: $3, operations: $5, loc: span($sloc) }
+// 380|  }
+fn yy_action_76(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
   guard _args[4].0 is YYObj_Array_EffectOperationDeclaration_(_dollar5)
@@ -1772,39 +1818,39 @@ fn yy_action_74(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 380|    non_empty_effect_operations item_semicolon effect_operation { comma_push($1, $3) }
-fn yy_action_75(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 396|    non_empty_effect_operations item_semicolon effect_operation { comma_push($1, $3) }
+fn yy_action_77(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_EffectOperationDeclaration_(_dollar1)
   guard _args[2].0 is YYObj_EffectOperationDeclaration(_dollar3)
   YYObj_Array_EffectOperationDeclaration_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 381|    non_empty_effect_operations item_semicolon { $1 }
-fn yy_action_76(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_EffectOperationDeclaration_(_dollar1)
-  YYObj_Array_EffectOperationDeclaration_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 375|    non_empty_effect_operations { $1 }
-fn yy_action_77(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_EffectOperationDeclaration_(_dollar1)
-  YYObj_Array_EffectOperationDeclaration_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 379|    effect_operation { [ $1 ] }
+// 397|    non_empty_effect_operations item_semicolon { $1 }
 fn yy_action_78(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_EffectOperationDeclaration_(_dollar1)
+  YYObj_Array_EffectOperationDeclaration_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 391|    non_empty_effect_operations { $1 }
+fn yy_action_79(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_EffectOperationDeclaration_(_dollar1)
+  YYObj_Array_EffectOperationDeclaration_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 395|    effect_operation { [ $1 ] }
+fn yy_action_80(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_EffectOperationDeclaration(_dollar1)
   YYObj_Array_EffectOperationDeclaration_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 385|    identifier layout_continuation_opt "(" type_list ")" "->" type {
-// 386|    { name: $1.name, name_loc: $1.loc, type_parameters: [], payload: $4, result: $7, loc: span($sloc) }
-// 387|  }
-fn yy_action_79(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 401|    identifier layout_continuation_opt "(" type_list ")" "->" type {
+// 402|    { name: $1.name, name_loc: $1.loc, type_parameters: [], payload: $4, result: $7, loc: span($sloc) }
+// 403|  }
+fn yy_action_81(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[3].0 is YYObj_Array_Type_(_dollar4)
   guard _args[6].0 is YYObj_Type(_dollar7)
@@ -1816,10 +1862,10 @@ fn yy_action_79(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 388|    identifier layout_continuation_opt type_parameter_bracket_list layout_continuation_opt "(" type_list ")" "->" type {
-// 389|    { name: $1.name, name_loc: $1.loc, type_parameters: $3, payload: $6, result: $9, loc: span($sloc) }
-// 390|  }
-fn yy_action_80(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 404|    identifier layout_continuation_opt type_parameter_bracket_list layout_continuation_opt "(" type_list ")" "->" type {
+// 405|    { name: $1.name, name_loc: $1.loc, type_parameters: $3, payload: $6, result: $9, loc: span($sloc) }
+// 406|  }
+fn yy_action_82(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar3)
   guard _args[5].0 is YYObj_Array_Type_(_dollar6)
@@ -1832,56 +1878,56 @@ fn yy_action_80(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 374|    { [] }
-fn yy_action_81(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 390|    { [] }
+fn yy_action_83(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_EffectOperationDeclaration_({();  [] })
 }
 
 // file:///./parser.mbty
-// 496|    "{" { [] }
-fn yy_action_82(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_Array_TypeParameter_({();  [] })
-}
-
-// file:///./parser.mbty
-// 497|    LAYOUT_NEWLINE "{" { [] }
-fn yy_action_83(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_Array_TypeParameter_({();  [] })
-}
-
-// file:///./parser.mbty
-// 500|    LAYOUT_NEWLINE type_parameter_bracket_list "{" { $2 }
+// 512|    "{" { [] }
 fn yy_action_84(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
-  YYObj_Array_TypeParameter_({();  _dollar2 })
+  YYObj_Array_TypeParameter_({();  [] })
 }
 
 // file:///./parser.mbty
-// 501|    LAYOUT_NEWLINE type_parameter_bracket_list LAYOUT_NEWLINE "{" { $2 }
+// 513|    LAYOUT_NEWLINE "{" { [] }
 fn yy_action_85(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  YYObj_Array_TypeParameter_({();  [] })
+}
+
+// file:///./parser.mbty
+// 516|    LAYOUT_NEWLINE type_parameter_bracket_list "{" { $2 }
+fn yy_action_86(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
   YYObj_Array_TypeParameter_({();  _dollar2 })
 }
 
 // file:///./parser.mbty
-// 498|    type_parameter_bracket_list "{" { $1 }
-fn yy_action_86(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_TypeParameter_(_dollar1)
-  YYObj_Array_TypeParameter_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 499|    type_parameter_bracket_list LAYOUT_NEWLINE "{" { $1 }
+// 517|    LAYOUT_NEWLINE type_parameter_bracket_list LAYOUT_NEWLINE "{" { $2 }
 fn yy_action_87(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
+  YYObj_Array_TypeParameter_({();  _dollar2 })
+}
+
+// file:///./parser.mbty
+// 514|    type_parameter_bracket_list "{" { $1 }
+fn yy_action_88(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_TypeParameter_(_dollar1)
   YYObj_Array_TypeParameter_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 457|    "let" identifier ":" type "=" expression {
-// 458|    { is_public: false, is_offered: false, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
-// 459|  }
-fn yy_action_88(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 515|    type_parameter_bracket_list LAYOUT_NEWLINE "{" { $1 }
+fn yy_action_89(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_TypeParameter_(_dollar1)
+  YYObj_Array_TypeParameter_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 473|    "let" identifier ":" type "=" expression {
+// 474|    { is_public: false, is_offered: false, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+// 475|  }
+fn yy_action_90(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[3].0 is YYObj_Type(_dollar4)
   guard _args[5].0 is YYObj_Expr(_dollar6)
@@ -1893,21 +1939,21 @@ fn yy_action_88(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 394|    function_prefix type_parameters identifier parameters "->" type effect_annotation_opt layout_continuation_opt block_expression {
-// 395|    {
-// 396|      is_public: false,
-// 397|      is_offered: $1,
-// 398|      type_parameters: $2,
-// 399|      name: $3.name,
-// 400|      name_loc: $3.loc,
-// 401|      parameters: $4,
-// 402|      return_type: $6,
-// 403|      effect: effect_or_empty($7, $6),
-// 404|      body: $9,
-// 405|      loc: span($sloc),
-// 406|    }
-// 407|  }
-fn yy_action_89(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 410|    function_prefix type_parameters identifier parameters "->" type effect_annotation_opt layout_continuation_opt block_expression {
+// 411|    {
+// 412|      is_public: false,
+// 413|      is_offered: $1,
+// 414|      type_parameters: $2,
+// 415|      name: $3.name,
+// 416|      name_loc: $3.loc,
+// 417|      parameters: $4,
+// 418|      return_type: $6,
+// 419|      effect: effect_or_empty($7, $6),
+// 420|      body: $9,
+// 421|      loc: span($sloc),
+// 422|    }
+// 423|  }
+fn yy_action_91(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _sub_action_0_result = yy_action_22(_last_pos, _args[0:1])
   guard _sub_action_0_result is YYObj_Bool(_dollar1)
   guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
@@ -1935,27 +1981,27 @@ fn yy_action_89(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 428|    "fn" { false }
+// 444|    "fn" { false }
 fn yy_action_22(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Bool({();  false })
 }
 
 // file:///./parser.mbty
-// 394|    function_prefix type_parameters identifier parameters "->" type effect_annotation_opt layout_continuation_opt block_expression {
-// 395|    {
-// 396|      is_public: false,
-// 397|      is_offered: $1,
-// 398|      type_parameters: $2,
-// 399|      name: $3.name,
-// 400|      name_loc: $3.loc,
-// 401|      parameters: $4,
-// 402|      return_type: $6,
-// 403|      effect: effect_or_empty($7, $6),
-// 404|      body: $9,
-// 405|      loc: span($sloc),
-// 406|    }
-// 407|  }
-fn yy_action_90(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 410|    function_prefix type_parameters identifier parameters "->" type effect_annotation_opt layout_continuation_opt block_expression {
+// 411|    {
+// 412|      is_public: false,
+// 413|      is_offered: $1,
+// 414|      type_parameters: $2,
+// 415|      name: $3.name,
+// 416|      name_loc: $3.loc,
+// 417|      parameters: $4,
+// 418|      return_type: $6,
+// 419|      effect: effect_or_empty($7, $6),
+// 420|      body: $9,
+// 421|      loc: span($sloc),
+// 422|    }
+// 423|  }
+fn yy_action_92(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _sub_action_0_result = yy_action_24(_last_pos, _args[0:2])
   guard _sub_action_0_result is YYObj_Bool(_dollar1)
   guard _args[2].0 is YYObj_Array_TypeParameter_(_dollar2)
@@ -1983,44 +2029,44 @@ fn yy_action_90(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 429|    "offer" "fn" { true }
+// 445|    "offer" "fn" { true }
 fn yy_action_24(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Bool({();  true })
 }
 
 // file:///./parser.mbty
-// 433|    layout_continuation_opt "(" ")" { [] }
-fn yy_action_91(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 449|    layout_continuation_opt "(" ")" { [] }
+fn yy_action_93(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_Parameter_({();  [] })
 }
 
 // file:///./parser.mbty
-// 434|    layout_continuation_opt "(" non_empty_parameter_list ")" { $3 }
-fn yy_action_92(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 450|    layout_continuation_opt "(" non_empty_parameter_list ")" { $3 }
+fn yy_action_94(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_Array_Parameter_(_dollar3)
   YYObj_Array_Parameter_({();  _dollar3 })
 }
 
 // file:///./parser.mbty
-// 439|    non_empty_parameter_list "," parameter { comma_push($1, $3) }
-fn yy_action_93(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 455|    non_empty_parameter_list "," parameter { comma_push($1, $3) }
+fn yy_action_95(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Parameter_(_dollar1)
   guard _args[2].0 is YYObj_Parameter(_dollar3)
   YYObj_Array_Parameter_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 438|    parameter { [ $1 ] }
-fn yy_action_94(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 454|    parameter { [ $1 ] }
+fn yy_action_96(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Parameter(_dollar1)
   YYObj_Array_Parameter_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 443|    parameter_modifiers identifier ":" type {
-// 444|    { is_auto: $1.is_auto, is_offered: $1.is_offered, name: $2.name, name_loc: $2.loc, type_: $4, loc: span($sloc) }
-// 445|  }
-fn yy_action_95(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 459|    parameter_modifiers identifier ":" type {
+// 460|    { is_auto: $1.is_auto, is_offered: $1.is_offered, name: $2.name, name_loc: $2.loc, type_: $4, loc: span($sloc) }
+// 461|  }
+fn yy_action_97(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_ParameterModifiers(_dollar1)
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[3].0 is YYObj_Type(_dollar4)
@@ -2032,60 +2078,60 @@ fn yy_action_95(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, So
 }
 
 // file:///./parser.mbty
-// 452|    "auto" "offer" { { is_auto: true, is_offered: true } }
-fn yy_action_96(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_ParameterModifiers({();  { is_auto: true, is_offered: true } })
-}
-
-// file:///./parser.mbty
-// 450|    "auto" { { is_auto: true, is_offered: false } }
-fn yy_action_97(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_ParameterModifiers({();  { is_auto: true, is_offered: false } })
-}
-
-// file:///./parser.mbty
-// 453|    "offer" "auto" { { is_auto: true, is_offered: true } }
+// 468|    "auto" "offer" { { is_auto: true, is_offered: true } }
 fn yy_action_98(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_ParameterModifiers({();  { is_auto: true, is_offered: true } })
 }
 
 // file:///./parser.mbty
-// 451|    "offer" { { is_auto: false, is_offered: true } }
+// 466|    "auto" { { is_auto: true, is_offered: false } }
 fn yy_action_99(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  YYObj_ParameterModifiers({();  { is_auto: true, is_offered: false } })
+}
+
+// file:///./parser.mbty
+// 469|    "offer" "auto" { { is_auto: true, is_offered: true } }
+fn yy_action_100(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  YYObj_ParameterModifiers({();  { is_auto: true, is_offered: true } })
+}
+
+// file:///./parser.mbty
+// 467|    "offer" { { is_auto: false, is_offered: true } }
+fn yy_action_101(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_ParameterModifiers({();  { is_auto: false, is_offered: true } })
 }
 
 // file:///./parser.mbty
-// 449|    { { is_auto: false, is_offered: false } }
-fn yy_action_100(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 465|    { { is_auto: false, is_offered: false } }
+fn yy_action_102(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_ParameterModifiers({();  { is_auto: false, is_offered: false } })
 }
 
 // file:///./parser.mbty
-// 491|    type_parameter_bracket_list { $1 }
-fn yy_action_101(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 507|    type_parameter_bracket_list { $1 }
+fn yy_action_103(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_TypeParameter_(_dollar1)
   YYObj_Array_TypeParameter_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 492|    LAYOUT_NEWLINE type_parameter_bracket_list { $2 }
-fn yy_action_102(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 508|    LAYOUT_NEWLINE type_parameter_bracket_list { $2 }
+fn yy_action_104(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
   YYObj_Array_TypeParameter_({();  _dollar2 })
 }
 
 // file:///./parser.mbty
-// 490|    { [] }
-fn yy_action_103(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 506|    { [] }
+fn yy_action_105(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_TypeParameter_({();  [] })
 }
 
 // file:///./parser.mbty
-// 478|    "offer" identifier ":" type "=" expression {
-// 479|    { is_public: false, is_offered: true, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
-// 480|  }
-fn yy_action_104(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 494|    "offer" identifier ":" type "=" expression {
+// 495|    { is_public: false, is_offered: true, name: $2.name, name_loc: $2.loc, type_annotation: Some($4), initializer: $6, loc: span($sloc) }
+// 496|  }
+fn yy_action_106(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[3].0 is YYObj_Type(_dollar4)
   guard _args[5].0 is YYObj_Expr(_dollar6)
@@ -2097,8 +2143,8 @@ fn yy_action_104(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 469|    "let" pattern local_type_annotation "=" expression { local_let_item($2, $3, $5, span($sloc)) }
-fn yy_action_105(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 485|    "let" pattern local_type_annotation "=" expression { local_let_item($2, $3, $5, span($sloc)) }
+fn yy_action_107(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Pattern(_dollar2)
   guard _args[2].0 is YYObj_Type_(_dollar3)
   guard _args[4].0 is YYObj_Expr(_dollar5)
@@ -2108,10 +2154,10 @@ fn yy_action_105(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 877|    "{" layout_semicolons local_items expression "}" {
-// 878|    Block(items=$3, result=$4, loc=span($sloc))
-// 879|  }
-fn yy_action_106(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 893|    "{" layout_semicolons local_items expression "}" {
+// 894|    Block(items=$3, result=$4, loc=span($sloc))
+// 895|  }
+fn yy_action_108(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_Array_LocalItem_(_dollar3)
   guard _args[3].0 is YYObj_Expr(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -2122,46 +2168,46 @@ fn yy_action_106(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 891|    expression { Expression(expression=$1) }
-fn yy_action_107(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 907|    expression { Expression(expression=$1) }
+fn yy_action_109(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_LocalItem({();  Expression(expression=_dollar1) })
 }
 
 // file:///./parser.mbty
-// 884|    local_items local_item item_semicolon { comma_push($1, $2) }
-fn yy_action_108(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 900|    local_items local_item item_semicolon { comma_push($1, $2) }
+fn yy_action_110(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_LocalItem_(_dollar1)
   guard _args[1].0 is YYObj_LocalItem(_dollar2)
   YYObj_Array_LocalItem_({();  comma_push(_dollar1, _dollar2) })
 }
 
 // file:///./parser.mbty
-// 888|    local_let_item { $1 }
-fn yy_action_109(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 904|    local_let_item { $1 }
+fn yy_action_111(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_LocalItem(_dollar1)
   YYObj_LocalItem({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 889|    function_declaration { Function($1) }
-fn yy_action_110(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 905|    function_declaration { Function($1) }
+fn yy_action_112(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_FunctionDeclaration(_dollar1)
   YYObj_LocalItem({();  Function(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 890|    offer_value_declaration { Let($1) }
-fn yy_action_111(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 906|    offer_value_declaration { Let($1) }
+fn yy_action_113(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_LetDeclaration(_dollar1)
   YYObj_LocalItem({();  Let(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 934|    "handle" expression handler_with_blocks handler_final_branch {
-// 935|    Handler(body=$2, handlers=$3, final_branch=$4, loc=span($sloc))
-// 936|  }
-fn yy_action_112(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 950|    "handle" expression handler_with_blocks handler_final_branch {
+// 951|    Handler(body=$2, handlers=$3, final_branch=$4, loc=span($sloc))
+// 952|  }
+fn yy_action_114(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Expr(_dollar2)
   guard _args[2].0 is YYObj_Array_HandlerWithBlock_(_dollar3)
   guard _args[3].0 is YYObj_HandlerFinalBranch(_dollar4)
@@ -2173,16 +2219,16 @@ fn yy_action_112(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 941|    handler_with_blocks handler_with_block { comma_push($1, $2) }
-fn yy_action_113(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 957|    handler_with_blocks handler_with_block { comma_push($1, $2) }
+fn yy_action_115(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_HandlerWithBlock_(_dollar1)
   guard _args[1].0 is YYObj_HandlerWithBlock(_dollar2)
   YYObj_Array_HandlerWithBlock_({();  comma_push(_dollar1, _dollar2) })
 }
 
 // file:///./parser.mbty
-// 1025|    "final" identifier layout_continuation_opt block_expression { { binder: $2.name, binder_loc: $2.loc, body: $4, loc: span($sloc) } }
-fn yy_action_114(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1041|    "final" identifier layout_continuation_opt block_expression { { binder: $2.name, binder_loc: $2.loc, body: $4, loc: span($sloc) } }
+fn yy_action_116(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[3].0 is YYObj_Expr(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -2191,17 +2237,17 @@ fn yy_action_114(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 940|    handler_with_block { [ $1 ] }
-fn yy_action_115(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 956|    handler_with_block { [ $1 ] }
+fn yy_action_117(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_HandlerWithBlock(_dollar1)
   YYObj_Array_HandlerWithBlock_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 945|    "with" "{" layout_semicolons handler_operation_arms "}" {
-// 946|    { arms: $4, loc: span($sloc) }
-// 947|  }
-fn yy_action_116(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 961|    "with" "{" layout_semicolons handler_operation_arms "}" {
+// 962|    { arms: $4, loc: span($sloc) }
+// 963|  }
+fn yy_action_118(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[3].0 is YYObj_Array_HandlerOperationArm_(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2211,8 +2257,8 @@ fn yy_action_116(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 978|    qualified_type_name handler_operation_owner_arguments "tight ::" identifier { qualified_handler_operation_name($1.to_type(), $2, $4) }
-fn yy_action_117(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 994|    qualified_type_name handler_operation_owner_arguments "tight ::" identifier { qualified_handler_operation_name($1.to_type(), $2, $4) }
+fn yy_action_119(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_NominalTypeName(_dollar1)
   guard _args[1].0 is YYObj_GenericArgumentList_(_dollar2)
   guard _args[3].0 is YYObj_Identifier(_dollar4)
@@ -2220,60 +2266,60 @@ fn yy_action_117(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1007|    handler_operation_generic_arguments { Some($1) }
-fn yy_action_118(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1023|    handler_operation_generic_arguments { Some($1) }
+fn yy_action_120(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_GenericArgumentList(_dollar1)
   YYObj_GenericArgumentList_({();  Some(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 1006|    { None }
-fn yy_action_119(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1022|    { None }
+fn yy_action_121(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_GenericArgumentList_({();  None })
 }
 
 // file:///./parser.mbty
-// 956|    non_empty_handler_operation_arms item_semicolon handler_operation_arm { comma_push($1, $3) }
-fn yy_action_120(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 972|    non_empty_handler_operation_arms item_semicolon handler_operation_arm { comma_push($1, $3) }
+fn yy_action_122(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_HandlerOperationArm_(_dollar1)
   guard _args[2].0 is YYObj_HandlerOperationArm(_dollar3)
   YYObj_Array_HandlerOperationArm_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 957|    non_empty_handler_operation_arms item_semicolon { $1 }
-fn yy_action_121(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_HandlerOperationArm_(_dollar1)
-  YYObj_Array_HandlerOperationArm_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 951|    non_empty_handler_operation_arms { $1 }
-fn yy_action_122(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_HandlerOperationArm_(_dollar1)
-  YYObj_Array_HandlerOperationArm_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 955|    handler_operation_arm { [ $1 ] }
+// 973|    non_empty_handler_operation_arms item_semicolon { $1 }
 fn yy_action_123(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_HandlerOperationArm_(_dollar1)
+  YYObj_Array_HandlerOperationArm_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 967|    non_empty_handler_operation_arms { $1 }
+fn yy_action_124(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_HandlerOperationArm_(_dollar1)
+  YYObj_Array_HandlerOperationArm_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 971|    handler_operation_arm { [ $1 ] }
+fn yy_action_125(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_HandlerOperationArm(_dollar1)
   YYObj_Array_HandlerOperationArm_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 961|    handler_operation_signature_open handler_operation_arm_parameters ")" "=>" expression {
-// 962|    {
-// 963|      name: $1.name,
-// 964|      type_binders: $1.type_binders,
-// 965|      payload_patterns: $2.payload_patterns,
-// 966|      resume_binder: $2.resume_binder,
-// 967|      resume_loc: $2.resume_loc,
-// 968|      body: $5,
-// 969|      loc: span($sloc)
-// 970|    }
-// 971|  }
-fn yy_action_124(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 977|    handler_operation_signature_open handler_operation_arm_parameters ")" "=>" expression {
+// 978|    {
+// 979|      name: $1.name,
+// 980|      type_binders: $1.type_binders,
+// 981|      payload_patterns: $2.payload_patterns,
+// 982|      resume_binder: $2.resume_binder,
+// 983|      resume_loc: $2.resume_loc,
+// 984|      body: $5,
+// 985|      loc: span($sloc)
+// 986|    }
+// 987|  }
+fn yy_action_126(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_HandlerOperationHead(_dollar1)
   guard _args[1].0 is YYObj_HandlerOperationArmParameters(_dollar2)
   guard _args[4].0 is YYObj_Expr(_dollar5)
@@ -2293,46 +2339,46 @@ fn yy_action_124(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1015|    identifier { { payload_patterns: [], resume_binder: $1.name, resume_loc: $1.loc } }
-fn yy_action_125(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1031|    identifier { { payload_patterns: [], resume_binder: $1.name, resume_loc: $1.loc } }
+fn yy_action_127(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   YYObj_HandlerOperationArmParameters({();  { payload_patterns: [], resume_binder: _dollar1.name, resume_loc: _dollar1.loc } })
 }
 
 // file:///./parser.mbty
-// 1016|    handler_payload_patterns "," identifier { { payload_patterns: $1, resume_binder: $3.name, resume_loc: $3.loc } }
-fn yy_action_126(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1032|    handler_payload_patterns "," identifier { { payload_patterns: $1, resume_binder: $3.name, resume_loc: $3.loc } }
+fn yy_action_128(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Pattern_(_dollar1)
   guard _args[2].0 is YYObj_Identifier(_dollar3)
   YYObj_HandlerOperationArmParameters({();  { payload_patterns: _dollar1, resume_binder: _dollar3.name, resume_loc: _dollar3.loc } })
 }
 
 // file:///./parser.mbty
-// 1021|    handler_payload_patterns "," pattern { comma_push($1, $3) }
-fn yy_action_127(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1037|    handler_payload_patterns "," pattern { comma_push($1, $3) }
+fn yy_action_129(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Pattern_(_dollar1)
   guard _args[2].0 is YYObj_Pattern(_dollar3)
   YYObj_Array_Pattern_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 1020|    pattern { [ $1 ] }
-fn yy_action_128(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1036|    pattern { [ $1 ] }
+fn yy_action_130(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Pattern(_dollar1)
   YYObj_Array_Pattern_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 976|    identifier "tight ::" identifier { qualified_handler_operation_name(Name(name=$1.name, loc=$1.loc), None, $3) }
-fn yy_action_129(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 992|    identifier "tight ::" identifier { qualified_handler_operation_name(Name(name=$1.name, loc=$1.loc), None, $3) }
+fn yy_action_131(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[2].0 is YYObj_Identifier(_dollar3)
   YYObj_EffectOperationName({();  qualified_handler_operation_name(Name(name=_dollar1.name, loc=_dollar1.loc), None, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 977|    identifier handler_operation_generic_arguments "tight ::" identifier { qualified_handler_operation_name(Name(name=$1.name, loc=$1.loc), Some($2), $4) }
-fn yy_action_130(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 993|    identifier handler_operation_generic_arguments "tight ::" identifier { qualified_handler_operation_name(Name(name=$1.name, loc=$1.loc), Some($2), $4) }
+fn yy_action_132(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[1].0 is YYObj_GenericArgumentList(_dollar2)
   guard _args[3].0 is YYObj_Identifier(_dollar4)
@@ -2340,8 +2386,8 @@ fn yy_action_130(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1011|    "owner [" non_empty_generic_argument_list "]" { { arguments: $2, loc: span($sloc) } }
-fn yy_action_131(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1027|    "owner [" non_empty_generic_argument_list "]" { { arguments: $2, loc: span($sloc) } }
+fn yy_action_133(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_GenericArgument_(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2349,48 +2395,48 @@ fn yy_action_131(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 975|    identifier { Unqualified(operation=$1.name, operation_loc=$1.loc) }
-fn yy_action_132(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 991|    identifier { Unqualified(operation=$1.name, operation_loc=$1.loc) }
+fn yy_action_134(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   YYObj_EffectOperationName({();  Unqualified(operation=_dollar1.name, operation_loc=_dollar1.loc) })
 }
 
 // file:///./parser.mbty
-// 982|    handler_operation_name "(" { { name: $1, type_binders: [] } }
-fn yy_action_133(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 998|    handler_operation_name "(" { { name: $1, type_binders: [] } }
+fn yy_action_135(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_EffectOperationName(_dollar1)
   YYObj_HandlerOperationHead({();  { name: _dollar1, type_binders: [] } })
 }
 
 // file:///./parser.mbty
-// 983|    handler_operation_name ident_bracket_list "(" {
-// 984|    { name: $1, type_binders: $2 }
-// 985|  }
-fn yy_action_134(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_EffectOperationName(_dollar1)
-  guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
-  YYObj_HandlerOperationHead({(); 
-    { name: _dollar1, type_binders: _dollar2 }
-  })
-}
-
-// file:///./parser.mbty
-// 986|    handler_operation_name ident_bracket_list LAYOUT_NEWLINE "(" {
-// 987|    { name: $1, type_binders: $2 }
-// 988|  }
-fn yy_action_135(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_EffectOperationName(_dollar1)
-  guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
-  YYObj_HandlerOperationHead({(); 
-    { name: _dollar1, type_binders: _dollar2 }
-  })
-}
-
-// file:///./parser.mbty
-// 989|    handler_operation_name LAYOUT_NEWLINE handler_operation_signature_after_newline {
-// 990|    { name: $1, type_binders: $3 }
-// 991|  }
+//  999|    handler_operation_name ident_bracket_list "(" {
+// 1000|    { name: $1, type_binders: $2 }
+// 1001|  }
 fn yy_action_136(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_EffectOperationName(_dollar1)
+  guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
+  YYObj_HandlerOperationHead({(); 
+    { name: _dollar1, type_binders: _dollar2 }
+  })
+}
+
+// file:///./parser.mbty
+// 1002|    handler_operation_name ident_bracket_list LAYOUT_NEWLINE "(" {
+// 1003|    { name: $1, type_binders: $2 }
+// 1004|  }
+fn yy_action_137(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_EffectOperationName(_dollar1)
+  guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
+  YYObj_HandlerOperationHead({(); 
+    { name: _dollar1, type_binders: _dollar2 }
+  })
+}
+
+// file:///./parser.mbty
+// 1005|    handler_operation_name LAYOUT_NEWLINE handler_operation_signature_after_newline {
+// 1006|    { name: $1, type_binders: $3 }
+// 1007|  }
+fn yy_action_138(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_EffectOperationName(_dollar1)
   guard _args[2].0 is YYObj_Array_TypeBinder_(_dollar3)
   YYObj_HandlerOperationHead({(); 
@@ -2399,50 +2445,50 @@ fn yy_action_136(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 995|    "(" { [] }
-fn yy_action_137(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1011|    "(" { [] }
+fn yy_action_139(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_TypeBinder_({();  [] })
 }
 
 // file:///./parser.mbty
-// 996|    ident_bracket_list "(" { $1 }
-fn yy_action_138(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_TypeBinder_(_dollar1)
-  YYObj_Array_TypeBinder_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 997|    ident_bracket_list LAYOUT_NEWLINE "(" { $1 }
-fn yy_action_139(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_TypeBinder_(_dollar1)
-  YYObj_Array_TypeBinder_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 1001|    "[" non_empty_ident_list "]" { $2 }
+// 1012|    ident_bracket_list "(" { $1 }
 fn yy_action_140(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_TypeBinder_(_dollar1)
+  YYObj_Array_TypeBinder_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 1013|    ident_bracket_list LAYOUT_NEWLINE "(" { $1 }
+fn yy_action_141(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_TypeBinder_(_dollar1)
+  YYObj_Array_TypeBinder_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 1017|    "[" non_empty_ident_list "]" { $2 }
+fn yy_action_142(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
   YYObj_Array_TypeBinder_({();  _dollar2 })
 }
 
 // file:///./parser.mbty
-// 1002|    "[" EMPTY_TYPE_PARAMETER_LIST_ERROR "]" { [] }
-fn yy_action_141(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1018|    "[" EMPTY_TYPE_PARAMETER_LIST_ERROR "]" { [] }
+fn yy_action_143(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_TypeBinder_({();  [] })
 }
 
 // file:///./parser.mbty
 // 112|    layout_semicolons LAYOUT_NEWLINE { claim_layout_separator($2) }
-fn yy_action_142(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_144(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_LayoutNewlineClaim(_dollar2)
   YYObj_Unit({();  claim_layout_separator(_dollar2) })
 }
 
 // file:///./parser.mbty
-// 911|    "match" expression layout_continuation_opt "{" layout_semicolons match_arms "}" {
-// 912|    Match(scrutinee=$2, arms=$6, loc=span($sloc))
-// 913|  }
-fn yy_action_143(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 927|    "match" expression layout_continuation_opt "{" layout_semicolons match_arms "}" {
+// 928|    Match(scrutinee=$2, arms=$6, loc=span($sloc))
+// 929|  }
+fn yy_action_145(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Expr(_dollar2)
   guard _args[5].0 is YYObj_Array_MatchArm_(_dollar6)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -2454,51 +2500,51 @@ fn yy_action_143(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 
 // file:///./parser.mbty
 // 116|    ";" { () }
-fn yy_action_144(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_146(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Unit({();  () })
 }
 
 // file:///./parser.mbty
 // 117|    LAYOUT_NEWLINE { claim_layout_separator($1) }
-fn yy_action_145(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_147(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_LayoutNewlineClaim(_dollar1)
   YYObj_Unit({();  claim_layout_separator(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 923|    non_empty_match_arms item_semicolon match_arm { comma_push($1, $3) }
-fn yy_action_146(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 939|    non_empty_match_arms item_semicolon match_arm { comma_push($1, $3) }
+fn yy_action_148(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_MatchArm_(_dollar1)
   guard _args[2].0 is YYObj_MatchArm(_dollar3)
   YYObj_Array_MatchArm_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 924|    non_empty_match_arms item_semicolon { $1 }
-fn yy_action_147(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_MatchArm_(_dollar1)
-  YYObj_Array_MatchArm_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 918|    non_empty_match_arms { $1 }
-fn yy_action_148(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_MatchArm_(_dollar1)
-  YYObj_Array_MatchArm_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 922|    match_arm { [ $1 ] }
+// 940|    non_empty_match_arms item_semicolon { $1 }
 fn yy_action_149(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_MatchArm_(_dollar1)
+  YYObj_Array_MatchArm_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 934|    non_empty_match_arms { $1 }
+fn yy_action_150(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_MatchArm_(_dollar1)
+  YYObj_Array_MatchArm_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 938|    match_arm { [ $1 ] }
+fn yy_action_151(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_MatchArm(_dollar1)
   YYObj_Array_MatchArm_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 928|    pattern "=>" expression {
-// 929|    { pattern: $1, body: $3, loc: span($sloc) }
-// 930|  }
-fn yy_action_150(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 944|    pattern "=>" expression {
+// 945|    { pattern: $1, body: $3, loc: span($sloc) }
+// 946|  }
+fn yy_action_152(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Pattern(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -2509,8 +2555,8 @@ fn yy_action_150(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1097|    nominal_type_name "tight ::" IDENT variant_pattern_arguments { QualifiedVariant(owner=$1, variant=$3, variant_loc=$1.loc().ascii_after(2, $3.length()), type_binders=$4.type_binders, arguments=$4.arguments, loc=span(($startpos, $endpos))) }
-fn yy_action_151(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1113|    nominal_type_name "tight ::" IDENT variant_pattern_arguments { QualifiedVariant(owner=$1, variant=$3, variant_loc=$1.loc().ascii_after(2, $3.length()), type_binders=$4.type_binders, arguments=$4.arguments, loc=span(($startpos, $endpos))) }
+fn yy_action_153(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   guard _args[2].0 is YYObj_String(_dollar3)
   guard _args[3].0 is YYObj_VariantPatternArguments(_dollar4)
@@ -2520,10 +2566,10 @@ fn yy_action_151(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1107|    nominal_type_name "tight ::" "{" struct_pattern_fields "}" {
-// 1108|    Struct(owner=$1, fields=$4, loc=span($sloc))
-// 1109|  }
-fn yy_action_152(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1123|    nominal_type_name "tight ::" "{" struct_pattern_fields "}" {
+// 1124|    Struct(owner=$1, fields=$4, loc=span($sloc))
+// 1125|  }
+fn yy_action_154(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   guard _args[3].0 is YYObj_Array_StructPatternField_(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -2534,39 +2580,39 @@ fn yy_action_152(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1157|    non_empty_struct_pattern_fields layout_list_separator struct_pattern_field { comma_push($1, $3) }
-fn yy_action_153(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1173|    non_empty_struct_pattern_fields layout_list_separator struct_pattern_field { comma_push($1, $3) }
+fn yy_action_155(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_StructPatternField_(_dollar1)
   guard _args[2].0 is YYObj_StructPatternField(_dollar3)
   YYObj_Array_StructPatternField_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 1158|    non_empty_struct_pattern_fields layout_list_separator { $1 }
-fn yy_action_154(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_StructPatternField_(_dollar1)
-  YYObj_Array_StructPatternField_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 1152|    non_empty_struct_pattern_fields { $1 }
-fn yy_action_155(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_StructPatternField_(_dollar1)
-  YYObj_Array_StructPatternField_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 1156|    struct_pattern_field { [ $1 ] }
+// 1174|    non_empty_struct_pattern_fields layout_list_separator { $1 }
 fn yy_action_156(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_StructPatternField_(_dollar1)
+  YYObj_Array_StructPatternField_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 1168|    non_empty_struct_pattern_fields { $1 }
+fn yy_action_157(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_StructPatternField_(_dollar1)
+  YYObj_Array_StructPatternField_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 1172|    struct_pattern_field { [ $1 ] }
+fn yy_action_158(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_StructPatternField(_dollar1)
   YYObj_Array_StructPatternField_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 1091|    "(" pattern "," tuple_pattern_tail ")" {
-// 1092|    Tuple(items=[$2] + $4, loc=span($sloc))
-// 1093|  }
-fn yy_action_157(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1107|    "(" pattern "," tuple_pattern_tail ")" {
+// 1108|    Tuple(items=[$2] + $4, loc=span($sloc))
+// 1109|  }
+fn yy_action_159(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Pattern(_dollar2)
   guard _args[3].0 is YYObj_Array_Pattern_(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -2577,8 +2623,8 @@ fn yy_action_157(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1095|    IDENT variant_pattern_arguments { UnqualifiedVariant(variant=$1, variant_loc=span(($startpos, $endpos)).ascii_prefix($1.length()), type_binders=$2.type_binders, arguments=$2.arguments, loc=span(($startpos, $endpos))) }
-fn yy_action_158(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1111|    IDENT variant_pattern_arguments { UnqualifiedVariant(variant=$1, variant_loc=span(($startpos, $endpos)).ascii_prefix($1.length()), type_binders=$2.type_binders, arguments=$2.arguments, loc=span(($startpos, $endpos))) }
+fn yy_action_160(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _start_pos = if _args.length() == 0 { _last_pos } else { _args[0].1 }
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2587,17 +2633,17 @@ fn yy_action_158(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1113|    "(" pattern_list ")" { { type_binders: [], arguments: $2 } }
-fn yy_action_159(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1129|    "(" pattern_list ")" { { type_binders: [], arguments: $2 } }
+fn yy_action_161(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_Pattern_(_dollar2)
   YYObj_VariantPatternArguments({();  { type_binders: [], arguments: _dollar2 } })
 }
 
 // file:///./parser.mbty
-// 1114|    "[" non_empty_ident_list "]" "(" pattern_list ")" {
-// 1115|    { type_binders: $2, arguments: $5 }
-// 1116|  }
-fn yy_action_160(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1130|    "[" non_empty_ident_list "]" "(" pattern_list ")" {
+// 1131|    { type_binders: $2, arguments: $5 }
+// 1132|  }
+fn yy_action_162(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
   guard _args[4].0 is YYObj_Array_Pattern_(_dollar5)
   YYObj_VariantPatternArguments({(); 
@@ -2606,10 +2652,10 @@ fn yy_action_160(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1117|    "[" non_empty_ident_list "]" LAYOUT_NEWLINE "(" pattern_list ")" {
-// 1118|    { type_binders: $2, arguments: $6 }
-// 1119|  }
-fn yy_action_161(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1133|    "[" non_empty_ident_list "]" LAYOUT_NEWLINE "(" pattern_list ")" {
+// 1134|    { type_binders: $2, arguments: $6 }
+// 1135|  }
+fn yy_action_163(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
   guard _args[5].0 is YYObj_Array_Pattern_(_dollar6)
   YYObj_VariantPatternArguments({(); 
@@ -2618,24 +2664,24 @@ fn yy_action_161(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1120|    LAYOUT_NEWLINE variant_pattern_arguments_after_newline { $2 }
-fn yy_action_162(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1136|    LAYOUT_NEWLINE variant_pattern_arguments_after_newline { $2 }
+fn yy_action_164(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_VariantPatternArguments(_dollar2)
   YYObj_VariantPatternArguments({();  _dollar2 })
 }
 
 // file:///./parser.mbty
-// 1124|    "(" pattern_list ")" { { type_binders: [], arguments: $2 } }
-fn yy_action_163(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1140|    "(" pattern_list ")" { { type_binders: [], arguments: $2 } }
+fn yy_action_165(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_Pattern_(_dollar2)
   YYObj_VariantPatternArguments({();  { type_binders: [], arguments: _dollar2 } })
 }
 
 // file:///./parser.mbty
-// 1125|    "[" non_empty_ident_list "]" "(" pattern_list ")" {
-// 1126|    { type_binders: $2, arguments: $5 }
-// 1127|  }
-fn yy_action_164(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1141|    "[" non_empty_ident_list "]" "(" pattern_list ")" {
+// 1142|    { type_binders: $2, arguments: $5 }
+// 1143|  }
+fn yy_action_166(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
   guard _args[4].0 is YYObj_Array_Pattern_(_dollar5)
   YYObj_VariantPatternArguments({(); 
@@ -2644,10 +2690,10 @@ fn yy_action_164(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1128|    "[" non_empty_ident_list "]" LAYOUT_NEWLINE "(" pattern_list ")" {
-// 1129|    { type_binders: $2, arguments: $6 }
-// 1130|  }
-fn yy_action_165(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1144|    "[" non_empty_ident_list "]" LAYOUT_NEWLINE "(" pattern_list ")" {
+// 1145|    { type_binders: $2, arguments: $6 }
+// 1146|  }
+fn yy_action_167(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_TypeBinder_(_dollar2)
   guard _args[5].0 is YYObj_Array_Pattern_(_dollar6)
   YYObj_VariantPatternArguments({(); 
@@ -2656,65 +2702,65 @@ fn yy_action_165(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1146|    non_empty_pattern_list "," pattern { comma_push($1, $3) }
-fn yy_action_166(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1162|    non_empty_pattern_list "," pattern { comma_push($1, $3) }
+fn yy_action_168(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Pattern_(_dollar1)
   guard _args[2].0 is YYObj_Pattern(_dollar3)
   YYObj_Array_Pattern_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 1147|    non_empty_pattern_list "," { $1 }
-fn yy_action_167(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_Pattern_(_dollar1)
-  YYObj_Array_Pattern_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 1141|    non_empty_pattern_list { $1 }
-fn yy_action_168(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_Pattern_(_dollar1)
-  YYObj_Array_Pattern_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 1145|    pattern { [ $1 ] }
+// 1163|    non_empty_pattern_list "," { $1 }
 fn yy_action_169(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_Pattern_(_dollar1)
+  YYObj_Array_Pattern_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 1157|    non_empty_pattern_list { $1 }
+fn yy_action_170(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_Pattern_(_dollar1)
+  YYObj_Array_Pattern_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 1161|    pattern { [ $1 ] }
+fn yy_action_171(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Pattern(_dollar1)
   YYObj_Array_Pattern_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 1140|    { [] }
-fn yy_action_170(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1156|    { [] }
+fn yy_action_172(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_Pattern_({();  [] })
 }
 
 // file:///./parser.mbty
-// 1135|    non_empty_ident_list "," identifier { comma_push($1, { name: $3.name, loc: $3.loc }) }
-fn yy_action_171(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1151|    non_empty_ident_list "," identifier { comma_push($1, { name: $3.name, loc: $3.loc }) }
+fn yy_action_173(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_TypeBinder_(_dollar1)
   guard _args[2].0 is YYObj_Identifier(_dollar3)
   YYObj_Array_TypeBinder_({();  comma_push(_dollar1, { name: _dollar3.name, loc: _dollar3.loc }) })
 }
 
 // file:///./parser.mbty
-// 1136|    non_empty_ident_list "," { $1 }
-fn yy_action_172(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1152|    non_empty_ident_list "," { $1 }
+fn yy_action_174(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_TypeBinder_(_dollar1)
   YYObj_Array_TypeBinder_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 1134|    identifier { [ { name: $1.name, loc: $1.loc } ] }
-fn yy_action_173(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1150|    identifier { [ { name: $1.name, loc: $1.loc } ] }
+fn yy_action_175(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   YYObj_Array_TypeBinder_({();  [ { name: _dollar1.name, loc: _dollar1.loc } ] })
 }
 
 // file:///./parser.mbty
-// 819|    IDENT { Name(name=$1, loc=span($sloc)) }
-fn yy_action_174(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 835|    IDENT { Name(name=$1, loc=span($sloc)) }
+fn yy_action_176(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2722,8 +2768,8 @@ fn yy_action_174(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1094|    IDENT %prec PATTERN_BINDING { Binding($1, loc=span($sloc)) }
-fn yy_action_175(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1110|    IDENT %prec PATTERN_BINDING { Binding($1, loc=span($sloc)) }
+fn yy_action_177(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2731,29 +2777,29 @@ fn yy_action_175(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 820|    qualified_type_name { $1.to_type() }
-fn yy_action_176(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 836|    qualified_type_name { $1.to_type() }
+fn yy_action_178(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_NominalTypeName(_dollar1)
   YYObj_Type({();  _dollar1.to_type() })
 }
 
 // file:///./parser.mbty
-// 1081|    PATTERN_IDENTIFIER_SLOT { abort("pattern completion slot token must not be shifted") }
-fn yy_action_177(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1097|    PATTERN_IDENTIFIER_SLOT { abort("pattern completion slot token must not be shifted") }
+fn yy_action_179(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Pattern({();  abort("pattern completion slot token must not be shifted") })
 }
 
 // file:///./parser.mbty
-// 1082|    "_" { Wildcard(span($sloc)) }
-fn yy_action_178(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1098|    "_" { Wildcard(span($sloc)) }
+fn yy_action_180(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Pattern({();  Wildcard(span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 1083|    INT { integer_pattern_literal($1, span($sloc), negative=false) }
-fn yy_action_179(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1099|    INT { integer_pattern_literal($1, span($sloc), negative=false) }
+fn yy_action_181(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_NumericLiteralToken(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2761,8 +2807,8 @@ fn yy_action_179(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1084|    "-" INT { integer_pattern_literal($2, span($sloc), negative=true) }
-fn yy_action_180(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1100|    "-" INT { integer_pattern_literal($2, span($sloc), negative=true) }
+fn yy_action_182(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_NumericLiteralToken(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2770,8 +2816,8 @@ fn yy_action_180(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1086|    "-" DOUBLE { floating_pattern_literal($2, span($sloc), negative=true) }
-fn yy_action_181(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1102|    "-" DOUBLE { floating_pattern_literal($2, span($sloc), negative=true) }
+fn yy_action_183(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_NumericLiteralToken(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2779,8 +2825,8 @@ fn yy_action_181(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1085|    DOUBLE { floating_pattern_literal($1, span($sloc), negative=false) }
-fn yy_action_182(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1101|    DOUBLE { floating_pattern_literal($1, span($sloc), negative=false) }
+fn yy_action_184(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_NumericLiteralToken(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2788,8 +2834,8 @@ fn yy_action_182(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1087|    STRING { StringLiteral($1, loc=span($sloc)) }
-fn yy_action_183(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1103|    STRING { StringLiteral($1, loc=span($sloc)) }
+fn yy_action_185(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2797,8 +2843,8 @@ fn yy_action_183(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1088|    CHAR { CharLiteral($1, loc=span($sloc)) }
-fn yy_action_184(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1104|    CHAR { CharLiteral($1, loc=span($sloc)) }
+fn yy_action_186(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Int(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2806,54 +2852,54 @@ fn yy_action_184(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1089|    "true" { BoolLiteral(true, loc=span($sloc)) }
-fn yy_action_185(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1105|    "true" { BoolLiteral(true, loc=span($sloc)) }
+fn yy_action_187(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Pattern({();  BoolLiteral(true, loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 1090|    "false" { BoolLiteral(false, loc=span($sloc)) }
-fn yy_action_186(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1106|    "false" { BoolLiteral(false, loc=span($sloc)) }
+fn yy_action_188(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Pattern({();  BoolLiteral(false, loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 1103|    tuple_pattern_tail "," pattern { comma_push($1, $3) }
-fn yy_action_187(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1119|    tuple_pattern_tail "," pattern { comma_push($1, $3) }
+fn yy_action_189(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Pattern_(_dollar1)
   guard _args[2].0 is YYObj_Pattern(_dollar3)
   YYObj_Array_Pattern_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 1101|    MISSING_TUPLE_PATTERN_ITEM_ERROR { abort("missing tuple pattern item token must not be shifted") }
-fn yy_action_188(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1117|    MISSING_TUPLE_PATTERN_ITEM_ERROR { abort("missing tuple pattern item token must not be shifted") }
+fn yy_action_190(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_Pattern_({();  abort("missing tuple pattern item token must not be shifted") })
 }
 
 // file:///./parser.mbty
-// 1102|    pattern { [ $1 ] }
-fn yy_action_189(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1118|    pattern { [ $1 ] }
+fn yy_action_191(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Pattern(_dollar1)
   YYObj_Array_Pattern_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 1096|    struct_pattern { $1 }
-fn yy_action_190(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1112|    struct_pattern { $1 }
+fn yy_action_192(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Pattern(_dollar1)
   YYObj_Pattern({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 1168|    IDENT ":" pattern {
-// 1169|    Value(name=$1, pattern=Some($3), loc=span($sloc))
-// 1170|  }
-fn yy_action_191(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1184|    IDENT ":" pattern {
+// 1185|    Value(name=$1, pattern=Some($3), loc=span($sloc))
+// 1186|  }
+fn yy_action_193(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   guard _args[2].0 is YYObj_Pattern(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -2864,10 +2910,10 @@ fn yy_action_191(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1162|    IDENT {
-// 1163|    Value(name=$1, pattern=None, loc=span($sloc))
-// 1164|  }
-fn yy_action_192(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1178|    IDENT {
+// 1179|    Value(name=$1, pattern=None, loc=span($sloc))
+// 1180|  }
+fn yy_action_194(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2877,10 +2923,10 @@ fn yy_action_192(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1165|    "_" {
-// 1166|    TypeWildcard(loc=span($sloc))
-// 1167|  }
-fn yy_action_193(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1181|    "_" {
+// 1182|    TypeWildcard(loc=span($sloc))
+// 1183|  }
+fn yy_action_195(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_StructPatternField({(); 
@@ -2889,22 +2935,22 @@ fn yy_action_193(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1151|    { [] }
-fn yy_action_194(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1167|    { [] }
+fn yy_action_196(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_StructPatternField_({();  [] })
 }
 
 // file:///./parser.mbty
-// 917|    { [] }
-fn yy_action_195(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 933|    { [] }
+fn yy_action_197(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_MatchArm_({();  [] })
 }
 
 // file:///./parser.mbty
-// 895|    "if" expression layout_continuation_opt block_expression optional_else_branch {
-// 896|    If(condition=$2, then_branch=$4, else_branch=$5, loc=span($sloc))
-// 897|  }
-fn yy_action_196(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 911|    "if" expression layout_continuation_opt block_expression optional_else_branch {
+// 912|    If(condition=$2, then_branch=$4, else_branch=$5, loc=span($sloc))
+// 913|  }
+fn yy_action_198(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Expr(_dollar2)
   guard _args[3].0 is YYObj_Expr(_dollar4)
   guard _args[4].0 is YYObj_Expr_(_dollar5)
@@ -2916,42 +2962,42 @@ fn yy_action_196(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 902|    "else" else_branch_expression { Some($2) }
-fn yy_action_197(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 918|    "else" else_branch_expression { Some($2) }
+fn yy_action_199(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Expr(_dollar2)
   YYObj_Expr_({();  Some(_dollar2) })
 }
 
 // file:///./parser.mbty
-// 906|    block_expression { $1 }
-fn yy_action_198(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Expr(_dollar1)
-  YYObj_Expr({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 907|    if_expression { $1 }
-fn yy_action_199(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Expr(_dollar1)
-  YYObj_Expr({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 901|    { None }
+// 922|    block_expression { $1 }
 fn yy_action_200(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Expr(_dollar1)
+  YYObj_Expr({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 923|    if_expression { $1 }
+fn yy_action_201(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Expr(_dollar1)
+  YYObj_Expr({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 917|    { None }
+fn yy_action_202(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Expr_({();  None })
 }
 
 // file:///./parser.mbty
-// 775|    "derive" "[" derive_type_arguments "]" "(" argument_list ")" {
-// 776|    Derive(
-// 777|      capability=$3.capability,
-// 778|      target=$3.target,
-// 779|      arguments=$6,
-// 780|      source=derive_source_site(span($sloc)),
-// 781|    )
-// 782|  }
-fn yy_action_201(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 791|    "derive" "[" derive_type_arguments "]" "(" argument_list ")" {
+// 792|    Derive(
+// 793|      capability=$3.capability,
+// 794|      target=$3.target,
+// 795|      arguments=$6,
+// 796|      source=derive_source_site(span($sloc)),
+// 797|    )
+// 798|  }
+fn yy_action_203(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_DeriveTypeArguments(_dollar3)
   guard _args[5].0 is YYObj_Array_CallArgument_(_dollar6)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -2967,8 +3013,8 @@ fn yy_action_201(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 757|    "[" list_literal_items "]" { ListLiteral(items=$2, loc=span($sloc)) }
-fn yy_action_202(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 773|    "[" list_literal_items "]" { ListLiteral(items=$2, loc=span($sloc)) }
+fn yy_action_204(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_Expr_(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -2976,25 +3022,25 @@ fn yy_action_202(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 872|    non_empty_positional_argument_list "," expression { comma_push($1, $3) }
-fn yy_action_203(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 888|    non_empty_positional_argument_list "," expression { comma_push($1, $3) }
+fn yy_action_205(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Expr_(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   YYObj_Array_Expr_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 770|    expression { [ $1 ] }
-fn yy_action_204(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 786|    expression { [ $1 ] }
+fn yy_action_206(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_Array_Expr_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 748|    "(" expression "," tuple_expression_tail ")" {
-// 749|    TupleLiteral(items=[$2] + $4, loc=span($sloc))
-// 750|  }
-fn yy_action_205(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 764|    "(" expression "," tuple_expression_tail ")" {
+// 765|    TupleLiteral(items=[$2] + $4, loc=span($sloc))
+// 766|  }
+fn yy_action_207(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Expr(_dollar2)
   guard _args[3].0 is YYObj_Array_Expr_(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3005,22 +3051,22 @@ fn yy_action_205(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 771|    tuple_expression_tail "," expression { comma_push($1, $3) }
-fn yy_action_206(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 787|    tuple_expression_tail "," expression { comma_push($1, $3) }
+fn yy_action_208(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Expr_(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   YYObj_Array_Expr_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 769|    MISSING_TUPLE_EXPRESSION_ITEM_ERROR { abort("missing tuple expression item token must not be shifted") }
-fn yy_action_207(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 785|    MISSING_TUPLE_EXPRESSION_ITEM_ERROR { abort("missing tuple expression item token must not be shifted") }
+fn yy_action_209(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_Expr_({();  abort("missing tuple expression item token must not be shifted") })
 }
 
 // file:///./parser.mbty
-// 751|    "(" expression ")" { Grouped(expression=$2, loc=span($sloc)) }
-fn yy_action_208(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 767|    "(" expression ")" { Grouped(expression=$2, loc=span($sloc)) }
+fn yy_action_210(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Expr(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3028,8 +3074,8 @@ fn yy_action_208(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 688|    identifier "!" "(" positional_argument_list ")" { EffectOperationCall(name=Unqualified(operation=$1.name, operation_loc=$1.loc), type_witnesses=[], arguments=$4, loc=span($sloc)) }
-fn yy_action_209(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 704|    identifier "!" "(" positional_argument_list ")" { EffectOperationCall(name=Unqualified(operation=$1.name, operation_loc=$1.loc), type_witnesses=[], arguments=$4, loc=span($sloc)) }
+fn yy_action_211(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[3].0 is YYObj_Array_Expr_(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3038,10 +3084,10 @@ fn yy_action_209(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 720|    owner_expression "tight ::" IDENT variant_type_arguments variant_arguments %prec VARIANT_EXPR {
-// 721|    QualifiedVariant(owner=$1.owner, variant=$3, variant_loc=$1.owner.loc().ascii_after(2, $3.length()), variant_type_arguments=$4, arguments=$5, loc=span($sloc))
-// 722|  }
-fn yy_action_210(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 736|    owner_expression "tight ::" IDENT variant_type_arguments variant_arguments %prec VARIANT_EXPR {
+// 737|    QualifiedVariant(owner=$1.owner, variant=$3, variant_loc=$1.owner.loc().ascii_after(2, $3.length()), variant_type_arguments=$4, arguments=$5, loc=span($sloc))
+// 738|  }
+fn yy_action_212(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_OwnerExpression(_dollar1)
   guard _args[2].0 is YYObj_String(_dollar3)
   guard _args[3].0 is YYObj_Array_GenericArgument_(_dollar4)
@@ -3054,39 +3100,39 @@ fn yy_action_210(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 846|    layout_continuation_opt "(" positional_argument_list ")" { $3 }
-fn yy_action_211(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 862|    layout_continuation_opt "(" positional_argument_list ")" { $3 }
+fn yy_action_213(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_Array_Expr_(_dollar3)
   YYObj_Array_Expr_({();  _dollar3 })
 }
 
 // file:///./parser.mbty
-// 825|    type_arguments { $1 }
-fn yy_action_212(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 841|    type_arguments { $1 }
+fn yy_action_214(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_GenericArgument_(_dollar1)
   YYObj_Array_GenericArgument_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 824|    %prec VARIANT_EXPR { [] }
-fn yy_action_213(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 840|    %prec VARIANT_EXPR { [] }
+fn yy_action_215(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_GenericArgument_({();  [] })
 }
 
 // file:///./parser.mbty
-// 693|    owner_expression "tight ::" identifier "!" "(" positional_argument_list ")" %prec "tight ::" {
-// 694|    EffectOperationCall(
-// 695|      name=Qualified(
-// 696|        owner=$1.owner,
-// 697|        operation=$3.name,
-// 698|        operation_loc=$3.loc
-// 699|      ),
-// 700|      type_witnesses=[],
-// 701|      arguments=$6,
-// 702|      loc=span($sloc)
-// 703|    )
-// 704|  }
-fn yy_action_214(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 709|    owner_expression "tight ::" identifier "!" "(" positional_argument_list ")" %prec "tight ::" {
+// 710|    EffectOperationCall(
+// 711|      name=Qualified(
+// 712|        owner=$1.owner,
+// 713|        operation=$3.name,
+// 714|        operation_loc=$3.loc
+// 715|      ),
+// 716|      type_witnesses=[],
+// 717|      arguments=$6,
+// 718|      loc=span($sloc)
+// 719|    )
+// 720|  }
+fn yy_action_216(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_OwnerExpression(_dollar1)
   guard _args[2].0 is YYObj_Identifier(_dollar3)
   guard _args[5].0 is YYObj_Array_Expr_(_dollar6)
@@ -3107,26 +3153,26 @@ fn yy_action_214(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 871|    expression { [ $1 ] }
-fn yy_action_215(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 887|    expression { [ $1 ] }
+fn yy_action_217(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_Array_Expr_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 705|    owner_expression "tight ::" identifier "!" operation_type_witnesses "(" positional_argument_list ")" %prec "tight ::" {
-// 706|    EffectOperationCall(
-// 707|      name=Qualified(
-// 708|        owner=$1.owner,
-// 709|        operation=$3.name,
-// 710|        operation_loc=$3.loc
-// 711|      ),
-// 712|      type_witnesses=$5,
-// 713|      arguments=$7,
-// 714|      loc=span($sloc)
-// 715|    )
-// 716|  }
-fn yy_action_216(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 721|    owner_expression "tight ::" identifier "!" operation_type_witnesses "(" positional_argument_list ")" %prec "tight ::" {
+// 722|    EffectOperationCall(
+// 723|      name=Qualified(
+// 724|        owner=$1.owner,
+// 725|        operation=$3.name,
+// 726|        operation_loc=$3.loc
+// 727|      ),
+// 728|      type_witnesses=$5,
+// 729|      arguments=$7,
+// 730|      loc=span($sloc)
+// 731|    )
+// 732|  }
+fn yy_action_218(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_OwnerExpression(_dollar1)
   guard _args[2].0 is YYObj_Identifier(_dollar3)
   guard _args[4].0 is YYObj_Array_GenericArgument_(_dollar5)
@@ -3148,10 +3194,10 @@ fn yy_action_216(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 717|    owner_expression "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
-// 718|    StructLiteral(owner=$1.owner, fields=$4, loc=span($sloc))
-// 719|  }
-fn yy_action_217(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 733|    owner_expression "tight ::" "{" struct_literal_fields "}" %prec "tight ::" {
+// 734|    StructLiteral(owner=$1.owner, fields=$4, loc=span($sloc))
+// 735|  }
+fn yy_action_219(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_OwnerExpression(_dollar1)
   guard _args[3].0 is YYObj_Array_StructLiteralField_(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3162,37 +3208,37 @@ fn yy_action_217(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 835|    non_empty_struct_literal_fields layout_list_separator struct_literal_field { comma_push($1, $3) }
-fn yy_action_218(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 851|    non_empty_struct_literal_fields layout_list_separator struct_literal_field { comma_push($1, $3) }
+fn yy_action_220(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_StructLiteralField_(_dollar1)
   guard _args[2].0 is YYObj_StructLiteralField(_dollar3)
   YYObj_Array_StructLiteralField_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 836|    non_empty_struct_literal_fields layout_list_separator { $1 }
-fn yy_action_219(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_StructLiteralField_(_dollar1)
-  YYObj_Array_StructLiteralField_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 830|    non_empty_struct_literal_fields { $1 }
-fn yy_action_220(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_StructLiteralField_(_dollar1)
-  YYObj_Array_StructLiteralField_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 834|    struct_literal_field { [ $1 ] }
+// 852|    non_empty_struct_literal_fields layout_list_separator { $1 }
 fn yy_action_221(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_StructLiteralField_(_dollar1)
+  YYObj_Array_StructLiteralField_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 846|    non_empty_struct_literal_fields { $1 }
+fn yy_action_222(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_StructLiteralField_(_dollar1)
+  YYObj_Array_StructLiteralField_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 850|    struct_literal_field { [ $1 ] }
+fn yy_action_223(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_StructLiteralField(_dollar1)
   YYObj_Array_StructLiteralField_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 841|    IDENT ":" expression { Value(name=$1, value=Some($3), loc=span($sloc)) }
-fn yy_action_222(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 857|    IDENT ":" expression { Value(name=$1, value=Some($3), loc=span($sloc)) }
+fn yy_action_224(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3201,8 +3247,8 @@ fn yy_action_222(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 867|    IDENT "=" expression { Named(name=$1, value=$3, loc=span($sloc)) }
-fn yy_action_223(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 883|    IDENT "=" expression { Named(name=$1, value=$3, loc=span($sloc)) }
+fn yy_action_225(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3211,16 +3257,16 @@ fn yy_action_223(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 621|    VALUE_IDENTIFIER_SLOT { abort("value completion slot token must not be shifted") }
-fn yy_action_224(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 637|    VALUE_IDENTIFIER_SLOT { abort("value completion slot token must not be shifted") }
+fn yy_action_226(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Expr({();  abort("value completion slot token must not be shifted") })
 }
 
 // file:///./parser.mbty
-// 622|    expression "|>" expression {
-// 623|    Pipeline(left=$1, right=$3, loc=span($sloc))
-// 624|  }
-fn yy_action_225(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 638|    expression "|>" expression {
+// 639|    Pipeline(left=$1, right=$3, loc=span($sloc))
+// 640|  }
+fn yy_action_227(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3231,10 +3277,10 @@ fn yy_action_225(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 625|    expression "||" expression {
-// 626|    Binary(operator=Or, left=$1, right=$3, loc=span($sloc))
-// 627|  }
-fn yy_action_226(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 641|    expression "||" expression {
+// 642|    Binary(operator=Or, left=$1, right=$3, loc=span($sloc))
+// 643|  }
+fn yy_action_228(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3245,10 +3291,10 @@ fn yy_action_226(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 628|    expression "&&" expression {
-// 629|    Binary(operator=And, left=$1, right=$3, loc=span($sloc))
-// 630|  }
-fn yy_action_227(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 644|    expression "&&" expression {
+// 645|    Binary(operator=And, left=$1, right=$3, loc=span($sloc))
+// 646|  }
+fn yy_action_229(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3259,10 +3305,10 @@ fn yy_action_227(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 631|    expression "==" expression {
-// 632|    Binary(operator=Equal, left=$1, right=$3, loc=span($sloc))
-// 633|  }
-fn yy_action_228(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 647|    expression "==" expression {
+// 648|    Binary(operator=Equal, left=$1, right=$3, loc=span($sloc))
+// 649|  }
+fn yy_action_230(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3273,10 +3319,10 @@ fn yy_action_228(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 634|    expression "!=" expression {
-// 635|    Binary(operator=NotEqual, left=$1, right=$3, loc=span($sloc))
-// 636|  }
-fn yy_action_229(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 650|    expression "!=" expression {
+// 651|    Binary(operator=NotEqual, left=$1, right=$3, loc=span($sloc))
+// 652|  }
+fn yy_action_231(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3287,10 +3333,10 @@ fn yy_action_229(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 637|    expression "<" expression {
-// 638|    Binary(operator=Less, left=$1, right=$3, loc=span($sloc))
-// 639|  }
-fn yy_action_230(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 653|    expression "<" expression {
+// 654|    Binary(operator=Less, left=$1, right=$3, loc=span($sloc))
+// 655|  }
+fn yy_action_232(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3301,10 +3347,10 @@ fn yy_action_230(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 640|    expression "<=" expression {
-// 641|    Binary(operator=LessEqual, left=$1, right=$3, loc=span($sloc))
-// 642|  }
-fn yy_action_231(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 656|    expression "<=" expression {
+// 657|    Binary(operator=LessEqual, left=$1, right=$3, loc=span($sloc))
+// 658|  }
+fn yy_action_233(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3315,10 +3361,10 @@ fn yy_action_231(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 643|    expression ">" expression {
-// 644|    Binary(operator=Greater, left=$1, right=$3, loc=span($sloc))
-// 645|  }
-fn yy_action_232(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 659|    expression ">" expression {
+// 660|    Binary(operator=Greater, left=$1, right=$3, loc=span($sloc))
+// 661|  }
+fn yy_action_234(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3329,10 +3375,10 @@ fn yy_action_232(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 646|    expression ">=" expression {
-// 647|    Binary(operator=GreaterEqual, left=$1, right=$3, loc=span($sloc))
-// 648|  }
-fn yy_action_233(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 662|    expression ">=" expression {
+// 663|    Binary(operator=GreaterEqual, left=$1, right=$3, loc=span($sloc))
+// 664|  }
+fn yy_action_235(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3343,10 +3389,10 @@ fn yy_action_233(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 649|    expression "+" expression {
-// 650|    Binary(operator=Add, left=$1, right=$3, loc=span($sloc))
-// 651|  }
-fn yy_action_234(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 665|    expression "+" expression {
+// 666|    Binary(operator=Add, left=$1, right=$3, loc=span($sloc))
+// 667|  }
+fn yy_action_236(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3357,10 +3403,10 @@ fn yy_action_234(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 652|    expression "-" expression {
-// 653|    Binary(operator=Sub, left=$1, right=$3, loc=span($sloc))
-// 654|  }
-fn yy_action_235(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 668|    expression "-" expression {
+// 669|    Binary(operator=Sub, left=$1, right=$3, loc=span($sloc))
+// 670|  }
+fn yy_action_237(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3371,10 +3417,10 @@ fn yy_action_235(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 655|    expression "*" expression {
-// 656|    Binary(operator=Mul, left=$1, right=$3, loc=span($sloc))
-// 657|  }
-fn yy_action_236(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 671|    expression "*" expression {
+// 672|    Binary(operator=Mul, left=$1, right=$3, loc=span($sloc))
+// 673|  }
+fn yy_action_238(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3385,10 +3431,10 @@ fn yy_action_236(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 658|    expression "/" expression {
-// 659|    Binary(operator=Div, left=$1, right=$3, loc=span($sloc))
-// 660|  }
-fn yy_action_237(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 674|    expression "/" expression {
+// 675|    Binary(operator=Div, left=$1, right=$3, loc=span($sloc))
+// 676|  }
+fn yy_action_239(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3399,10 +3445,10 @@ fn yy_action_237(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 661|    expression "%" expression {
-// 662|    Binary(operator=Rem, left=$1, right=$3, loc=span($sloc))
-// 663|  }
-fn yy_action_238(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 677|    expression "%" expression {
+// 678|    Binary(operator=Rem, left=$1, right=$3, loc=span($sloc))
+// 679|  }
+fn yy_action_240(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Expr(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3413,8 +3459,8 @@ fn yy_action_238(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 866|    expression { Positional(value=$1, loc=span($sloc)) }
-fn yy_action_239(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 882|    expression { Positional(value=$1, loc=span($sloc)) }
+fn yy_action_241(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3422,15 +3468,15 @@ fn yy_action_239(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 664|    unary_expression { $1 }
-fn yy_action_240(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 680|    unary_expression { $1 }
+fn yy_action_242(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_Expr({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 726|    IDENT { { expr: Var($1, loc=span($sloc)), owner: { module_path: None, name: $1, loc: span($sloc) } } }
-fn yy_action_241(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 742|    IDENT { { expr: Var($1, loc=span($sloc)), owner: { module_path: None, name: $1, loc: span($sloc) } } }
+fn yy_action_243(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3438,10 +3484,10 @@ fn yy_action_241(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 668|    "-" unary_expression %prec UNARY {
-// 669|    negated_expression($2, span($sloc))
-// 670|  }
-fn yy_action_242(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 684|    "-" unary_expression %prec UNARY {
+// 685|    negated_expression($2, span($sloc))
+// 686|  }
+fn yy_action_244(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Expr(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3451,10 +3497,10 @@ fn yy_action_242(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 671|    "!" unary_expression %prec UNARY {
-// 672|    Unary(operator=Not, operand=$2, loc=span($sloc))
-// 673|  }
-fn yy_action_243(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 687|    "!" unary_expression %prec UNARY {
+// 688|    Unary(operator=Not, operand=$2, loc=span($sloc))
+// 689|  }
+fn yy_action_245(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Expr(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3464,15 +3510,15 @@ fn yy_action_243(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 674|    postfix_expression { $1 }
-fn yy_action_244(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 690|    postfix_expression { $1 }
+fn yy_action_246(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_Expr({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 685|    value_postfix_expression "(" argument_list ")" { Call(callee=$1, arguments=$3, loc=span($sloc)) }
-fn yy_action_245(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 701|    value_postfix_expression "(" argument_list ")" { Call(callee=$1, arguments=$3, loc=span($sloc)) }
+fn yy_action_247(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_Array_CallArgument_(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3481,8 +3527,8 @@ fn yy_action_245(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 686|    value_postfix_expression type_arguments %prec "[" { TypeApplication(callee=$1, arguments=$2, loc=span($sloc)) }
-fn yy_action_246(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 702|    value_postfix_expression type_arguments %prec "[" { TypeApplication(callee=$1, arguments=$2, loc=span($sloc)) }
+fn yy_action_248(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[1].0 is YYObj_Array_GenericArgument_(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3491,8 +3537,8 @@ fn yy_action_246(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 687|    value_postfix_expression "." IDENT { Field(base=$1, name=$3, name_loc=span($sloc).ascii_suffix($3.length()), loc=span($sloc)) }
-fn yy_action_247(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 703|    value_postfix_expression "." IDENT { Field(base=$1, name=$3, name_loc=span($sloc).ascii_suffix($3.length()), loc=span($sloc)) }
+fn yy_action_249(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   guard _args[2].0 is YYObj_String(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3501,22 +3547,22 @@ fn yy_action_247(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 678|    value_postfix_expression { $1 }
-fn yy_action_248(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Expr(_dollar1)
-  YYObj_Expr({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 682|    member_expression { $1 }
-fn yy_action_249(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Expr(_dollar1)
-  YYObj_Expr({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 842|    IDENT "=" generic_argument { TypeWitness(name=$1, witness=$3, loc=span($sloc)) }
+// 694|    value_postfix_expression { $1 }
 fn yy_action_250(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Expr(_dollar1)
+  YYObj_Expr({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 698|    member_expression { $1 }
+fn yy_action_251(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Expr(_dollar1)
+  YYObj_Expr({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 858|    IDENT "=" generic_argument { TypeWitness(name=$1, witness=$3, loc=span($sloc)) }
+fn yy_action_252(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   guard _args[2].0 is YYObj_GenericArgument(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3525,8 +3571,8 @@ fn yy_action_250(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 840|    IDENT { Value(name=$1, value=None, loc=span($sloc)) }
-fn yy_action_251(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 856|    IDENT { Value(name=$1, value=None, loc=span($sloc)) }
+fn yy_action_253(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3534,28 +3580,28 @@ fn yy_action_251(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 829|    { [] }
-fn yy_action_252(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 845|    { [] }
+fn yy_action_254(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_StructLiteralField_({();  [] })
 }
 
 // file:///./parser.mbty
-// 683|    owner_expression { $1.expr }
-fn yy_action_253(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 699|    owner_expression { $1.expr }
+fn yy_action_255(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_OwnerExpression(_dollar1)
   YYObj_Expr({();  _dollar1.expr })
 }
 
 // file:///./parser.mbty
-// 684|    non_owner_primary_expression { $1 }
-fn yy_action_254(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 700|    non_owner_primary_expression { $1 }
+fn yy_action_256(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_Expr({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 689|    identifier "!" operation_type_witnesses "(" positional_argument_list ")" { EffectOperationCall(name=Unqualified(operation=$1.name, operation_loc=$1.loc), type_witnesses=$3, arguments=$5, loc=span($sloc)) }
-fn yy_action_255(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 705|    identifier "!" operation_type_witnesses "(" positional_argument_list ")" { EffectOperationCall(name=Unqualified(operation=$1.name, operation_loc=$1.loc), type_witnesses=$3, arguments=$5, loc=span($sloc)) }
+fn yy_action_257(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[2].0 is YYObj_Array_GenericArgument_(_dollar3)
   guard _args[4].0 is YYObj_Array_Expr_(_dollar5)
@@ -3565,48 +3611,48 @@ fn yy_action_255(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 851|    non_empty_positional_argument_list { $1 }
-fn yy_action_256(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 867|    non_empty_positional_argument_list { $1 }
+fn yy_action_258(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Expr_(_dollar1)
   YYObj_Array_Expr_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 850|    { [] }
-fn yy_action_257(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 866|    { [] }
+fn yy_action_259(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_Expr_({();  [] })
 }
 
 // file:///./parser.mbty
-// 795|    type_arguments { $1 }
-fn yy_action_258(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_GenericArgument_(_dollar1)
-  YYObj_Array_GenericArgument_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 799|    type_argument_bracket_list { $1 }
-fn yy_action_259(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_GenericArgument_(_dollar1)
-  YYObj_Array_GenericArgument_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 803|    "[" non_empty_generic_argument_list "]" { $2 }
+// 811|    type_arguments { $1 }
 fn yy_action_260(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_GenericArgument_(_dollar1)
+  YYObj_Array_GenericArgument_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 815|    type_argument_bracket_list { $1 }
+fn yy_action_261(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_GenericArgument_(_dollar1)
+  YYObj_Array_GenericArgument_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 819|    "[" non_empty_generic_argument_list "]" { $2 }
+fn yy_action_262(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_GenericArgument_(_dollar2)
   YYObj_Array_GenericArgument_({();  _dollar2 })
 }
 
 // file:///./parser.mbty
-// 804|    "[" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" { [] }
-fn yy_action_261(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 820|    "[" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" { [] }
+fn yy_action_263(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_GenericArgument_({();  [] })
 }
 
 // file:///./parser.mbty
-// 727|    owner_path_expression "." IDENT { owner_path_field($1, $3, span($sloc).ascii_suffix($3.length()), span($sloc)) }
-fn yy_action_262(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 743|    owner_path_expression "." IDENT { owner_path_field($1, $3, span($sloc).ascii_suffix($3.length()), span($sloc)) }
+fn yy_action_264(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_OwnerPathExpression(_dollar1)
   guard _args[2].0 is YYObj_String(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3615,8 +3661,8 @@ fn yy_action_262(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 732|    owner_path_expression owner_type_arguments %prec "owner [" { owner_expression_with_arguments($1, $2, span($sloc)) }
-fn yy_action_263(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 748|    owner_path_expression owner_type_arguments %prec "owner [" { owner_expression_with_arguments($1, $2, span($sloc)) }
+fn yy_action_265(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_OwnerPathExpression(_dollar1)
   guard _args[1].0 is YYObj_Array_GenericArgument_(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3625,28 +3671,28 @@ fn yy_action_263(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 736|    "owner [" non_empty_generic_argument_list "]" { $2 }
-fn yy_action_264(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 752|    "owner [" non_empty_generic_argument_list "]" { $2 }
+fn yy_action_266(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_GenericArgument_(_dollar2)
   YYObj_Array_GenericArgument_({();  _dollar2 })
 }
 
 // file:///./parser.mbty
-// 737|    "owner [" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" { [] }
-fn yy_action_265(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 753|    "owner [" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" { [] }
+fn yy_action_267(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_GenericArgument_({();  [] })
 }
 
 // file:///./parser.mbty
-// 731|    owner_path_expression { { expr: $1.expr, owner: $1.owner.to_type() } }
-fn yy_action_266(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 747|    owner_path_expression { { expr: $1.expr, owner: $1.owner.to_type() } }
+fn yy_action_268(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_OwnerPathExpression(_dollar1)
   YYObj_OwnerExpression({();  { expr: _dollar1.expr, owner: _dollar1.owner.to_type() } })
 }
 
 // file:///./parser.mbty
-// 741|    INT { integer_expression_literal($1, span($sloc)) }
-fn yy_action_267(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 757|    INT { integer_expression_literal($1, span($sloc)) }
+fn yy_action_269(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_NumericLiteralToken(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3654,8 +3700,8 @@ fn yy_action_267(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 742|    DOUBLE { floating_expression_literal($1, span($sloc)) }
-fn yy_action_268(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 758|    DOUBLE { floating_expression_literal($1, span($sloc)) }
+fn yy_action_270(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_NumericLiteralToken(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3663,8 +3709,8 @@ fn yy_action_268(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 743|    STRING { StringLiteral($1, loc=span($sloc)) }
-fn yy_action_269(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 759|    STRING { StringLiteral($1, loc=span($sloc)) }
+fn yy_action_271(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3672,8 +3718,8 @@ fn yy_action_269(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 744|    CHAR { CharLiteral($1, loc=span($sloc)) }
-fn yy_action_270(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 760|    CHAR { CharLiteral($1, loc=span($sloc)) }
+fn yy_action_272(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Int(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3681,175 +3727,175 @@ fn yy_action_270(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 745|    "true" { BoolLiteral(true, loc=span($sloc)) }
-fn yy_action_271(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 761|    "true" { BoolLiteral(true, loc=span($sloc)) }
+fn yy_action_273(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Expr({();  BoolLiteral(true, loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 746|    "false" { BoolLiteral(false, loc=span($sloc)) }
-fn yy_action_272(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 762|    "false" { BoolLiteral(false, loc=span($sloc)) }
+fn yy_action_274(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Expr({();  BoolLiteral(false, loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 747|    "(" ")" { UnitLiteral(loc=span($sloc)) }
-fn yy_action_273(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 763|    "(" ")" { UnitLiteral(loc=span($sloc)) }
+fn yy_action_275(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Expr({();  UnitLiteral(loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 752|    block_expression { $1 }
-fn yy_action_274(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Expr(_dollar1)
-  YYObj_Expr({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 753|    if_expression { $1 }
-fn yy_action_275(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Expr(_dollar1)
-  YYObj_Expr({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 754|    match_expression { $1 }
+// 768|    block_expression { $1 }
 fn yy_action_276(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_Expr({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 755|    handler_expression { $1 }
+// 769|    if_expression { $1 }
 fn yy_action_277(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_Expr({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 756|    function_literal { $1 }
+// 770|    match_expression { $1 }
 fn yy_action_278(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_Expr({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 873|    non_empty_positional_argument_list "," { $1 }
+// 771|    handler_expression { $1 }
 fn yy_action_279(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_Expr_(_dollar1)
-  YYObj_Array_Expr_({();  _dollar1 })
+  guard _args[0].0 is YYObj_Expr(_dollar1)
+  YYObj_Expr({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 765|    non_empty_positional_argument_list { $1 }
+// 772|    function_literal { $1 }
 fn yy_action_280(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Expr(_dollar1)
+  YYObj_Expr({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 889|    non_empty_positional_argument_list "," { $1 }
+fn yy_action_281(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Expr_(_dollar1)
   YYObj_Array_Expr_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 764|    { [] }
-fn yy_action_281(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 781|    non_empty_positional_argument_list { $1 }
+fn yy_action_282(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_Expr_(_dollar1)
+  YYObj_Array_Expr_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 780|    { [] }
+fn yy_action_283(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_Expr_({();  [] })
 }
 
 // file:///./parser.mbty
-// 758|    derive_expression { $1 }
-fn yy_action_282(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Expr(_dollar1)
-  YYObj_Expr({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 759|    builtin_expression { $1 }
-fn yy_action_283(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Expr(_dollar1)
-  YYObj_Expr({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 760|    extern_expression { $1 }
+// 774|    derive_expression { $1 }
 fn yy_action_284(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Expr(_dollar1)
   YYObj_Expr({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 861|    non_empty_argument_list "," call_argument { comma_push($1, $3) }
+// 775|    builtin_expression { $1 }
 fn yy_action_285(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Expr(_dollar1)
+  YYObj_Expr({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 776|    extern_expression { $1 }
+fn yy_action_286(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Expr(_dollar1)
+  YYObj_Expr({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 877|    non_empty_argument_list "," call_argument { comma_push($1, $3) }
+fn yy_action_287(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_CallArgument_(_dollar1)
   guard _args[2].0 is YYObj_CallArgument(_dollar3)
   YYObj_Array_CallArgument_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 862|    non_empty_argument_list "," { $1 }
-fn yy_action_286(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_CallArgument_(_dollar1)
-  YYObj_Array_CallArgument_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 856|    non_empty_argument_list { $1 }
-fn yy_action_287(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_CallArgument_(_dollar1)
-  YYObj_Array_CallArgument_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 860|    call_argument { [ $1 ] }
+// 878|    non_empty_argument_list "," { $1 }
 fn yy_action_288(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_CallArgument_(_dollar1)
+  YYObj_Array_CallArgument_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 872|    non_empty_argument_list { $1 }
+fn yy_action_289(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_CallArgument_(_dollar1)
+  YYObj_Array_CallArgument_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 876|    call_argument { [ $1 ] }
+fn yy_action_290(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_CallArgument(_dollar1)
   YYObj_Array_CallArgument_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 855|    { [] }
-fn yy_action_289(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 871|    { [] }
+fn yy_action_291(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_CallArgument_({();  [] })
 }
 
 // file:///./parser.mbty
-// 789|    type layout_list_separator type layout_list_separator {
-// 790|    { capability: $1, target: $3 }
-// 791|  }
-fn yy_action_290(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Type(_dollar1)
-  guard _args[2].0 is YYObj_Type(_dollar3)
-  YYObj_DeriveTypeArguments({(); 
-    { capability: _dollar1, target: _dollar3 }
-  })
-}
-
-// file:///./parser.mbty
-// 786|    type layout_list_separator type {
-// 787|    { capability: $1, target: $3 }
-// 788|  }
-fn yy_action_291(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Type(_dollar1)
-  guard _args[2].0 is YYObj_Type(_dollar3)
-  YYObj_DeriveTypeArguments({(); 
-    { capability: _dollar1, target: _dollar3 }
-  })
-}
-
-// file:///./parser.mbty
-// 883|    { [] }
+// 805|    type layout_list_separator type layout_list_separator {
+// 806|    { capability: $1, target: $3 }
+// 807|  }
 fn yy_action_292(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Type(_dollar1)
+  guard _args[2].0 is YYObj_Type(_dollar3)
+  YYObj_DeriveTypeArguments({(); 
+    { capability: _dollar1, target: _dollar3 }
+  })
+}
+
+// file:///./parser.mbty
+// 802|    type layout_list_separator type {
+// 803|    { capability: $1, target: $3 }
+// 804|  }
+fn yy_action_293(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Type(_dollar1)
+  guard _args[2].0 is YYObj_Type(_dollar3)
+  YYObj_DeriveTypeArguments({(); 
+    { capability: _dollar1, target: _dollar3 }
+  })
+}
+
+// file:///./parser.mbty
+// 899|    { [] }
+fn yy_action_294(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_LocalItem_({();  [] })
 }
 
 // file:///./parser.mbty
-// 1029|    function_literal_open function_literal_parameters ")" return_annotation layout_continuation_opt block_expression {
-// 1030|    FunctionLiteral(type_parameters=$1, parameters=$2, return_type=$4.return_type, effect=$4.effect, body=$6, loc=span($sloc))
-// 1031|  }
-fn yy_action_293(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1045|    function_literal_open function_literal_parameters ")" return_annotation layout_continuation_opt block_expression {
+// 1046|    FunctionLiteral(type_parameters=$1, parameters=$2, return_type=$4.return_type, effect=$4.effect, body=$6, loc=span($sloc))
+// 1047|  }
+fn yy_action_295(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_TypeParameter_(_dollar1)
   guard _args[1].0 is YYObj_Array_FunctionLiteralParameter_(_dollar2)
   guard _args[3].0 is YYObj_ReturnAnnotation(_dollar4)
@@ -3862,10 +3908,10 @@ fn yy_action_293(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1063|    "->" type effect_annotation_opt {
-// 1064|    { return_type: Some($2), effect: $3 }
-// 1065|  }
-fn yy_action_294(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1079|    "->" type effect_annotation_opt {
+// 1080|    { return_type: Some($2), effect: $3 }
+// 1081|  }
+fn yy_action_296(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Type(_dollar2)
   guard _args[2].0 is YYObj_EffectTerm_(_dollar3)
   YYObj_ReturnAnnotation({(); 
@@ -3874,45 +3920,45 @@ fn yy_action_294(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1062|    { { return_type: None, effect: None } }
-fn yy_action_295(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1078|    { { return_type: None, effect: None } }
+fn yy_action_297(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_ReturnAnnotation({();  { return_type: None, effect: None } })
 }
 
 // file:///./parser.mbty
-// 1047|    non_empty_function_literal_parameters "," function_literal_parameter { comma_push($1, $3) }
-fn yy_action_296(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1063|    non_empty_function_literal_parameters "," function_literal_parameter { comma_push($1, $3) }
+fn yy_action_298(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_FunctionLiteralParameter_(_dollar1)
   guard _args[2].0 is YYObj_FunctionLiteralParameter(_dollar3)
   YYObj_Array_FunctionLiteralParameter_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 1042|    non_empty_function_literal_parameters { $1 }
-fn yy_action_297(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1058|    non_empty_function_literal_parameters { $1 }
+fn yy_action_299(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_FunctionLiteralParameter_(_dollar1)
   YYObj_Array_FunctionLiteralParameter_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 1046|    function_literal_parameter { [ $1 ] }
-fn yy_action_298(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1062|    function_literal_parameter { [ $1 ] }
+fn yy_action_300(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_FunctionLiteralParameter(_dollar1)
   YYObj_Array_FunctionLiteralParameter_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 474|    ":" type { Some($2) }
-fn yy_action_299(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 490|    ":" type { Some($2) }
+fn yy_action_301(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Type(_dollar2)
   YYObj_Type_({();  Some(_dollar2) })
 }
 
 // file:///./parser.mbty
-// 1051|    function_literal_parameter_modifiers identifier local_type_annotation {
-// 1052|    { is_offered: $1, name: $2.name, name_loc: $2.loc, type_annotation: $3, loc: span($sloc) }
-// 1053|  }
-fn yy_action_300(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1067|    function_literal_parameter_modifiers identifier local_type_annotation {
+// 1068|    { is_offered: $1, name: $2.name, name_loc: $2.loc, type_annotation: $3, loc: span($sloc) }
+// 1069|  }
+fn yy_action_302(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Bool(_dollar1)
   guard _args[1].0 is YYObj_Identifier(_dollar2)
   guard _args[2].0 is YYObj_Type_(_dollar3)
@@ -3924,54 +3970,54 @@ fn yy_action_300(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 473|    { None }
-fn yy_action_301(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 489|    { None }
+fn yy_action_303(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Type_({();  None })
 }
 
 // file:///./parser.mbty
-// 1058|    "offer" { true }
-fn yy_action_302(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1074|    "offer" { true }
+fn yy_action_304(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Bool({();  true })
 }
 
 // file:///./parser.mbty
-// 1041|    { [] }
-fn yy_action_303(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1057|    { [] }
+fn yy_action_305(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_FunctionLiteralParameter_({();  [] })
 }
 
 // file:///./parser.mbty
-// 1057|    { false }
-fn yy_action_304(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1073|    { false }
+fn yy_action_306(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Bool({();  false })
 }
 
 // file:///./parser.mbty
-// 1035|    "fn" "(" { [] }
-fn yy_action_305(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1051|    "fn" "(" { [] }
+fn yy_action_307(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_TypeParameter_({();  [] })
 }
 
 // file:///./parser.mbty
-// 1036|    "fn" type_parameter_bracket_list "(" { $2 }
-fn yy_action_306(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
-  YYObj_Array_TypeParameter_({();  _dollar2 })
-}
-
-// file:///./parser.mbty
-// 1037|    "fn" type_parameter_bracket_list LAYOUT_NEWLINE "(" { $2 }
-fn yy_action_307(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
-  YYObj_Array_TypeParameter_({();  _dollar2 })
-}
-
-// file:///./parser.mbty
-// 1069|    "builtin" "(" STRING ")" {
-// 1070|    Builtin($3, loc=span($sloc))
-// 1071|  }
+// 1052|    "fn" type_parameter_bracket_list "(" { $2 }
 fn yy_action_308(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
+  YYObj_Array_TypeParameter_({();  _dollar2 })
+}
+
+// file:///./parser.mbty
+// 1053|    "fn" type_parameter_bracket_list LAYOUT_NEWLINE "(" { $2 }
+fn yy_action_309(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
+  YYObj_Array_TypeParameter_({();  _dollar2 })
+}
+
+// file:///./parser.mbty
+// 1085|    "builtin" "(" STRING ")" {
+// 1086|    Builtin($3, loc=span($sloc))
+// 1087|  }
+fn yy_action_310(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -3981,10 +4027,10 @@ fn yy_action_308(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 1075|    "extern" "(" STRING "," STRING ")" {
-// 1076|    Extern(module_name=$3, field_name=$5, loc=span($sloc))
-// 1077|  }
-fn yy_action_309(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 1091|    "extern" "(" STRING "," STRING ")" {
+// 1092|    Extern(module_name=$3, field_name=$5, loc=span($sloc))
+// 1093|  }
+fn yy_action_311(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[2].0 is YYObj_String(_dollar3)
   guard _args[4].0 is YYObj_String(_dollar5)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -3996,15 +4042,15 @@ fn yy_action_309(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 
 // file:///./parser.mbty
 // 127|    LAYOUT_NEWLINE { () }
-fn yy_action_310(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_312(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Unit({();  () })
 }
 
 // file:///./parser.mbty
-// 589|    type_parameter_bracket_list layout_continuation_opt "(" type_list ")" "->" type effect_annotation_opt {
-// 590|    Function(type_parameters=$1, parameters=$4, result=$7, effect=effect_or_empty($8, $7), loc=span($sloc))
-// 591|  }
-fn yy_action_311(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 605|    type_parameter_bracket_list layout_continuation_opt "(" type_list ")" "->" type effect_annotation_opt {
+// 606|    Function(type_parameters=$1, parameters=$4, result=$7, effect=effect_or_empty($8, $7), loc=span($sloc))
+// 607|  }
+fn yy_action_313(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_TypeParameter_(_dollar1)
   guard _args[3].0 is YYObj_Array_Type_(_dollar4)
   guard _args[6].0 is YYObj_Type(_dollar7)
@@ -4017,10 +4063,10 @@ fn yy_action_311(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 586|    "(" type "," tuple_type_tail ")" "->" type effect_annotation_opt {
-// 587|    Function(type_parameters=[], parameters=[$2] + $4, result=$7, effect=effect_or_empty($8, $7), loc=span($sloc))
-// 588|  }
-fn yy_action_312(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 602|    "(" type "," tuple_type_tail ")" "->" type effect_annotation_opt {
+// 603|    Function(type_parameters=[], parameters=[$2] + $4, result=$7, effect=effect_or_empty($8, $7), loc=span($sloc))
+// 604|  }
+fn yy_action_314(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Type(_dollar2)
   guard _args[3].0 is YYObj_Array_Type_(_dollar4)
   guard _args[6].0 is YYObj_Type(_dollar7)
@@ -4033,10 +4079,10 @@ fn yy_action_312(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 583|    "(" type ")" "->" type effect_annotation_opt {
-// 584|    Function(type_parameters=[], parameters=[$2], result=$5, effect=effect_or_empty($6, $5), loc=span($sloc))
-// 585|  }
-fn yy_action_313(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 599|    "(" type ")" "->" type effect_annotation_opt {
+// 600|    Function(type_parameters=[], parameters=[$2], result=$5, effect=effect_or_empty($6, $5), loc=span($sloc))
+// 601|  }
+fn yy_action_315(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Type(_dollar2)
   guard _args[4].0 is YYObj_Type(_dollar5)
   guard _args[5].0 is YYObj_EffectTerm_(_dollar6)
@@ -4048,10 +4094,10 @@ fn yy_action_313(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 580|    "(" ")" "->" type effect_annotation_opt {
-// 581|    Function(type_parameters=[], parameters=[], result=$4, effect=effect_or_empty($5, $4), loc=span($sloc))
-// 582|  }
-fn yy_action_314(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 596|    "(" ")" "->" type effect_annotation_opt {
+// 597|    Function(type_parameters=[], parameters=[], result=$4, effect=effect_or_empty($5, $4), loc=span($sloc))
+// 598|  }
+fn yy_action_316(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[3].0 is YYObj_Type(_dollar4)
   guard _args[4].0 is YYObj_EffectTerm_(_dollar5)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -4062,24 +4108,24 @@ fn yy_action_314(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 596|    effect_annotation { Some($1) }
-fn yy_action_315(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 612|    effect_annotation { Some($1) }
+fn yy_action_317(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_EffectTerm(_dollar1)
   YYObj_EffectTerm_({();  Some(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 605|    type_application { Term(type_=$1, loc=$1.loc()) }
-fn yy_action_316(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 621|    type_application { Term(type_=$1, loc=$1.loc()) }
+fn yy_action_318(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   YYObj_EffectTerm({();  Term(type_=_dollar1, loc=_dollar1.loc()) })
 }
 
 // file:///./parser.mbty
-// 552|    "(" type "," tuple_type_tail ")" {
-// 553|    Tuple(items=[$2] + $4, loc=span($sloc))
-// 554|  }
-fn yy_action_317(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 568|    "(" type "," tuple_type_tail ")" {
+// 569|    Tuple(items=[$2] + $4, loc=span($sloc))
+// 570|  }
+fn yy_action_319(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Type(_dollar2)
   guard _args[3].0 is YYObj_Array_Type_(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -4090,29 +4136,29 @@ fn yy_action_317(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 561|    tuple_type_tail "," type { comma_push($1, $3) }
-fn yy_action_318(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 577|    tuple_type_tail "," type { comma_push($1, $3) }
+fn yy_action_320(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Type_(_dollar1)
   guard _args[2].0 is YYObj_Type(_dollar3)
   YYObj_Array_Type_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 559|    MISSING_TUPLE_TYPE_ITEM_ERROR { abort("missing tuple type item token must not be shifted") }
-fn yy_action_319(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 575|    MISSING_TUPLE_TYPE_ITEM_ERROR { abort("missing tuple type item token must not be shifted") }
+fn yy_action_321(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_Type_({();  abort("missing tuple type item token must not be shifted") })
 }
 
 // file:///./parser.mbty
-// 560|    type { [ $1 ] }
-fn yy_action_320(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 576|    type { [ $1 ] }
+fn yy_action_322(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   YYObj_Array_Type_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 555|    "(" type ")" %prec PAREN_TYPE { Grouped(type_=$2, loc=span($sloc)) }
-fn yy_action_321(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 571|    "(" type ")" %prec PAREN_TYPE { Grouped(type_=$2, loc=span($sloc)) }
+fn yy_action_323(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Type(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -4120,36 +4166,36 @@ fn yy_action_321(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 600|    "!" effect_set { $2 }
-fn yy_action_322(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 616|    "!" effect_set { $2 }
+fn yy_action_324(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_EffectTerm(_dollar2)
   YYObj_EffectTerm({();  _dollar2 })
 }
 
 // file:///./parser.mbty
-// 604|    EFFECT_IDENTIFIER_SLOT { abort("effect completion slot token must not be shifted") }
-fn yy_action_323(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 620|    EFFECT_IDENTIFIER_SLOT { abort("effect completion slot token must not be shifted") }
+fn yy_action_325(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_EffectTerm({();  abort("effect completion slot token must not be shifted") })
 }
 
 // file:///./parser.mbty
 // 121|    "," { () }
-fn yy_action_324(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_326(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Unit({();  () })
 }
 
 // file:///./parser.mbty
 // 122|    LAYOUT_NEWLINE { claim_layout_separator($1) }
-fn yy_action_325(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_327(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_LayoutNewlineClaim(_dollar1)
   YYObj_Unit({();  claim_layout_separator(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 539|    type_application "[" non_empty_generic_argument_list "]" {
-// 540|    Apply(callee=$1, arguments=$3, loc=span($sloc))
-// 541|  }
-fn yy_action_326(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 555|    type_application "[" non_empty_generic_argument_list "]" {
+// 556|    Apply(callee=$1, arguments=$3, loc=span($sloc))
+// 557|  }
+fn yy_action_328(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   guard _args[2].0 is YYObj_Array_GenericArgument_(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -4160,25 +4206,25 @@ fn yy_action_326(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 814|    non_empty_generic_argument_list layout_list_separator generic_argument { comma_push($1, $3) }
-fn yy_action_327(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 830|    non_empty_generic_argument_list layout_list_separator generic_argument { comma_push($1, $3) }
+fn yy_action_329(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_GenericArgument_(_dollar1)
   guard _args[2].0 is YYObj_GenericArgument(_dollar3)
   YYObj_Array_GenericArgument_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 815|    non_empty_generic_argument_list layout_list_separator { $1 }
-fn yy_action_328(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 831|    non_empty_generic_argument_list layout_list_separator { $1 }
+fn yy_action_330(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_GenericArgument_(_dollar1)
   YYObj_Array_GenericArgument_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 542|    type_application "[" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" {
-// 543|    Apply(callee=$1, arguments=[], loc=span($sloc))
-// 544|  }
-fn yy_action_329(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 558|    type_application "[" EMPTY_GENERIC_ARGUMENT_LIST_ERROR "]" {
+// 559|    Apply(callee=$1, arguments=[], loc=span($sloc))
+// 560|  }
+fn yy_action_331(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -4188,22 +4234,22 @@ fn yy_action_329(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 808|    type { TypeTerm($1) }
-fn yy_action_330(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 824|    type { TypeTerm($1) }
+fn yy_action_332(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   YYObj_GenericArgument({();  TypeTerm(_dollar1) })
 }
 
 // file:///./parser.mbty
-// 505|    "[" non_empty_type_parameter_list "]" { $2 }
-fn yy_action_331(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 521|    "[" non_empty_type_parameter_list "]" { $2 }
+fn yy_action_333(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
   YYObj_Array_TypeParameter_({();  _dollar2 })
 }
 
 // file:///./parser.mbty
-// 199|    IDENT { { name: $1, loc: span($sloc) } }
-fn yy_action_332(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 215|    IDENT { { name: $1, loc: span($sloc) } }
+fn yy_action_334(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -4211,38 +4257,38 @@ fn yy_action_332(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 511|    non_empty_type_parameter_list "," type_parameter { comma_push($1, $3) }
-fn yy_action_333(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 527|    non_empty_type_parameter_list "," type_parameter { comma_push($1, $3) }
+fn yy_action_335(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_TypeParameter_(_dollar1)
   guard _args[2].0 is YYObj_TypeParameter(_dollar3)
   YYObj_Array_TypeParameter_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 512|    non_empty_type_parameter_list "," { $1 }
-fn yy_action_334(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 528|    non_empty_type_parameter_list "," { $1 }
+fn yy_action_336(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_TypeParameter_(_dollar1)
   YYObj_Array_TypeParameter_({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 506|    "[" EMPTY_TYPE_PARAMETER_LIST_ERROR "]" { [] }
-fn yy_action_335(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 522|    "[" EMPTY_TYPE_PARAMETER_LIST_ERROR "]" { [] }
+fn yy_action_337(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_TypeParameter_({();  [] })
 }
 
 // file:///./parser.mbty
-// 510|    type_parameter { [ $1 ] }
-fn yy_action_336(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 526|    type_parameter { [ $1 ] }
+fn yy_action_338(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_TypeParameter(_dollar1)
   YYObj_Array_TypeParameter_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 306|    "[" kind_list "]" "->" kind {
-// 307|    Function(parameters=$2, result=$5, loc=span($sloc))
-// 308|  }
-fn yy_action_337(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 322|    "[" kind_list "]" "->" kind {
+// 323|    Function(parameters=$2, result=$5, loc=span($sloc))
+// 324|  }
+fn yy_action_339(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_Kind_(_dollar2)
   guard _args[4].0 is YYObj_Kind(_dollar5)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -4253,59 +4299,59 @@ fn yy_action_337(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 304|    "Type" { Type(loc=span($sloc)) }
-fn yy_action_338(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 320|    "Type" { Type(loc=span($sloc)) }
+fn yy_action_340(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Kind({();  Type(loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 305|    "Effect" { Effect(loc=span($sloc)) }
-fn yy_action_339(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 321|    "Effect" { Effect(loc=span($sloc)) }
+fn yy_action_341(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   YYObj_Kind({();  Effect(loc=span((_symbol_start_pos, _end_pos))) })
 }
 
 // file:///./parser.mbty
-// 319|    non_empty_kind_list "," kind { comma_push($1, $3) }
-fn yy_action_340(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 335|    non_empty_kind_list "," kind { comma_push($1, $3) }
+fn yy_action_342(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Kind_(_dollar1)
   guard _args[2].0 is YYObj_Kind(_dollar3)
   YYObj_Array_Kind_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 320|    non_empty_kind_list "," { $1 }
-fn yy_action_341(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_Kind_(_dollar1)
-  YYObj_Array_Kind_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 314|    non_empty_kind_list { $1 }
-fn yy_action_342(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_Kind_(_dollar1)
-  YYObj_Array_Kind_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 318|    kind { [ $1 ] }
+// 336|    non_empty_kind_list "," { $1 }
 fn yy_action_343(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_Kind_(_dollar1)
+  YYObj_Array_Kind_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 330|    non_empty_kind_list { $1 }
+fn yy_action_344(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_Kind_(_dollar1)
+  YYObj_Array_Kind_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 334|    kind { [ $1 ] }
+fn yy_action_345(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Kind(_dollar1)
   YYObj_Array_Kind_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 313|    { [] }
-fn yy_action_344(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 329|    { [] }
+fn yy_action_346(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_Kind_({();  [] })
 }
 
 // file:///./parser.mbty
-// 309|    "(" kind ")" { Grouped(kind=$2, loc=span($sloc)) }
-fn yy_action_345(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 325|    "(" kind ")" { Grouped(kind=$2, loc=span($sloc)) }
+fn yy_action_347(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Kind(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -4313,10 +4359,10 @@ fn yy_action_345(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 519|    identifier ":" kind {
-// 520|    { name: $1.name, name_loc: $1.loc, kind: Some($3), loc: span($sloc) }
-// 521|  }
-fn yy_action_346(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 535|    identifier ":" kind {
+// 536|    { name: $1.name, name_loc: $1.loc, kind: Some($3), loc: span($sloc) }
+// 537|  }
+fn yy_action_348(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   guard _args[2].0 is YYObj_Kind(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -4327,10 +4373,10 @@ fn yy_action_346(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 516|    identifier {
-// 517|    { name: $1.name, name_loc: $1.loc, kind: None, loc: span($sloc) }
-// 518|  }
-fn yy_action_347(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 532|    identifier {
+// 533|    { name: $1.name, name_loc: $1.loc, kind: None, loc: span($sloc) }
+// 534|  }
+fn yy_action_349(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Identifier(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -4340,28 +4386,28 @@ fn yy_action_347(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 525|    TYPE_IDENTIFIER_SLOT { abort("type completion slot token must not be shifted") }
-fn yy_action_348(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 541|    TYPE_IDENTIFIER_SLOT { abort("type completion slot token must not be shifted") }
+fn yy_action_350(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Type({();  abort("type completion slot token must not be shifted") })
 }
 
 // file:///./parser.mbty
-// 526|    type_lambda { $1 }
-fn yy_action_349(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Type(_dollar1)
-  YYObj_Type({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 527|    function_type { $1 }
-fn yy_action_350(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Type(_dollar1)
-  YYObj_Type({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 809|    "{" type_list "}" { EffectTerm(effect_set($2, span($sloc))) }
+// 542|    type_lambda { $1 }
 fn yy_action_351(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Type(_dollar1)
+  YYObj_Type({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 543|    function_type { $1 }
+fn yy_action_352(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Type(_dollar1)
+  YYObj_Type({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 825|    "{" type_list "}" { EffectTerm(effect_set($2, span($sloc))) }
+fn yy_action_353(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_Type_(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -4369,24 +4415,24 @@ fn yy_action_351(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 813|    generic_argument { [ $1 ] }
-fn yy_action_352(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 829|    generic_argument { [ $1 ] }
+fn yy_action_354(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_GenericArgument(_dollar1)
   YYObj_Array_GenericArgument_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 528|    type_application %prec PAREN_TYPE { $1 }
-fn yy_action_353(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 544|    type_application %prec PAREN_TYPE { $1 }
+fn yy_action_355(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   YYObj_Type({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 532|    "type" type_parameter_bracket_list "=>" type {
-// 533|    TypeLambda(parameters=$2, body=$4, loc=span($sloc))
-// 534|  }
-fn yy_action_354(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 548|    "type" type_parameter_bracket_list "=>" type {
+// 549|    TypeLambda(parameters=$2, body=$4, loc=span($sloc))
+// 550|  }
+fn yy_action_356(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_TypeParameter_(_dollar2)
   guard _args[3].0 is YYObj_Type(_dollar4)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -4397,15 +4443,15 @@ fn yy_action_354(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 538|    type_primary { $1 }
-fn yy_action_355(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 554|    type_primary { $1 }
+fn yy_action_357(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   YYObj_Type({();  _dollar1 })
 }
 
 // file:///./parser.mbty
-// 576|    qualified_type_name "." IDENT { $1.extended($3, span($sloc)) }
-fn yy_action_356(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 592|    qualified_type_name "." IDENT { $1.extended($3, span($sloc)) }
+fn yy_action_358(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_NominalTypeName(_dollar1)
   guard _args[2].0 is YYObj_String(_dollar3)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
@@ -4414,25 +4460,25 @@ fn yy_action_356(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 548|    qualified_type_name { $1.to_type() }
-fn yy_action_357(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 564|    qualified_type_name { $1.to_type() }
+fn yy_action_359(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_NominalTypeName(_dollar1)
   YYObj_Type({();  _dollar1.to_type() })
 }
 
 // file:///./parser.mbty
-// 565|    IDENT "." IDENT {
-// 566|    let loc = span($sloc)
-// 567|    {
-// 568|      module_path: Some({
-// 569|        components: [ $1 ],
-// 570|        loc: loc.ascii_prefix($1.length()),
-// 571|      }),
-// 572|      name: $3,
-// 573|      loc,
-// 574|    }
-// 575|  }
-fn yy_action_358(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 581|    IDENT "." IDENT {
+// 582|    let loc = span($sloc)
+// 583|    {
+// 584|      module_path: Some({
+// 585|        components: [ $1 ],
+// 586|        loc: loc.ascii_prefix($1.length()),
+// 587|      }),
+// 588|      name: $3,
+// 589|      loc,
+// 590|    }
+// 591|  }
+fn yy_action_360(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
   guard _args[0].0 is YYObj_String(_dollar1)
@@ -4451,10 +4497,10 @@ fn yy_action_358(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 549|    IDENT {
-// 550|    Name(name=$1, loc=span($sloc))
-// 551|  }
-fn yy_action_359(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 565|    IDENT {
+// 566|    Name(name=$1, loc=span($sloc))
+// 567|  }
+fn yy_action_361(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -4464,8 +4510,8 @@ fn yy_action_359(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 606|    "{" type_list "}" { effect_set($2, span($sloc)) }
-fn yy_action_360(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 622|    "{" type_list "}" { effect_set($2, span($sloc)) }
+fn yy_action_362(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_Array_Type_(_dollar2)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -4473,74 +4519,74 @@ fn yy_action_360(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 }
 
 // file:///./parser.mbty
-// 595|    { None }
-fn yy_action_361(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 611|    { None }
+fn yy_action_363(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_EffectTerm_({();  None })
 }
 
 // file:///./parser.mbty
-// 616|    non_empty_type_list layout_list_separator type { comma_push($1, $3) }
-fn yy_action_362(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 632|    non_empty_type_list layout_list_separator type { comma_push($1, $3) }
+fn yy_action_364(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_Type_(_dollar1)
   guard _args[2].0 is YYObj_Type(_dollar3)
   YYObj_Array_Type_({();  comma_push(_dollar1, _dollar3) })
 }
 
 // file:///./parser.mbty
-// 617|    non_empty_type_list layout_list_separator { $1 }
-fn yy_action_363(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_Type_(_dollar1)
-  YYObj_Array_Type_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 611|    non_empty_type_list { $1 }
-fn yy_action_364(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  guard _args[0].0 is YYObj_Array_Type_(_dollar1)
-  YYObj_Array_Type_({();  _dollar1 })
-}
-
-// file:///./parser.mbty
-// 615|    type { [ $1 ] }
+// 633|    non_empty_type_list layout_list_separator { $1 }
 fn yy_action_365(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_Type_(_dollar1)
+  YYObj_Array_Type_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 627|    non_empty_type_list { $1 }
+fn yy_action_366(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  guard _args[0].0 is YYObj_Array_Type_(_dollar1)
+  YYObj_Array_Type_({();  _dollar1 })
+}
+
+// file:///./parser.mbty
+// 631|    type { [ $1 ] }
+fn yy_action_367(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Type(_dollar1)
   YYObj_Array_Type_({();  [ _dollar1 ] })
 }
 
 // file:///./parser.mbty
-// 610|    { [] }
-fn yy_action_366(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+// 626|    { [] }
+fn yy_action_368(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Array_Type_({();  [] })
 }
 
 // file:///./parser.mbty
 // 126|    { () }
-fn yy_action_367(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_Unit({();  () })
-}
-
-// file:///./parser.mbty
-// 144|    { { imports: [], declarations: [] } }
-fn yy_action_368(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
-  YYObj_ModuleBody({();  { imports: [], declarations: [] } })
-}
-
-// file:///./parser.mbty
-// 111|    { () }
 fn yy_action_369(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   YYObj_Unit({();  () })
 }
 
 // file:///./parser.mbty
-// 131|    "module" module_path { $2 }
+// 144|    { { imports: [], declarations: [] } }
 fn yy_action_370(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  YYObj_ModuleBody({();  { imports: [], declarations: [] } })
+}
+
+// file:///./parser.mbty
+// 111|    { () }
+fn yy_action_371(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+  YYObj_Unit({();  () })
+}
+
+// file:///./parser.mbty
+// 131|    "module" module_path { $2 }
+fn yy_action_372(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[1].0 is YYObj_ModulePath(_dollar2)
   YYObj_ModulePath({();  _dollar2 })
 }
 
 // file:///./parser.mbty
 // 140|    non_empty_module_path "." IDENT { comma_push($1, $3) }
-fn yy_action_371(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_373(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_String_(_dollar1)
   guard _args[2].0 is YYObj_String(_dollar3)
   YYObj_Array_String_({();  comma_push(_dollar1, _dollar3) })
@@ -4548,7 +4594,7 @@ fn yy_action_371(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 
 // file:///./parser.mbty
 // 135|    non_empty_module_path { { components: $1, loc: span($sloc) } }
-fn yy_action_372(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_374(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_Array_String_(_dollar1)
   let _symbol_start_pos = _get_symbol_start_pos(_args, _last_pos)
   let _end_pos = if _args.length() == 0 { _last_pos } else { _args[_args.length() - 1].2 }
@@ -4557,7 +4603,7 @@ fn yy_action_372(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, S
 
 // file:///./parser.mbty
 // 139|    IDENT { [ $1 ] }
-fn yy_action_373(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
+fn yy_action_375(_last_pos : SourceSpan, _args : ArrayView[(YYObj, SourceSpan, SourceSpan)]) -> YYObj {
   guard _args[0].0 is YYObj_String(_dollar1)
   YYObj_Array_String_({();  [ _dollar1 ] })
 }
@@ -4666,13 +4712,13 @@ fn yy_state_2(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_3(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_module_path, yy_action_373)
+  ReduceNoLookahead(1, NT_non_empty_module_path, yy_action_375)
 }
 
 fn yy_state_4(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_DOT => Shift(yy_state_5)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_AS | T_PUB | T_LAYOUT_NEWLINE | T_DOTSTAR | T_DOTLBRACE => Reduce(1, NT_module_path, yy_action_372)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_AS | T_PUB | T_LAYOUT_NEWLINE | T_DOTSTAR | T_DOTLBRACE => Reduce(1, NT_module_path, yy_action_374)
     _ => Error
   }
 }
@@ -4685,17 +4731,17 @@ fn yy_state_5(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_6(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_module_path, yy_action_371)
+  ReduceNoLookahead(3, NT_non_empty_module_path, yy_action_373)
 }
 
 fn yy_state_7(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_module_declaration, yy_action_370)
+  ReduceNoLookahead(2, NT_module_declaration, yy_action_372)
 }
 
 fn yy_state_8(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_layout_semicolons => Shift(yy_state_9)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
@@ -4721,12 +4767,12 @@ fn yy_state_9(_lookahead : YYSymbol) -> YYDecision {
     NT_struct_declaration => Shift(yy_state_631)
     NT_non_public_top_level_declaration => Shift(yy_state_632)
     T_IMPORT => Shift(yy_state_633)
-    T_PUB => Shift(yy_state_647)
-    NT_top_level_declaration => Shift(yy_state_722)
-    NT_public_import_declaration => Shift(yy_state_728)
-    NT_import_declaration => Shift(yy_state_731)
-    NT_module_body => Shift(yy_state_734)
-    T_EOF => Reduce(0, NT_module_body, yy_action_368)
+    T_PUB => Shift(yy_state_650)
+    NT_top_level_declaration => Shift(yy_state_725)
+    NT_public_import_declaration => Shift(yy_state_731)
+    NT_import_declaration => Shift(yy_state_734)
+    NT_module_body => Shift(yy_state_737)
+    T_EOF => Reduce(0, NT_module_body, yy_action_370)
     _ => Error
   }
 }
@@ -4768,7 +4814,7 @@ fn yy_state_13(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_layout_continuation_opt => Shift(yy_state_14)
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
-    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -4796,13 +4842,13 @@ fn yy_state_15(_lookahead : YYSymbol) -> YYDecision {
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
     NT_type_list => Shift(yy_state_109)
-    T_RPAREN => Reduce(0, NT_type_list, yy_action_366)
+    T_RPAREN => Reduce(0, NT_type_list, yy_action_368)
     _ => Error
   }
 }
 
 fn yy_state_16(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_type_list, yy_action_365)
+  ReduceNoLookahead(1, NT_non_empty_type_list, yy_action_367)
 }
 
 fn yy_state_17(_lookahead : YYSymbol) -> YYDecision {
@@ -4810,7 +4856,7 @@ fn yy_state_17(_lookahead : YYSymbol) -> YYDecision {
     NT_layout_list_separator => Shift(yy_state_18)
     T_LAYOUT_NEWLINE => Shift(yy_state_81)
     T_COMMA => Shift(yy_state_82)
-    T_RPAREN | T_RBRACE => Reduce(1, NT_type_list, yy_action_364)
+    T_RPAREN | T_RBRACE => Reduce(1, NT_type_list, yy_action_366)
     _ => Error
   }
 }
@@ -4829,13 +4875,13 @@ fn yy_state_18(_lookahead : YYSymbol) -> YYDecision {
     NT_type_lambda => Shift(yy_state_46)
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
-    T_RPAREN | T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_type_list, yy_action_363)
+    T_RPAREN | T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_type_list, yy_action_365)
     _ => Error
   }
 }
 
 fn yy_state_19(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_type_list, yy_action_362)
+  ReduceNoLookahead(3, NT_non_empty_type_list, yy_action_364)
 }
 
 fn yy_state_20(_lookahead : YYSymbol) -> YYDecision {
@@ -4887,7 +4933,7 @@ fn yy_state_23(_lookahead : YYSymbol) -> YYDecision {
     T_BANG => Shift(yy_state_24)
     NT_effect_annotation => Shift(yy_state_96)
     NT_effect_annotation_opt => Shift(yy_state_97)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(0, NT_effect_annotation_opt, yy_action_361)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(0, NT_effect_annotation_opt, yy_action_363)
     _ => Error
   }
 }
@@ -4922,7 +4968,7 @@ fn yy_state_25(_lookahead : YYSymbol) -> YYDecision {
     NT_type_lambda => Shift(yy_state_46)
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
-    T_RBRACE => Reduce(0, NT_type_list, yy_action_366)
+    T_RBRACE => Reduce(0, NT_type_list, yy_action_368)
     _ => Error
   }
 }
@@ -4935,13 +4981,13 @@ fn yy_state_26(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_27(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_effect_set, yy_action_360)
+  ReduceNoLookahead(3, NT_effect_set, yy_action_362)
 }
 
 fn yy_state_28(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_DOT => Shift(yy_state_29)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(1, NT_type_primary, yy_action_359)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(1, NT_type_primary, yy_action_361)
     _ => Error
   }
 }
@@ -4954,13 +5000,13 @@ fn yy_state_29(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_30(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_qualified_type_name, yy_action_358)
+  ReduceNoLookahead(3, NT_qualified_type_name, yy_action_360)
 }
 
 fn yy_state_31(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_DOT => Shift(yy_state_32)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(1, NT_type_primary, yy_action_357)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(1, NT_type_primary, yy_action_359)
     _ => Error
   }
 }
@@ -4973,11 +5019,11 @@ fn yy_state_32(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_33(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_qualified_type_name, yy_action_356)
+  ReduceNoLookahead(3, NT_qualified_type_name, yy_action_358)
 }
 
 fn yy_state_34(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_type_application, yy_action_355)
+  ReduceNoLookahead(1, NT_type_application, yy_action_357)
 }
 
 fn yy_state_35(_lookahead : YYSymbol) -> YYDecision {
@@ -5014,13 +5060,13 @@ fn yy_state_37(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_38(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_type_lambda, yy_action_354)
+  ReduceNoLookahead(4, NT_type_lambda, yy_action_356)
 }
 
 fn yy_state_39(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LBRACKET => Shift(yy_state_40)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(1, NT_type, yy_action_353)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(1, NT_type, yy_action_355)
     _ => Error
   }
 }
@@ -5048,7 +5094,7 @@ fn yy_state_40(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_41(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_generic_argument_list, yy_action_352)
+  ReduceNoLookahead(1, NT_non_empty_generic_argument_list, yy_action_354)
 }
 
 fn yy_state_42(_lookahead : YYSymbol) -> YYDecision {
@@ -5067,7 +5113,7 @@ fn yy_state_42(_lookahead : YYSymbol) -> YYDecision {
     NT_type_lambda => Shift(yy_state_46)
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
-    T_RBRACE => Reduce(0, NT_type_list, yy_action_366)
+    T_RBRACE => Reduce(0, NT_type_list, yy_action_368)
     _ => Error
   }
 }
@@ -5080,19 +5126,19 @@ fn yy_state_43(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_44(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_generic_argument, yy_action_351)
+  ReduceNoLookahead(3, NT_generic_argument, yy_action_353)
 }
 
 fn yy_state_45(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_type, yy_action_350)
+  ReduceNoLookahead(1, NT_type, yy_action_352)
 }
 
 fn yy_state_46(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_type, yy_action_349)
+  ReduceNoLookahead(1, NT_type, yy_action_351)
 }
 
 fn yy_state_47(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_type, yy_action_348)
+  ReduceNoLookahead(1, NT_type, yy_action_350)
 }
 
 fn yy_state_48(_lookahead : YYSymbol) -> YYDecision {
@@ -5109,7 +5155,7 @@ fn yy_state_48(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_49(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COLON => Shift(yy_state_50)
-    T_RBRACKET | T_COMMA => Reduce(1, NT_type_parameter, yy_action_347)
+    T_RBRACKET | T_COMMA => Reduce(1, NT_type_parameter, yy_action_349)
     _ => Error
   }
 }
@@ -5126,7 +5172,7 @@ fn yy_state_50(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_51(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_type_parameter, yy_action_346)
+  ReduceNoLookahead(3, NT_type_parameter, yy_action_348)
 }
 
 fn yy_state_52(_lookahead : YYSymbol) -> YYDecision {
@@ -5148,7 +5194,7 @@ fn yy_state_53(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_54(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_kind, yy_action_345)
+  ReduceNoLookahead(3, NT_kind, yy_action_347)
 }
 
 fn yy_state_55(_lookahead : YYSymbol) -> YYDecision {
@@ -5160,19 +5206,19 @@ fn yy_state_55(_lookahead : YYSymbol) -> YYDecision {
     T_KIND_EFFECT => Shift(yy_state_60)
     T_KIND_TYPE => Shift(yy_state_61)
     NT_kind_list => Shift(yy_state_62)
-    T_RBRACKET => Reduce(0, NT_kind_list, yy_action_344)
+    T_RBRACKET => Reduce(0, NT_kind_list, yy_action_346)
     _ => Error
   }
 }
 
 fn yy_state_56(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_kind_list, yy_action_343)
+  ReduceNoLookahead(1, NT_non_empty_kind_list, yy_action_345)
 }
 
 fn yy_state_57(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COMMA => Shift(yy_state_58)
-    T_RBRACKET => Reduce(1, NT_kind_list, yy_action_342)
+    T_RBRACKET => Reduce(1, NT_kind_list, yy_action_344)
     _ => Error
   }
 }
@@ -5184,21 +5230,21 @@ fn yy_state_58(_lookahead : YYSymbol) -> YYDecision {
     NT_kind => Shift(yy_state_59)
     T_KIND_EFFECT => Shift(yy_state_60)
     T_KIND_TYPE => Shift(yy_state_61)
-    T_RBRACKET | T_COMMA => Reduce(2, NT_non_empty_kind_list, yy_action_341)
+    T_RBRACKET | T_COMMA => Reduce(2, NT_non_empty_kind_list, yy_action_343)
     _ => Error
   }
 }
 
 fn yy_state_59(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_kind_list, yy_action_340)
+  ReduceNoLookahead(3, NT_non_empty_kind_list, yy_action_342)
 }
 
 fn yy_state_60(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_kind, yy_action_339)
+  ReduceNoLookahead(1, NT_kind, yy_action_341)
 }
 
 fn yy_state_61(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_kind, yy_action_338)
+  ReduceNoLookahead(1, NT_kind, yy_action_340)
 }
 
 fn yy_state_62(_lookahead : YYSymbol) -> YYDecision {
@@ -5227,11 +5273,11 @@ fn yy_state_64(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_65(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_kind, yy_action_337)
+  ReduceNoLookahead(5, NT_kind, yy_action_339)
 }
 
 fn yy_state_66(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_type_parameter_list, yy_action_336)
+  ReduceNoLookahead(1, NT_non_empty_type_parameter_list, yy_action_338)
 }
 
 fn yy_state_67(_lookahead : YYSymbol) -> YYDecision {
@@ -5242,7 +5288,7 @@ fn yy_state_67(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_68(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_type_parameter_bracket_list, yy_action_335)
+  ReduceNoLookahead(3, NT_type_parameter_bracket_list, yy_action_337)
 }
 
 fn yy_state_69(_lookahead : YYSymbol) -> YYDecision {
@@ -5258,25 +5304,25 @@ fn yy_state_70(_lookahead : YYSymbol) -> YYDecision {
     NT_identifier => Shift(yy_state_49)
     NT_type_parameter => Shift(yy_state_71)
     T_IDENT => Shift(yy_state_72)
-    T_RBRACKET | T_COMMA => Reduce(2, NT_non_empty_type_parameter_list, yy_action_334)
+    T_RBRACKET | T_COMMA => Reduce(2, NT_non_empty_type_parameter_list, yy_action_336)
     _ => Error
   }
 }
 
 fn yy_state_71(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_type_parameter_list, yy_action_333)
+  ReduceNoLookahead(3, NT_non_empty_type_parameter_list, yy_action_335)
 }
 
 fn yy_state_72(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_identifier, yy_action_332)
+  ReduceNoLookahead(1, NT_identifier, yy_action_334)
 }
 
 fn yy_state_73(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_type_parameter_bracket_list, yy_action_331)
+  ReduceNoLookahead(3, NT_type_parameter_bracket_list, yy_action_333)
 }
 
 fn yy_state_74(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_generic_argument, yy_action_330)
+  ReduceNoLookahead(1, NT_generic_argument, yy_action_332)
 }
 
 fn yy_state_75(_lookahead : YYSymbol) -> YYDecision {
@@ -5287,7 +5333,7 @@ fn yy_state_75(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_76(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_type_application, yy_action_329)
+  ReduceNoLookahead(4, NT_type_application, yy_action_331)
 }
 
 fn yy_state_77(_lookahead : YYSymbol) -> YYDecision {
@@ -5316,33 +5362,33 @@ fn yy_state_78(_lookahead : YYSymbol) -> YYDecision {
     T_LBRACKET => Shift(yy_state_48)
     NT_type => Shift(yy_state_74)
     NT_generic_argument => Shift(yy_state_79)
-    T_RBRACKET | T_COMMA | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_generic_argument_list, yy_action_328)
+    T_RBRACKET | T_COMMA | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_generic_argument_list, yy_action_330)
     _ => Error
   }
 }
 
 fn yy_state_79(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_generic_argument_list, yy_action_327)
+  ReduceNoLookahead(3, NT_non_empty_generic_argument_list, yy_action_329)
 }
 
 fn yy_state_80(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_type_application, yy_action_326)
+  ReduceNoLookahead(4, NT_type_application, yy_action_328)
 }
 
 fn yy_state_81(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_layout_list_separator, yy_action_325)
+  ReduceNoLookahead(1, NT_layout_list_separator, yy_action_327)
 }
 
 fn yy_state_82(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_layout_list_separator, yy_action_324)
+  ReduceNoLookahead(1, NT_layout_list_separator, yy_action_326)
 }
 
 fn yy_state_83(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_effect_set, yy_action_323)
+  ReduceNoLookahead(1, NT_effect_set, yy_action_325)
 }
 
 fn yy_state_84(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_effect_annotation, yy_action_322)
+  ReduceNoLookahead(2, NT_effect_annotation, yy_action_324)
 }
 
 fn yy_state_85(_lookahead : YYSymbol) -> YYDecision {
@@ -5372,7 +5418,7 @@ fn yy_state_86(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_87(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_type_primary, yy_action_321)
+  ReduceNoLookahead(3, NT_type_primary, yy_action_323)
 }
 
 fn yy_state_88(_lookahead : YYSymbol) -> YYDecision {
@@ -5396,11 +5442,11 @@ fn yy_state_88(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_89(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_tuple_type_tail, yy_action_320)
+  ReduceNoLookahead(1, NT_tuple_type_tail, yy_action_322)
 }
 
 fn yy_state_90(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_tuple_type_tail, yy_action_319)
+  ReduceNoLookahead(1, NT_tuple_type_tail, yy_action_321)
 }
 
 fn yy_state_91(_lookahead : YYSymbol) -> YYDecision {
@@ -5430,27 +5476,27 @@ fn yy_state_92(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_93(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_tuple_type_tail, yy_action_318)
+  ReduceNoLookahead(3, NT_tuple_type_tail, yy_action_320)
 }
 
 fn yy_state_94(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_type_primary, yy_action_317)
+  ReduceNoLookahead(5, NT_type_primary, yy_action_319)
 }
 
 fn yy_state_95(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LBRACKET => Shift(yy_state_40)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(1, NT_effect_set, yy_action_316)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(1, NT_effect_set, yy_action_318)
     _ => Error
   }
 }
 
 fn yy_state_96(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_effect_annotation_opt, yy_action_315)
+  ReduceNoLookahead(1, NT_effect_annotation_opt, yy_action_317)
 }
 
 fn yy_state_97(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_function_type, yy_action_314)
+  ReduceNoLookahead(5, NT_function_type, yy_action_316)
 }
 
 fn yy_state_98(_lookahead : YYSymbol) -> YYDecision {
@@ -5464,7 +5510,7 @@ fn yy_state_98(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_99(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_THIN_ARROW => Shift(yy_state_100)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(3, NT_type_primary, yy_action_321)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(3, NT_type_primary, yy_action_323)
     _ => Error
   }
 }
@@ -5492,13 +5538,13 @@ fn yy_state_101(_lookahead : YYSymbol) -> YYDecision {
     T_BANG => Shift(yy_state_24)
     NT_effect_annotation => Shift(yy_state_96)
     NT_effect_annotation_opt => Shift(yy_state_102)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(0, NT_effect_annotation_opt, yy_action_361)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(0, NT_effect_annotation_opt, yy_action_363)
     _ => Error
   }
 }
 
 fn yy_state_102(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_function_type, yy_action_313)
+  ReduceNoLookahead(6, NT_function_type, yy_action_315)
 }
 
 fn yy_state_103(_lookahead : YYSymbol) -> YYDecision {
@@ -5532,7 +5578,7 @@ fn yy_state_104(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_105(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_THIN_ARROW => Shift(yy_state_106)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(5, NT_type_primary, yy_action_317)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_BANG | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(5, NT_type_primary, yy_action_319)
     _ => Error
   }
 }
@@ -5560,13 +5606,13 @@ fn yy_state_107(_lookahead : YYSymbol) -> YYDecision {
     T_BANG => Shift(yy_state_24)
     NT_effect_annotation => Shift(yy_state_96)
     NT_effect_annotation_opt => Shift(yy_state_108)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(0, NT_effect_annotation_opt, yy_action_361)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(0, NT_effect_annotation_opt, yy_action_363)
     _ => Error
   }
 }
 
 fn yy_state_108(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(8, NT_function_type, yy_action_312)
+  ReduceNoLookahead(8, NT_function_type, yy_action_314)
 }
 
 fn yy_state_109(_lookahead : YYSymbol) -> YYDecision {
@@ -5606,17 +5652,17 @@ fn yy_state_112(_lookahead : YYSymbol) -> YYDecision {
     T_BANG => Shift(yy_state_24)
     NT_effect_annotation => Shift(yy_state_96)
     NT_effect_annotation_opt => Shift(yy_state_113)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(0, NT_effect_annotation_opt, yy_action_361)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_EQUAL => Reduce(0, NT_effect_annotation_opt, yy_action_363)
     _ => Error
   }
 }
 
 fn yy_state_113(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(8, NT_function_type, yy_action_311)
+  ReduceNoLookahead(8, NT_function_type, yy_action_313)
 }
 
 fn yy_state_114(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_layout_continuation_opt, yy_action_310)
+  ReduceNoLookahead(1, NT_layout_continuation_opt, yy_action_312)
 }
 
 fn yy_state_115(_lookahead : YYSymbol) -> YYDecision {
@@ -5706,7 +5752,7 @@ fn yy_state_121(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_122(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_extern_expression, yy_action_309)
+  ReduceNoLookahead(6, NT_extern_expression, yy_action_311)
 }
 
 fn yy_state_123(_lookahead : YYSymbol) -> YYDecision {
@@ -5731,7 +5777,7 @@ fn yy_state_125(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_126(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_builtin_expression, yy_action_308)
+  ReduceNoLookahead(4, NT_builtin_expression, yy_action_310)
 }
 
 fn yy_state_127(_lookahead : YYSymbol) -> YYDecision {
@@ -5759,15 +5805,15 @@ fn yy_state_129(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_130(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_function_literal_open, yy_action_307)
+  ReduceNoLookahead(4, NT_function_literal_open, yy_action_309)
 }
 
 fn yy_state_131(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_function_literal_open, yy_action_306)
+  ReduceNoLookahead(3, NT_function_literal_open, yy_action_308)
 }
 
 fn yy_state_132(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_function_literal_open, yy_action_305)
+  ReduceNoLookahead(2, NT_function_literal_open, yy_action_307)
 }
 
 fn yy_state_133(_lookahead : YYSymbol) -> YYDecision {
@@ -5777,14 +5823,14 @@ fn yy_state_133(_lookahead : YYSymbol) -> YYDecision {
     NT_function_literal_parameter => Shift(yy_state_140)
     NT_non_empty_function_literal_parameters => Shift(yy_state_141)
     NT_function_literal_parameters => Shift(yy_state_144)
-    T_RPAREN => Reduce(0, NT_function_literal_parameters, yy_action_303)
-    T_IDENT => Reduce(0, NT_function_literal_parameter_modifiers, yy_action_304)
+    T_RPAREN => Reduce(0, NT_function_literal_parameters, yy_action_305)
+    T_IDENT => Reduce(0, NT_function_literal_parameter_modifiers, yy_action_306)
     _ => Error
   }
 }
 
 fn yy_state_134(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_function_literal_parameter_modifiers, yy_action_302)
+  ReduceNoLookahead(1, NT_function_literal_parameter_modifiers, yy_action_304)
 }
 
 fn yy_state_135(_lookahead : YYSymbol) -> YYDecision {
@@ -5799,13 +5845,13 @@ fn yy_state_136(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_local_type_annotation => Shift(yy_state_137)
     T_COLON => Shift(yy_state_138)
-    T_RPAREN | T_COMMA => Reduce(0, NT_local_type_annotation, yy_action_301)
+    T_RPAREN | T_COMMA => Reduce(0, NT_local_type_annotation, yy_action_303)
     _ => Error
   }
 }
 
 fn yy_state_137(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_function_literal_parameter, yy_action_300)
+  ReduceNoLookahead(3, NT_function_literal_parameter, yy_action_302)
 }
 
 fn yy_state_138(_lookahead : YYSymbol) -> YYDecision {
@@ -5827,17 +5873,17 @@ fn yy_state_138(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_139(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_local_type_annotation, yy_action_299)
+  ReduceNoLookahead(2, NT_local_type_annotation, yy_action_301)
 }
 
 fn yy_state_140(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_function_literal_parameters, yy_action_298)
+  ReduceNoLookahead(1, NT_non_empty_function_literal_parameters, yy_action_300)
 }
 
 fn yy_state_141(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COMMA => Shift(yy_state_142)
-    T_RPAREN => Reduce(1, NT_function_literal_parameters, yy_action_297)
+    T_RPAREN => Reduce(1, NT_function_literal_parameters, yy_action_299)
     _ => Error
   }
 }
@@ -5847,13 +5893,13 @@ fn yy_state_142(_lookahead : YYSymbol) -> YYDecision {
     T_OFFER => Shift(yy_state_134)
     NT_function_literal_parameter_modifiers => Shift(yy_state_135)
     NT_function_literal_parameter => Shift(yy_state_143)
-    T_IDENT => Reduce(0, NT_function_literal_parameter_modifiers, yy_action_304)
+    T_IDENT => Reduce(0, NT_function_literal_parameter_modifiers, yy_action_306)
     _ => Error
   }
 }
 
 fn yy_state_143(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_function_literal_parameters, yy_action_296)
+  ReduceNoLookahead(3, NT_non_empty_function_literal_parameters, yy_action_298)
 }
 
 fn yy_state_144(_lookahead : YYSymbol) -> YYDecision {
@@ -5867,7 +5913,7 @@ fn yy_state_145(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_THIN_ARROW => Shift(yy_state_146)
     NT_return_annotation => Shift(yy_state_149)
-    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_return_annotation, yy_action_295)
+    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_return_annotation, yy_action_297)
     _ => Error
   }
 }
@@ -5895,20 +5941,20 @@ fn yy_state_147(_lookahead : YYSymbol) -> YYDecision {
     T_BANG => Shift(yy_state_24)
     NT_effect_annotation => Shift(yy_state_96)
     NT_effect_annotation_opt => Shift(yy_state_148)
-    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_361)
+    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_363)
     _ => Error
   }
 }
 
 fn yy_state_148(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_return_annotation, yy_action_294)
+  ReduceNoLookahead(3, NT_return_annotation, yy_action_296)
 }
 
 fn yy_state_149(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_150)
-    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -5922,13 +5968,13 @@ fn yy_state_150(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_151(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_function_literal, yy_action_293)
+  ReduceNoLookahead(6, NT_function_literal, yy_action_295)
 }
 
 fn yy_state_152(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_layout_semicolons => Shift(yy_state_153)
-    T_INT | T_DOUBLE | T_STRING | T_CHAR | T_IDENT | T_FALSE | T_TRUE | T_FN | T_LET | T_OFFER | T_IF | T_MATCH | T_HANDLE | T_DERIVE | T_BUILTIN | T_EXTERN | T_MINUS | T_BANG | T_LPAREN | T_LBRACE | T_LBRACKET | T_VALUE_IDENTIFIER_SLOT | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_INT | T_DOUBLE | T_STRING | T_CHAR | T_IDENT | T_FALSE | T_TRUE | T_FN | T_LET | T_OFFER | T_IF | T_MATCH | T_HANDLE | T_DERIVE | T_BUILTIN | T_EXTERN | T_MINUS | T_BANG | T_LPAREN | T_LBRACE | T_LBRACKET | T_VALUE_IDENTIFIER_SLOT | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
@@ -5937,7 +5983,7 @@ fn yy_state_153(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_local_items => Shift(yy_state_154)
     T_LAYOUT_NEWLINE => Shift(yy_state_408)
-    T_INT | T_DOUBLE | T_STRING | T_CHAR | T_IDENT | T_FALSE | T_TRUE | T_FN | T_LET | T_OFFER | T_IF | T_MATCH | T_HANDLE | T_DERIVE | T_BUILTIN | T_EXTERN | T_MINUS | T_BANG | T_LPAREN | T_LBRACE | T_LBRACKET | T_VALUE_IDENTIFIER_SLOT => Reduce(0, NT_local_items, yy_action_292)
+    T_INT | T_DOUBLE | T_STRING | T_CHAR | T_IDENT | T_FALSE | T_TRUE | T_FN | T_LET | T_OFFER | T_IF | T_MATCH | T_HANDLE | T_DERIVE | T_BUILTIN | T_EXTERN | T_MINUS | T_BANG | T_LPAREN | T_LBRACE | T_LBRACKET | T_VALUE_IDENTIFIER_SLOT => Reduce(0, NT_local_items, yy_action_294)
     _ => Error
   }
 }
@@ -6182,13 +6228,13 @@ fn yy_state_162(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_81)
     T_COMMA => Shift(yy_state_82)
     NT_layout_list_separator => Shift(yy_state_163)
-    T_RBRACKET => Reduce(3, NT_derive_type_arguments, yy_action_291)
+    T_RBRACKET => Reduce(3, NT_derive_type_arguments, yy_action_293)
     _ => Error
   }
 }
 
 fn yy_state_163(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_derive_type_arguments, yy_action_290)
+  ReduceNoLookahead(4, NT_derive_type_arguments, yy_action_292)
 }
 
 fn yy_state_164(_lookahead : YYSymbol) -> YYDecision {
@@ -6248,19 +6294,19 @@ fn yy_state_166(_lookahead : YYSymbol) -> YYDecision {
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     T_IDENT => Shift(yy_state_266)
     NT_argument_list => Shift(yy_state_309)
-    T_RPAREN => Reduce(0, NT_argument_list, yy_action_289)
+    T_RPAREN => Reduce(0, NT_argument_list, yy_action_291)
     _ => Error
   }
 }
 
 fn yy_state_167(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_argument_list, yy_action_288)
+  ReduceNoLookahead(1, NT_non_empty_argument_list, yy_action_290)
 }
 
 fn yy_state_168(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COMMA => Shift(yy_state_169)
-    T_RPAREN => Reduce(1, NT_argument_list, yy_action_287)
+    T_RPAREN => Reduce(1, NT_argument_list, yy_action_289)
     _ => Error
   }
 }
@@ -6306,25 +6352,25 @@ fn yy_state_169(_lookahead : YYSymbol) -> YYDecision {
     NT_expression => Shift(yy_state_236)
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     T_IDENT => Shift(yy_state_266)
-    T_RPAREN | T_COMMA => Reduce(2, NT_non_empty_argument_list, yy_action_286)
+    T_RPAREN | T_COMMA => Reduce(2, NT_non_empty_argument_list, yy_action_288)
     _ => Error
   }
 }
 
 fn yy_state_170(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_argument_list, yy_action_285)
+  ReduceNoLookahead(3, NT_non_empty_argument_list, yy_action_287)
 }
 
 fn yy_state_171(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_284)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_286)
 }
 
 fn yy_state_172(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_283)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_285)
 }
 
 fn yy_state_173(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_282)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_284)
 }
 
 fn yy_state_174(_lookahead : YYSymbol) -> YYDecision {
@@ -6369,7 +6415,7 @@ fn yy_state_174(_lookahead : YYSymbol) -> YYDecision {
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     NT_expression => Shift(yy_state_282)
     NT_list_literal_items => Shift(yy_state_307)
-    T_RBRACKET => Reduce(0, NT_list_literal_items, yy_action_281)
+    T_RBRACKET => Reduce(0, NT_list_literal_items, yy_action_283)
     _ => Error
   }
 }
@@ -6377,7 +6423,7 @@ fn yy_state_174(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_175(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COMMA => Shift(yy_state_176)
-    T_RBRACKET => Reduce(1, NT_list_literal_items, yy_action_280)
+    T_RBRACKET => Reduce(1, NT_list_literal_items, yy_action_282)
     _ => Error
   }
 }
@@ -6422,29 +6468,29 @@ fn yy_state_176(_lookahead : YYSymbol) -> YYDecision {
     NT_unary_expression => Shift(yy_state_235)
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     NT_expression => Shift(yy_state_306)
-    T_RPAREN | T_RBRACKET | T_COMMA => Reduce(2, NT_non_empty_positional_argument_list, yy_action_279)
+    T_RPAREN | T_RBRACKET | T_COMMA => Reduce(2, NT_non_empty_positional_argument_list, yy_action_281)
     _ => Error
   }
 }
 
 fn yy_state_177(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_278)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_280)
 }
 
 fn yy_state_178(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_277)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_279)
 }
 
 fn yy_state_179(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_276)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_278)
 }
 
 fn yy_state_180(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_275)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_277)
 }
 
 fn yy_state_181(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_274)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_276)
 }
 
 fn yy_state_182(_lookahead : YYSymbol) -> YYDecision {
@@ -6493,31 +6539,31 @@ fn yy_state_182(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_183(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_non_owner_primary_expression, yy_action_273)
+  ReduceNoLookahead(2, NT_non_owner_primary_expression, yy_action_275)
 }
 
 fn yy_state_184(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_272)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_274)
 }
 
 fn yy_state_185(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_271)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_273)
 }
 
 fn yy_state_186(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_270)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_272)
 }
 
 fn yy_state_187(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_269)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_271)
 }
 
 fn yy_state_188(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_268)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_270)
 }
 
 fn yy_state_189(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_267)
+  ReduceNoLookahead(1, NT_non_owner_primary_expression, yy_action_269)
 }
 
 fn yy_state_190(_lookahead : YYSymbol) -> YYDecision {
@@ -6525,7 +6571,7 @@ fn yy_state_190(_lookahead : YYSymbol) -> YYDecision {
     T_OWNER_LBRACKET => Shift(yy_state_191)
     NT_owner_type_arguments => Shift(yy_state_196)
     T_DOT => Shift(yy_state_197)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_TIGHT_COLONCOLON => Reduce(1, NT_owner_expression, yy_action_266)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_TIGHT_COLONCOLON => Reduce(1, NT_owner_expression, yy_action_268)
     _ => Error
   }
 }
@@ -6560,7 +6606,7 @@ fn yy_state_192(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_193(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_owner_type_arguments, yy_action_265)
+  ReduceNoLookahead(3, NT_owner_type_arguments, yy_action_267)
 }
 
 fn yy_state_194(_lookahead : YYSymbol) -> YYDecision {
@@ -6574,11 +6620,11 @@ fn yy_state_194(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_195(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_owner_type_arguments, yy_action_264)
+  ReduceNoLookahead(3, NT_owner_type_arguments, yy_action_266)
 }
 
 fn yy_state_196(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_owner_expression, yy_action_263)
+  ReduceNoLookahead(2, NT_owner_expression, yy_action_265)
 }
 
 fn yy_state_197(_lookahead : YYSymbol) -> YYDecision {
@@ -6589,7 +6635,7 @@ fn yy_state_197(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_198(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_owner_path_expression, yy_action_262)
+  ReduceNoLookahead(3, NT_owner_path_expression, yy_action_264)
 }
 
 fn yy_state_199(_lookahead : YYSymbol) -> YYDecision {
@@ -6640,7 +6686,7 @@ fn yy_state_202(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_203(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_type_argument_bracket_list, yy_action_261)
+  ReduceNoLookahead(3, NT_type_argument_bracket_list, yy_action_263)
 }
 
 fn yy_state_204(_lookahead : YYSymbol) -> YYDecision {
@@ -6654,15 +6700,15 @@ fn yy_state_204(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_205(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_type_argument_bracket_list, yy_action_260)
+  ReduceNoLookahead(3, NT_type_argument_bracket_list, yy_action_262)
 }
 
 fn yy_state_206(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_type_arguments, yy_action_259)
+  ReduceNoLookahead(1, NT_type_arguments, yy_action_261)
 }
 
 fn yy_state_207(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_operation_type_witnesses, yy_action_258)
+  ReduceNoLookahead(1, NT_operation_type_witnesses, yy_action_260)
 }
 
 fn yy_state_208(_lookahead : YYSymbol) -> YYDecision {
@@ -6714,7 +6760,7 @@ fn yy_state_209(_lookahead : YYSymbol) -> YYDecision {
     NT_unary_expression => Shift(yy_state_235)
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     NT_expression => Shift(yy_state_282)
-    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_257)
+    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_259)
     _ => Error
   }
 }
@@ -6722,7 +6768,7 @@ fn yy_state_209(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_210(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COMMA => Shift(yy_state_176)
-    T_RPAREN => Reduce(1, NT_positional_argument_list, yy_action_256)
+    T_RPAREN => Reduce(1, NT_positional_argument_list, yy_action_258)
     _ => Error
   }
 }
@@ -6735,17 +6781,17 @@ fn yy_state_211(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_212(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_value_postfix_expression, yy_action_255)
+  ReduceNoLookahead(6, NT_value_postfix_expression, yy_action_257)
 }
 
 fn yy_state_213(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_value_postfix_expression, yy_action_254)
+  ReduceNoLookahead(1, NT_value_postfix_expression, yy_action_256)
 }
 
 fn yy_state_214(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_TIGHT_COLONCOLON => Shift(yy_state_215)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_DOT => Reduce(1, NT_value_postfix_expression, yy_action_253)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_DOT => Reduce(1, NT_value_postfix_expression, yy_action_255)
     _ => Error
   }
 }
@@ -6765,7 +6811,7 @@ fn yy_state_216(_lookahead : YYSymbol) -> YYDecision {
     NT_struct_literal_field => Shift(yy_state_270)
     NT_non_empty_struct_literal_fields => Shift(yy_state_271)
     NT_struct_literal_fields => Shift(yy_state_274)
-    T_RBRACE => Reduce(0, NT_struct_literal_fields, yy_action_252)
+    T_RBRACE => Reduce(0, NT_struct_literal_fields, yy_action_254)
     _ => Error
   }
 }
@@ -6774,7 +6820,7 @@ fn yy_state_217(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_EQUAL => Shift(yy_state_218)
     T_COLON => Shift(yy_state_220)
-    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(1, NT_struct_literal_field, yy_action_251)
+    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(1, NT_struct_literal_field, yy_action_253)
     _ => Error
   }
 }
@@ -6800,7 +6846,7 @@ fn yy_state_218(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_219(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_struct_literal_field, yy_action_250)
+  ReduceNoLookahead(3, NT_struct_literal_field, yy_action_252)
 }
 
 fn yy_state_220(_lookahead : YYSymbol) -> YYDecision {
@@ -6848,7 +6894,7 @@ fn yy_state_220(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_221(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_value_postfix_expression, yy_action_249)
+  ReduceNoLookahead(1, NT_value_postfix_expression, yy_action_251)
 }
 
 fn yy_state_222(_lookahead : YYSymbol) -> YYDecision {
@@ -6858,7 +6904,7 @@ fn yy_state_222(_lookahead : YYSymbol) -> YYDecision {
     T_DOT => Shift(yy_state_223)
     NT_type_arguments => Shift(yy_state_225)
     T_LPAREN => Shift(yy_state_226)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(1, NT_postfix_expression, yy_action_248)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(1, NT_postfix_expression, yy_action_250)
     _ => Error
   }
 }
@@ -6871,11 +6917,11 @@ fn yy_state_223(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_224(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_value_postfix_expression, yy_action_247)
+  ReduceNoLookahead(3, NT_value_postfix_expression, yy_action_249)
 }
 
 fn yy_state_225(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_value_postfix_expression, yy_action_246)
+  ReduceNoLookahead(2, NT_value_postfix_expression, yy_action_248)
 }
 
 fn yy_state_226(_lookahead : YYSymbol) -> YYDecision {
@@ -6921,7 +6967,7 @@ fn yy_state_226(_lookahead : YYSymbol) -> YYDecision {
     NT_expression => Shift(yy_state_236)
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     T_IDENT => Shift(yy_state_266)
-    T_RPAREN => Reduce(0, NT_argument_list, yy_action_289)
+    T_RPAREN => Reduce(0, NT_argument_list, yy_action_291)
     _ => Error
   }
 }
@@ -6934,11 +6980,11 @@ fn yy_state_227(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_228(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_value_postfix_expression, yy_action_245)
+  ReduceNoLookahead(4, NT_value_postfix_expression, yy_action_247)
 }
 
 fn yy_state_229(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_unary_expression, yy_action_244)
+  ReduceNoLookahead(1, NT_unary_expression, yy_action_246)
 }
 
 fn yy_state_230(_lookahead : YYSymbol) -> YYDecision {
@@ -6984,7 +7030,7 @@ fn yy_state_230(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_231(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_unary_expression, yy_action_243)
+  ReduceNoLookahead(2, NT_unary_expression, yy_action_245)
 }
 
 fn yy_state_232(_lookahead : YYSymbol) -> YYDecision {
@@ -7030,19 +7076,19 @@ fn yy_state_232(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_233(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_unary_expression, yy_action_242)
+  ReduceNoLookahead(2, NT_unary_expression, yy_action_244)
 }
 
 fn yy_state_234(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_BANG => Reduce(1, NT_identifier, yy_action_332)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_OWNER_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_DOT | T_TIGHT_COLONCOLON => Reduce(1, NT_owner_path_expression, yy_action_241)
+    T_BANG => Reduce(1, NT_identifier, yy_action_334)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_OWNER_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_DOT | T_TIGHT_COLONCOLON => Reduce(1, NT_owner_path_expression, yy_action_243)
     _ => Error
   }
 }
 
 fn yy_state_235(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_expression, yy_action_240)
+  ReduceNoLookahead(1, NT_expression, yy_action_242)
 }
 
 fn yy_state_236(_lookahead : YYSymbol) -> YYDecision {
@@ -7061,7 +7107,7 @@ fn yy_state_236(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_RPAREN | T_COMMA => Reduce(1, NT_call_argument, yy_action_239)
+    T_RPAREN | T_COMMA => Reduce(1, NT_call_argument, yy_action_241)
     _ => Error
   }
 }
@@ -7111,7 +7157,7 @@ fn yy_state_237(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_238(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_expression, yy_action_238)
+  ReduceNoLookahead(3, NT_expression, yy_action_240)
 }
 
 fn yy_state_239(_lookahead : YYSymbol) -> YYDecision {
@@ -7159,7 +7205,7 @@ fn yy_state_239(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_240(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_expression, yy_action_237)
+  ReduceNoLookahead(3, NT_expression, yy_action_239)
 }
 
 fn yy_state_241(_lookahead : YYSymbol) -> YYDecision {
@@ -7207,7 +7253,7 @@ fn yy_state_241(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_242(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_expression, yy_action_236)
+  ReduceNoLookahead(3, NT_expression, yy_action_238)
 }
 
 fn yy_state_243(_lookahead : YYSymbol) -> YYDecision {
@@ -7259,7 +7305,7 @@ fn yy_state_244(_lookahead : YYSymbol) -> YYDecision {
     T_PERCENT => Shift(yy_state_237)
     T_SLASH => Shift(yy_state_239)
     T_STAR => Shift(yy_state_241)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_235)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_237)
     _ => Error
   }
 }
@@ -7313,7 +7359,7 @@ fn yy_state_246(_lookahead : YYSymbol) -> YYDecision {
     T_PERCENT => Shift(yy_state_237)
     T_SLASH => Shift(yy_state_239)
     T_STAR => Shift(yy_state_241)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_234)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_236)
     _ => Error
   }
 }
@@ -7369,7 +7415,7 @@ fn yy_state_248(_lookahead : YYSymbol) -> YYDecision {
     T_STAR => Shift(yy_state_241)
     T_MINUS => Shift(yy_state_243)
     T_PLUS => Shift(yy_state_245)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_233)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_235)
     _ => Error
   }
 }
@@ -7425,7 +7471,7 @@ fn yy_state_250(_lookahead : YYSymbol) -> YYDecision {
     T_STAR => Shift(yy_state_241)
     T_MINUS => Shift(yy_state_243)
     T_PLUS => Shift(yy_state_245)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_232)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_234)
     _ => Error
   }
 }
@@ -7481,7 +7527,7 @@ fn yy_state_252(_lookahead : YYSymbol) -> YYDecision {
     T_STAR => Shift(yy_state_241)
     T_MINUS => Shift(yy_state_243)
     T_PLUS => Shift(yy_state_245)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_231)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_233)
     _ => Error
   }
 }
@@ -7537,7 +7583,7 @@ fn yy_state_254(_lookahead : YYSymbol) -> YYDecision {
     T_STAR => Shift(yy_state_241)
     T_MINUS => Shift(yy_state_243)
     T_PLUS => Shift(yy_state_245)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_230)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_232)
     _ => Error
   }
 }
@@ -7597,7 +7643,7 @@ fn yy_state_256(_lookahead : YYSymbol) -> YYDecision {
     T_GT => Shift(yy_state_249)
     T_LTEQ => Shift(yy_state_251)
     T_LT => Shift(yy_state_253)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_229)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_231)
     _ => Error
   }
 }
@@ -7657,7 +7703,7 @@ fn yy_state_258(_lookahead : YYSymbol) -> YYDecision {
     T_GT => Shift(yy_state_249)
     T_LTEQ => Shift(yy_state_251)
     T_LT => Shift(yy_state_253)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_228)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_EQEQ | T_BANGEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_230)
     _ => Error
   }
 }
@@ -7719,7 +7765,7 @@ fn yy_state_260(_lookahead : YYSymbol) -> YYDecision {
     T_LT => Shift(yy_state_253)
     T_BANGEQ => Shift(yy_state_255)
     T_EQEQ => Shift(yy_state_257)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_227)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_AMPAMP | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_229)
     _ => Error
   }
 }
@@ -7782,7 +7828,7 @@ fn yy_state_262(_lookahead : YYSymbol) -> YYDecision {
     T_BANGEQ => Shift(yy_state_255)
     T_EQEQ => Shift(yy_state_257)
     T_AMPAMP => Shift(yy_state_259)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_226)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_BARBAR | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_228)
     _ => Error
   }
 }
@@ -7846,20 +7892,20 @@ fn yy_state_264(_lookahead : YYSymbol) -> YYDecision {
     T_EQEQ => Shift(yy_state_257)
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_225)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PIPE | T_RPAREN | T_LBRACE | T_RBRACE | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_expression, yy_action_227)
     _ => Error
   }
 }
 
 fn yy_state_265(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_expression, yy_action_224)
+  ReduceNoLookahead(1, NT_expression, yy_action_226)
 }
 
 fn yy_state_266(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_EQUAL => Shift(yy_state_267)
-    T_BANG => Reduce(1, NT_identifier, yy_action_332)
-    T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACKET | T_OWNER_LBRACKET | T_COMMA | T_DOT | T_TIGHT_COLONCOLON => Reduce(1, NT_owner_path_expression, yy_action_241)
+    T_BANG => Reduce(1, NT_identifier, yy_action_334)
+    T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACKET | T_OWNER_LBRACKET | T_COMMA | T_DOT | T_TIGHT_COLONCOLON => Reduce(1, NT_owner_path_expression, yy_action_243)
     _ => Error
   }
 }
@@ -7924,7 +7970,7 @@ fn yy_state_268(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_RPAREN | T_COMMA => Reduce(3, NT_call_argument, yy_action_223)
+    T_RPAREN | T_COMMA => Reduce(3, NT_call_argument, yy_action_225)
     _ => Error
   }
 }
@@ -7945,13 +7991,13 @@ fn yy_state_269(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(3, NT_struct_literal_field, yy_action_222)
+    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(3, NT_struct_literal_field, yy_action_224)
     _ => Error
   }
 }
 
 fn yy_state_270(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_struct_literal_fields, yy_action_221)
+  ReduceNoLookahead(1, NT_non_empty_struct_literal_fields, yy_action_223)
 }
 
 fn yy_state_271(_lookahead : YYSymbol) -> YYDecision {
@@ -7959,7 +8005,7 @@ fn yy_state_271(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_81)
     T_COMMA => Shift(yy_state_82)
     NT_layout_list_separator => Shift(yy_state_272)
-    T_RBRACE => Reduce(1, NT_struct_literal_fields, yy_action_220)
+    T_RBRACE => Reduce(1, NT_struct_literal_fields, yy_action_222)
     _ => Error
   }
 }
@@ -7968,13 +8014,13 @@ fn yy_state_272(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_IDENT => Shift(yy_state_217)
     NT_struct_literal_field => Shift(yy_state_273)
-    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_struct_literal_fields, yy_action_219)
+    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_struct_literal_fields, yy_action_221)
     _ => Error
   }
 }
 
 fn yy_state_273(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_struct_literal_fields, yy_action_218)
+  ReduceNoLookahead(3, NT_non_empty_struct_literal_fields, yy_action_220)
 }
 
 fn yy_state_274(_lookahead : YYSymbol) -> YYDecision {
@@ -7985,7 +8031,7 @@ fn yy_state_274(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_275(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_member_expression, yy_action_217)
+  ReduceNoLookahead(5, NT_member_expression, yy_action_219)
 }
 
 fn yy_state_276(_lookahead : YYSymbol) -> YYDecision {
@@ -8055,7 +8101,7 @@ fn yy_state_279(_lookahead : YYSymbol) -> YYDecision {
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     NT_positional_argument_list => Shift(yy_state_280)
     NT_expression => Shift(yy_state_282)
-    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_257)
+    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_259)
     _ => Error
   }
 }
@@ -8068,7 +8114,7 @@ fn yy_state_280(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_281(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(8, NT_member_expression, yy_action_216)
+  ReduceNoLookahead(8, NT_member_expression, yy_action_218)
 }
 
 fn yy_state_282(_lookahead : YYSymbol) -> YYDecision {
@@ -8087,7 +8133,7 @@ fn yy_state_282(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_RPAREN | T_RBRACKET | T_COMMA => Reduce(1, NT_non_empty_positional_argument_list, yy_action_215)
+    T_RPAREN | T_RBRACKET | T_COMMA => Reduce(1, NT_non_empty_positional_argument_list, yy_action_217)
     _ => Error
   }
 }
@@ -8134,7 +8180,7 @@ fn yy_state_283(_lookahead : YYSymbol) -> YYDecision {
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     NT_expression => Shift(yy_state_282)
     NT_positional_argument_list => Shift(yy_state_284)
-    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_257)
+    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_259)
     _ => Error
   }
 }
@@ -8147,7 +8193,7 @@ fn yy_state_284(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_285(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(7, NT_member_expression, yy_action_214)
+  ReduceNoLookahead(7, NT_member_expression, yy_action_216)
 }
 
 fn yy_state_286(_lookahead : YYSymbol) -> YYDecision {
@@ -8156,14 +8202,14 @@ fn yy_state_286(_lookahead : YYSymbol) -> YYDecision {
     NT_type_argument_bracket_list => Shift(yy_state_206)
     NT_type_arguments => Shift(yy_state_287)
     NT_variant_type_arguments => Shift(yy_state_288)
-    T_LPAREN | T_LAYOUT_NEWLINE => Reduce(0, NT_variant_type_arguments, yy_action_213)
-    T_BANG => Reduce(1, NT_identifier, yy_action_332)
+    T_LPAREN | T_LAYOUT_NEWLINE => Reduce(0, NT_variant_type_arguments, yy_action_215)
+    T_BANG => Reduce(1, NT_identifier, yy_action_334)
     _ => Error
   }
 }
 
 fn yy_state_287(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_variant_type_arguments, yy_action_212)
+  ReduceNoLookahead(1, NT_variant_type_arguments, yy_action_214)
 }
 
 fn yy_state_288(_lookahead : YYSymbol) -> YYDecision {
@@ -8171,7 +8217,7 @@ fn yy_state_288(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_289)
     NT_variant_arguments => Shift(yy_state_293)
-    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -8225,7 +8271,7 @@ fn yy_state_290(_lookahead : YYSymbol) -> YYDecision {
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     NT_expression => Shift(yy_state_282)
     NT_positional_argument_list => Shift(yy_state_291)
-    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_257)
+    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_259)
     _ => Error
   }
 }
@@ -8238,11 +8284,11 @@ fn yy_state_291(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_292(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_variant_arguments, yy_action_211)
+  ReduceNoLookahead(4, NT_variant_arguments, yy_action_213)
 }
 
 fn yy_state_293(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_member_expression, yy_action_210)
+  ReduceNoLookahead(5, NT_member_expression, yy_action_212)
 }
 
 fn yy_state_294(_lookahead : YYSymbol) -> YYDecision {
@@ -8287,7 +8333,7 @@ fn yy_state_294(_lookahead : YYSymbol) -> YYDecision {
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
     NT_expression => Shift(yy_state_282)
     NT_positional_argument_list => Shift(yy_state_295)
-    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_257)
+    T_RPAREN => Reduce(0, NT_positional_argument_list, yy_action_259)
     _ => Error
   }
 }
@@ -8300,7 +8346,7 @@ fn yy_state_295(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_296(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_value_postfix_expression, yy_action_209)
+  ReduceNoLookahead(5, NT_value_postfix_expression, yy_action_211)
 }
 
 fn yy_state_297(_lookahead : YYSymbol) -> YYDecision {
@@ -8326,7 +8372,7 @@ fn yy_state_297(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_298(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_owner_primary_expression, yy_action_208)
+  ReduceNoLookahead(3, NT_non_owner_primary_expression, yy_action_210)
 }
 
 fn yy_state_299(_lookahead : YYSymbol) -> YYDecision {
@@ -8376,7 +8422,7 @@ fn yy_state_299(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_300(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_tuple_expression_tail, yy_action_207)
+  ReduceNoLookahead(1, NT_tuple_expression_tail, yy_action_209)
 }
 
 fn yy_state_301(_lookahead : YYSymbol) -> YYDecision {
@@ -8447,13 +8493,13 @@ fn yy_state_303(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_RPAREN | T_COMMA => Reduce(3, NT_tuple_expression_tail, yy_action_206)
+    T_RPAREN | T_COMMA => Reduce(3, NT_tuple_expression_tail, yy_action_208)
     _ => Error
   }
 }
 
 fn yy_state_304(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_non_owner_primary_expression, yy_action_205)
+  ReduceNoLookahead(5, NT_non_owner_primary_expression, yy_action_207)
 }
 
 fn yy_state_305(_lookahead : YYSymbol) -> YYDecision {
@@ -8472,7 +8518,7 @@ fn yy_state_305(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_RPAREN | T_COMMA => Reduce(1, NT_tuple_expression_tail, yy_action_204)
+    T_RPAREN | T_COMMA => Reduce(1, NT_tuple_expression_tail, yy_action_206)
     _ => Error
   }
 }
@@ -8493,7 +8539,7 @@ fn yy_state_306(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_RPAREN | T_RBRACKET | T_COMMA => Reduce(3, NT_non_empty_positional_argument_list, yy_action_203)
+    T_RPAREN | T_RBRACKET | T_COMMA => Reduce(3, NT_non_empty_positional_argument_list, yy_action_205)
     _ => Error
   }
 }
@@ -8506,7 +8552,7 @@ fn yy_state_307(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_308(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_owner_primary_expression, yy_action_202)
+  ReduceNoLookahead(3, NT_non_owner_primary_expression, yy_action_204)
 }
 
 fn yy_state_309(_lookahead : YYSymbol) -> YYDecision {
@@ -8517,7 +8563,7 @@ fn yy_state_309(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_310(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(7, NT_derive_expression, yy_action_201)
+  ReduceNoLookahead(7, NT_derive_expression, yy_action_203)
 }
 
 fn yy_state_311(_lookahead : YYSymbol) -> YYDecision {
@@ -8538,7 +8584,7 @@ fn yy_state_311(_lookahead : YYSymbol) -> YYDecision {
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
     NT_layout_continuation_opt => Shift(yy_state_312)
-    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -8555,7 +8601,7 @@ fn yy_state_313(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_ELSE => Shift(yy_state_314)
     NT_optional_else_branch => Shift(yy_state_318)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_DOT => Reduce(0, NT_optional_else_branch, yy_action_200)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_WITH | T_EXTERN | T_PUB | T_PLUS | T_MINUS | T_STAR | T_SLASH | T_PERCENT | T_EQEQ | T_BANGEQ | T_LT | T_LTEQ | T_GT | T_GTEQ | T_AMPAMP | T_BARBAR | T_PIPE | T_LPAREN | T_RPAREN | T_LBRACE | T_RBRACE | T_LBRACKET | T_RBRACKET | T_COMMA | T_SEMICOLON | T_LAYOUT_NEWLINE | T_DOT => Reduce(0, NT_optional_else_branch, yy_action_202)
     _ => Error
   }
 }
@@ -8572,19 +8618,19 @@ fn yy_state_314(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_315(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_else_branch_expression, yy_action_199)
+  ReduceNoLookahead(1, NT_else_branch_expression, yy_action_201)
 }
 
 fn yy_state_316(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_else_branch_expression, yy_action_198)
+  ReduceNoLookahead(1, NT_else_branch_expression, yy_action_200)
 }
 
 fn yy_state_317(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_optional_else_branch, yy_action_197)
+  ReduceNoLookahead(2, NT_optional_else_branch, yy_action_199)
 }
 
 fn yy_state_318(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_if_expression, yy_action_196)
+  ReduceNoLookahead(5, NT_if_expression, yy_action_198)
 }
 
 fn yy_state_319(_lookahead : YYSymbol) -> YYDecision {
@@ -8605,7 +8651,7 @@ fn yy_state_319(_lookahead : YYSymbol) -> YYDecision {
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
     NT_layout_continuation_opt => Shift(yy_state_320)
-    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -8620,7 +8666,7 @@ fn yy_state_320(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_321(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_layout_semicolons => Shift(yy_state_322)
-    T_INT | T_DOUBLE | T_STRING | T_CHAR | T_IDENT | T_FALSE | T_TRUE | T_MINUS | T_LPAREN | T_RBRACE | T_PATTERN_IDENTIFIER_SLOT | T_LAYOUT_NEWLINE | T_UNDERSCORE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_INT | T_DOUBLE | T_STRING | T_CHAR | T_IDENT | T_FALSE | T_TRUE | T_MINUS | T_LPAREN | T_RBRACE | T_PATTERN_IDENTIFIER_SLOT | T_LAYOUT_NEWLINE | T_UNDERSCORE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
@@ -8646,7 +8692,7 @@ fn yy_state_322(_lookahead : YYSymbol) -> YYDecision {
     NT_non_empty_match_arms => Shift(yy_state_401)
     NT_match_arms => Shift(yy_state_406)
     T_LAYOUT_NEWLINE => Shift(yy_state_408)
-    T_RBRACE => Reduce(0, NT_match_arms, yy_action_195)
+    T_RBRACE => Reduce(0, NT_match_arms, yy_action_197)
     _ => Error
   }
 }
@@ -8673,19 +8719,19 @@ fn yy_state_325(_lookahead : YYSymbol) -> YYDecision {
     NT_struct_pattern_field => Shift(yy_state_389)
     NT_non_empty_struct_pattern_fields => Shift(yy_state_390)
     NT_struct_pattern_fields => Shift(yy_state_393)
-    T_RBRACE => Reduce(0, NT_struct_pattern_fields, yy_action_194)
+    T_RBRACE => Reduce(0, NT_struct_pattern_fields, yy_action_196)
     _ => Error
   }
 }
 
 fn yy_state_326(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_struct_pattern_field, yy_action_193)
+  ReduceNoLookahead(1, NT_struct_pattern_field, yy_action_195)
 }
 
 fn yy_state_327(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COLON => Shift(yy_state_328)
-    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(1, NT_struct_pattern_field, yy_action_192)
+    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(1, NT_struct_pattern_field, yy_action_194)
     _ => Error
   }
 }
@@ -8712,11 +8758,11 @@ fn yy_state_328(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_329(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_struct_pattern_field, yy_action_191)
+  ReduceNoLookahead(3, NT_struct_pattern_field, yy_action_193)
 }
 
 fn yy_state_330(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_pattern, yy_action_190)
+  ReduceNoLookahead(1, NT_pattern, yy_action_192)
 }
 
 fn yy_state_331(_lookahead : YYSymbol) -> YYDecision {
@@ -8771,11 +8817,11 @@ fn yy_state_333(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_334(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_tuple_pattern_tail, yy_action_189)
+  ReduceNoLookahead(1, NT_tuple_pattern_tail, yy_action_191)
 }
 
 fn yy_state_335(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_tuple_pattern_tail, yy_action_188)
+  ReduceNoLookahead(1, NT_tuple_pattern_tail, yy_action_190)
 }
 
 fn yy_state_336(_lookahead : YYSymbol) -> YYDecision {
@@ -8808,27 +8854,27 @@ fn yy_state_337(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_338(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_tuple_pattern_tail, yy_action_187)
+  ReduceNoLookahead(3, NT_tuple_pattern_tail, yy_action_189)
 }
 
 fn yy_state_339(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_pattern, yy_action_186)
+  ReduceNoLookahead(1, NT_pattern, yy_action_188)
 }
 
 fn yy_state_340(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_pattern, yy_action_185)
+  ReduceNoLookahead(1, NT_pattern, yy_action_187)
 }
 
 fn yy_state_341(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_pattern, yy_action_184)
+  ReduceNoLookahead(1, NT_pattern, yy_action_186)
 }
 
 fn yy_state_342(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_pattern, yy_action_183)
+  ReduceNoLookahead(1, NT_pattern, yy_action_185)
 }
 
 fn yy_state_343(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_pattern, yy_action_182)
+  ReduceNoLookahead(1, NT_pattern, yy_action_184)
 }
 
 fn yy_state_344(_lookahead : YYSymbol) -> YYDecision {
@@ -8840,29 +8886,29 @@ fn yy_state_344(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_345(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_pattern, yy_action_181)
+  ReduceNoLookahead(2, NT_pattern, yy_action_183)
 }
 
 fn yy_state_346(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_pattern, yy_action_180)
+  ReduceNoLookahead(2, NT_pattern, yy_action_182)
 }
 
 fn yy_state_347(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_pattern, yy_action_179)
+  ReduceNoLookahead(1, NT_pattern, yy_action_181)
 }
 
 fn yy_state_348(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_pattern, yy_action_178)
+  ReduceNoLookahead(1, NT_pattern, yy_action_180)
 }
 
 fn yy_state_349(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_pattern, yy_action_177)
+  ReduceNoLookahead(1, NT_pattern, yy_action_179)
 }
 
 fn yy_state_350(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_DOT => Shift(yy_state_32)
-    T_TIGHT_COLONCOLON => Reduce(1, NT_nominal_type_name, yy_action_176)
+    T_TIGHT_COLONCOLON => Reduce(1, NT_nominal_type_name, yy_action_178)
     _ => Error
   }
 }
@@ -8874,8 +8920,8 @@ fn yy_state_351(_lookahead : YYSymbol) -> YYDecision {
     T_LBRACKET => Shift(yy_state_374)
     T_LPAREN => Shift(yy_state_384)
     NT_variant_pattern_arguments => Shift(yy_state_387)
-    T_TIGHT_COLONCOLON => Reduce(1, NT_nominal_type_name, yy_action_174)
-    T_RPAREN | T_RBRACE | T_COMMA | T_COLON | T_FAT_ARROW | T_EQUAL => Reduce(1, NT_pattern, yy_action_175)
+    T_TIGHT_COLONCOLON => Reduce(1, NT_nominal_type_name, yy_action_176)
+    T_RPAREN | T_RBRACE | T_COMMA | T_COLON | T_FAT_ARROW | T_EQUAL => Reduce(1, NT_pattern, yy_action_177)
     _ => Error
   }
 }
@@ -8899,7 +8945,7 @@ fn yy_state_353(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_354(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_ident_list, yy_action_173)
+  ReduceNoLookahead(1, NT_non_empty_ident_list, yy_action_175)
 }
 
 fn yy_state_355(_lookahead : YYSymbol) -> YYDecision {
@@ -8914,13 +8960,13 @@ fn yy_state_356(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_IDENT => Shift(yy_state_72)
     NT_identifier => Shift(yy_state_357)
-    T_RBRACKET | T_COMMA => Reduce(2, NT_non_empty_ident_list, yy_action_172)
+    T_RBRACKET | T_COMMA => Reduce(2, NT_non_empty_ident_list, yy_action_174)
     _ => Error
   }
 }
 
 fn yy_state_357(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_ident_list, yy_action_171)
+  ReduceNoLookahead(3, NT_non_empty_ident_list, yy_action_173)
 }
 
 fn yy_state_358(_lookahead : YYSymbol) -> YYDecision {
@@ -8957,19 +9003,19 @@ fn yy_state_360(_lookahead : YYSymbol) -> YYDecision {
     NT_pattern => Shift(yy_state_361)
     NT_non_empty_pattern_list => Shift(yy_state_362)
     NT_pattern_list => Shift(yy_state_365)
-    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_170)
+    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_172)
     _ => Error
   }
 }
 
 fn yy_state_361(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_pattern_list, yy_action_169)
+  ReduceNoLookahead(1, NT_non_empty_pattern_list, yy_action_171)
 }
 
 fn yy_state_362(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COMMA => Shift(yy_state_363)
-    T_RPAREN => Reduce(1, NT_pattern_list, yy_action_168)
+    T_RPAREN => Reduce(1, NT_pattern_list, yy_action_170)
     _ => Error
   }
 }
@@ -8991,13 +9037,13 @@ fn yy_state_363(_lookahead : YYSymbol) -> YYDecision {
     NT_qualified_type_name => Shift(yy_state_350)
     T_IDENT => Shift(yy_state_351)
     NT_pattern => Shift(yy_state_364)
-    T_RPAREN | T_COMMA => Reduce(2, NT_non_empty_pattern_list, yy_action_167)
+    T_RPAREN | T_COMMA => Reduce(2, NT_non_empty_pattern_list, yy_action_169)
     _ => Error
   }
 }
 
 fn yy_state_364(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_pattern_list, yy_action_166)
+  ReduceNoLookahead(3, NT_non_empty_pattern_list, yy_action_168)
 }
 
 fn yy_state_365(_lookahead : YYSymbol) -> YYDecision {
@@ -9008,7 +9054,7 @@ fn yy_state_365(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_366(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(7, NT_variant_pattern_arguments_after_newline, yy_action_165)
+  ReduceNoLookahead(7, NT_variant_pattern_arguments_after_newline, yy_action_167)
 }
 
 fn yy_state_367(_lookahead : YYSymbol) -> YYDecision {
@@ -9030,7 +9076,7 @@ fn yy_state_367(_lookahead : YYSymbol) -> YYDecision {
     NT_pattern => Shift(yy_state_361)
     NT_non_empty_pattern_list => Shift(yy_state_362)
     NT_pattern_list => Shift(yy_state_368)
-    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_170)
+    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_172)
     _ => Error
   }
 }
@@ -9043,7 +9089,7 @@ fn yy_state_368(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_369(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_variant_pattern_arguments_after_newline, yy_action_164)
+  ReduceNoLookahead(6, NT_variant_pattern_arguments_after_newline, yy_action_166)
 }
 
 fn yy_state_370(_lookahead : YYSymbol) -> YYDecision {
@@ -9065,7 +9111,7 @@ fn yy_state_370(_lookahead : YYSymbol) -> YYDecision {
     NT_pattern => Shift(yy_state_361)
     NT_non_empty_pattern_list => Shift(yy_state_362)
     NT_pattern_list => Shift(yy_state_371)
-    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_170)
+    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_172)
     _ => Error
   }
 }
@@ -9078,11 +9124,11 @@ fn yy_state_371(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_372(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_variant_pattern_arguments_after_newline, yy_action_163)
+  ReduceNoLookahead(3, NT_variant_pattern_arguments_after_newline, yy_action_165)
 }
 
 fn yy_state_373(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_variant_pattern_arguments, yy_action_162)
+  ReduceNoLookahead(2, NT_variant_pattern_arguments, yy_action_164)
 }
 
 fn yy_state_374(_lookahead : YYSymbol) -> YYDecision {
@@ -9136,7 +9182,7 @@ fn yy_state_378(_lookahead : YYSymbol) -> YYDecision {
     NT_pattern => Shift(yy_state_361)
     NT_non_empty_pattern_list => Shift(yy_state_362)
     NT_pattern_list => Shift(yy_state_379)
-    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_170)
+    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_172)
     _ => Error
   }
 }
@@ -9149,7 +9195,7 @@ fn yy_state_379(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_380(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(7, NT_variant_pattern_arguments, yy_action_161)
+  ReduceNoLookahead(7, NT_variant_pattern_arguments, yy_action_163)
 }
 
 fn yy_state_381(_lookahead : YYSymbol) -> YYDecision {
@@ -9171,7 +9217,7 @@ fn yy_state_381(_lookahead : YYSymbol) -> YYDecision {
     NT_pattern => Shift(yy_state_361)
     NT_non_empty_pattern_list => Shift(yy_state_362)
     NT_pattern_list => Shift(yy_state_382)
-    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_170)
+    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_172)
     _ => Error
   }
 }
@@ -9184,7 +9230,7 @@ fn yy_state_382(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_383(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_variant_pattern_arguments, yy_action_160)
+  ReduceNoLookahead(6, NT_variant_pattern_arguments, yy_action_162)
 }
 
 fn yy_state_384(_lookahead : YYSymbol) -> YYDecision {
@@ -9206,7 +9252,7 @@ fn yy_state_384(_lookahead : YYSymbol) -> YYDecision {
     NT_pattern => Shift(yy_state_361)
     NT_non_empty_pattern_list => Shift(yy_state_362)
     NT_pattern_list => Shift(yy_state_385)
-    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_170)
+    T_RPAREN => Reduce(0, NT_pattern_list, yy_action_172)
     _ => Error
   }
 }
@@ -9219,19 +9265,19 @@ fn yy_state_385(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_386(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_variant_pattern_arguments, yy_action_159)
+  ReduceNoLookahead(3, NT_variant_pattern_arguments, yy_action_161)
 }
 
 fn yy_state_387(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_pattern, yy_action_158)
+  ReduceNoLookahead(2, NT_pattern, yy_action_160)
 }
 
 fn yy_state_388(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_pattern, yy_action_157)
+  ReduceNoLookahead(5, NT_pattern, yy_action_159)
 }
 
 fn yy_state_389(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_struct_pattern_fields, yy_action_156)
+  ReduceNoLookahead(1, NT_non_empty_struct_pattern_fields, yy_action_158)
 }
 
 fn yy_state_390(_lookahead : YYSymbol) -> YYDecision {
@@ -9239,7 +9285,7 @@ fn yy_state_390(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_81)
     T_COMMA => Shift(yy_state_82)
     NT_layout_list_separator => Shift(yy_state_391)
-    T_RBRACE => Reduce(1, NT_struct_pattern_fields, yy_action_155)
+    T_RBRACE => Reduce(1, NT_struct_pattern_fields, yy_action_157)
     _ => Error
   }
 }
@@ -9249,13 +9295,13 @@ fn yy_state_391(_lookahead : YYSymbol) -> YYDecision {
     T_UNDERSCORE => Shift(yy_state_326)
     T_IDENT => Shift(yy_state_327)
     NT_struct_pattern_field => Shift(yy_state_392)
-    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_struct_pattern_fields, yy_action_154)
+    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_struct_pattern_fields, yy_action_156)
     _ => Error
   }
 }
 
 fn yy_state_392(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_struct_pattern_fields, yy_action_153)
+  ReduceNoLookahead(3, NT_non_empty_struct_pattern_fields, yy_action_155)
 }
 
 fn yy_state_393(_lookahead : YYSymbol) -> YYDecision {
@@ -9266,7 +9312,7 @@ fn yy_state_393(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_394(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_struct_pattern, yy_action_152)
+  ReduceNoLookahead(5, NT_struct_pattern, yy_action_154)
 }
 
 fn yy_state_395(_lookahead : YYSymbol) -> YYDecision {
@@ -9280,7 +9326,7 @@ fn yy_state_395(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_396(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_pattern, yy_action_151)
+  ReduceNoLookahead(4, NT_pattern, yy_action_153)
 }
 
 fn yy_state_397(_lookahead : YYSymbol) -> YYDecision {
@@ -9350,13 +9396,13 @@ fn yy_state_399(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_match_arm, yy_action_150)
+    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(3, NT_match_arm, yy_action_152)
     _ => Error
   }
 }
 
 fn yy_state_400(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_match_arms, yy_action_149)
+  ReduceNoLookahead(1, NT_non_empty_match_arms, yy_action_151)
 }
 
 fn yy_state_401(_lookahead : YYSymbol) -> YYDecision {
@@ -9364,7 +9410,7 @@ fn yy_state_401(_lookahead : YYSymbol) -> YYDecision {
     NT_item_semicolon => Shift(yy_state_402)
     T_LAYOUT_NEWLINE => Shift(yy_state_404)
     T_SEMICOLON => Shift(yy_state_405)
-    T_RBRACE => Reduce(1, NT_match_arms, yy_action_148)
+    T_RBRACE => Reduce(1, NT_match_arms, yy_action_150)
     _ => Error
   }
 }
@@ -9387,21 +9433,21 @@ fn yy_state_402(_lookahead : YYSymbol) -> YYDecision {
     T_IDENT => Shift(yy_state_351)
     NT_pattern => Shift(yy_state_397)
     NT_match_arm => Shift(yy_state_403)
-    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_match_arms, yy_action_147)
+    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_match_arms, yy_action_149)
     _ => Error
   }
 }
 
 fn yy_state_403(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_match_arms, yy_action_146)
+  ReduceNoLookahead(3, NT_non_empty_match_arms, yy_action_148)
 }
 
 fn yy_state_404(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_item_semicolon, yy_action_145)
+  ReduceNoLookahead(1, NT_item_semicolon, yy_action_147)
 }
 
 fn yy_state_405(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_item_semicolon, yy_action_144)
+  ReduceNoLookahead(1, NT_item_semicolon, yy_action_146)
 }
 
 fn yy_state_406(_lookahead : YYSymbol) -> YYDecision {
@@ -9412,11 +9458,11 @@ fn yy_state_406(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_407(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(7, NT_match_expression, yy_action_143)
+  ReduceNoLookahead(7, NT_match_expression, yy_action_145)
 }
 
 fn yy_state_408(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_layout_semicolons, yy_action_142)
+  ReduceNoLookahead(2, NT_layout_semicolons, yy_action_144)
 }
 
 fn yy_state_409(_lookahead : YYSymbol) -> YYDecision {
@@ -9452,7 +9498,7 @@ fn yy_state_410(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_411(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_layout_semicolons => Shift(yy_state_412)
-    T_IDENT | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_IDENT | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
@@ -9500,7 +9546,7 @@ fn yy_state_415(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_416(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_ident_bracket_list, yy_action_141)
+  ReduceNoLookahead(3, NT_ident_bracket_list, yy_action_143)
 }
 
 fn yy_state_417(_lookahead : YYSymbol) -> YYDecision {
@@ -9512,7 +9558,7 @@ fn yy_state_417(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_418(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_ident_bracket_list, yy_action_140)
+  ReduceNoLookahead(3, NT_ident_bracket_list, yy_action_142)
 }
 
 fn yy_state_419(_lookahead : YYSymbol) -> YYDecision {
@@ -9541,19 +9587,19 @@ fn yy_state_421(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_422(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_handler_operation_signature_after_newline, yy_action_139)
+  ReduceNoLookahead(3, NT_handler_operation_signature_after_newline, yy_action_141)
 }
 
 fn yy_state_423(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_handler_operation_signature_after_newline, yy_action_138)
+  ReduceNoLookahead(2, NT_handler_operation_signature_after_newline, yy_action_140)
 }
 
 fn yy_state_424(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_handler_operation_signature_after_newline, yy_action_137)
+  ReduceNoLookahead(1, NT_handler_operation_signature_after_newline, yy_action_139)
 }
 
 fn yy_state_425(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_handler_operation_signature_open, yy_action_136)
+  ReduceNoLookahead(3, NT_handler_operation_signature_open, yy_action_138)
 }
 
 fn yy_state_426(_lookahead : YYSymbol) -> YYDecision {
@@ -9572,15 +9618,15 @@ fn yy_state_427(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_428(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_handler_operation_signature_open, yy_action_135)
+  ReduceNoLookahead(4, NT_handler_operation_signature_open, yy_action_137)
 }
 
 fn yy_state_429(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_handler_operation_signature_open, yy_action_134)
+  ReduceNoLookahead(3, NT_handler_operation_signature_open, yy_action_136)
 }
 
 fn yy_state_430(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_handler_operation_signature_open, yy_action_133)
+  ReduceNoLookahead(2, NT_handler_operation_signature_open, yy_action_135)
 }
 
 fn yy_state_431(_lookahead : YYSymbol) -> YYDecision {
@@ -9588,7 +9634,7 @@ fn yy_state_431(_lookahead : YYSymbol) -> YYDecision {
     T_OWNER_LBRACKET => Shift(yy_state_432)
     NT_handler_operation_generic_arguments => Shift(yy_state_435)
     T_TIGHT_COLONCOLON => Shift(yy_state_438)
-    T_LPAREN | T_LBRACKET | T_LAYOUT_NEWLINE => Reduce(1, NT_handler_operation_name, yy_action_132)
+    T_LPAREN | T_LBRACKET | T_LAYOUT_NEWLINE => Reduce(1, NT_handler_operation_name, yy_action_134)
     _ => Error
   }
 }
@@ -9625,7 +9671,7 @@ fn yy_state_433(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_434(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_handler_operation_generic_arguments, yy_action_131)
+  ReduceNoLookahead(3, NT_handler_operation_generic_arguments, yy_action_133)
 }
 
 fn yy_state_435(_lookahead : YYSymbol) -> YYDecision {
@@ -9644,7 +9690,7 @@ fn yy_state_436(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_437(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_handler_operation_name, yy_action_130)
+  ReduceNoLookahead(4, NT_handler_operation_name, yy_action_132)
 }
 
 fn yy_state_438(_lookahead : YYSymbol) -> YYDecision {
@@ -9656,7 +9702,7 @@ fn yy_state_438(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_439(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_handler_operation_name, yy_action_129)
+  ReduceNoLookahead(3, NT_handler_operation_name, yy_action_131)
 }
 
 fn yy_state_440(_lookahead : YYSymbol) -> YYDecision {
@@ -9684,7 +9730,7 @@ fn yy_state_440(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_441(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_handler_payload_patterns, yy_action_128)
+  ReduceNoLookahead(1, NT_handler_payload_patterns, yy_action_130)
 }
 
 fn yy_state_442(_lookahead : YYSymbol) -> YYDecision {
@@ -9717,11 +9763,11 @@ fn yy_state_443(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_444(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_handler_payload_patterns, yy_action_127)
+  ReduceNoLookahead(3, NT_handler_payload_patterns, yy_action_129)
 }
 
 fn yy_state_445(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_handler_operation_arm_parameters, yy_action_126)
+  ReduceNoLookahead(3, NT_handler_operation_arm_parameters, yy_action_128)
 }
 
 fn yy_state_446(_lookahead : YYSymbol) -> YYDecision {
@@ -9731,15 +9777,15 @@ fn yy_state_446(_lookahead : YYSymbol) -> YYDecision {
     T_LBRACKET => Shift(yy_state_374)
     T_LPAREN => Shift(yy_state_384)
     NT_variant_pattern_arguments => Shift(yy_state_387)
-    T_RPAREN => Reduce(1, NT_identifier, yy_action_332)
-    T_TIGHT_COLONCOLON => Reduce(1, NT_nominal_type_name, yy_action_174)
-    T_COMMA => Reduce(1, NT_pattern, yy_action_175)
+    T_RPAREN => Reduce(1, NT_identifier, yy_action_334)
+    T_TIGHT_COLONCOLON => Reduce(1, NT_nominal_type_name, yy_action_176)
+    T_COMMA => Reduce(1, NT_pattern, yy_action_177)
     _ => Error
   }
 }
 
 fn yy_state_447(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_handler_operation_arm_parameters, yy_action_125)
+  ReduceNoLookahead(1, NT_handler_operation_arm_parameters, yy_action_127)
 }
 
 fn yy_state_448(_lookahead : YYSymbol) -> YYDecision {
@@ -9816,13 +9862,13 @@ fn yy_state_451(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(5, NT_handler_operation_arm, yy_action_124)
+    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(5, NT_handler_operation_arm, yy_action_126)
     _ => Error
   }
 }
 
 fn yy_state_452(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_handler_operation_arms, yy_action_123)
+  ReduceNoLookahead(1, NT_non_empty_handler_operation_arms, yy_action_125)
 }
 
 fn yy_state_453(_lookahead : YYSymbol) -> YYDecision {
@@ -9830,7 +9876,7 @@ fn yy_state_453(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_404)
     T_SEMICOLON => Shift(yy_state_405)
     NT_item_semicolon => Shift(yy_state_454)
-    T_RBRACE => Reduce(1, NT_handler_operation_arms, yy_action_122)
+    T_RBRACE => Reduce(1, NT_handler_operation_arms, yy_action_124)
     _ => Error
   }
 }
@@ -9843,13 +9889,13 @@ fn yy_state_454(_lookahead : YYSymbol) -> YYDecision {
     NT_handler_operation_arm => Shift(yy_state_455)
     NT_qualified_type_name => Shift(yy_state_456)
     T_IDENT => Shift(yy_state_461)
-    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_handler_operation_arms, yy_action_121)
+    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_handler_operation_arms, yy_action_123)
     _ => Error
   }
 }
 
 fn yy_state_455(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_handler_operation_arms, yy_action_120)
+  ReduceNoLookahead(3, NT_non_empty_handler_operation_arms, yy_action_122)
 }
 
 fn yy_state_456(_lookahead : YYSymbol) -> YYDecision {
@@ -9858,13 +9904,13 @@ fn yy_state_456(_lookahead : YYSymbol) -> YYDecision {
     T_OWNER_LBRACKET => Shift(yy_state_432)
     NT_handler_operation_generic_arguments => Shift(yy_state_457)
     NT_handler_operation_owner_arguments => Shift(yy_state_458)
-    T_TIGHT_COLONCOLON => Reduce(0, NT_handler_operation_owner_arguments, yy_action_119)
+    T_TIGHT_COLONCOLON => Reduce(0, NT_handler_operation_owner_arguments, yy_action_121)
     _ => Error
   }
 }
 
 fn yy_state_457(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_handler_operation_owner_arguments, yy_action_118)
+  ReduceNoLookahead(1, NT_handler_operation_owner_arguments, yy_action_120)
 }
 
 fn yy_state_458(_lookahead : YYSymbol) -> YYDecision {
@@ -9883,13 +9929,13 @@ fn yy_state_459(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_460(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_handler_operation_name, yy_action_117)
+  ReduceNoLookahead(4, NT_handler_operation_name, yy_action_119)
 }
 
 fn yy_state_461(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_DOT => Shift(yy_state_29)
-    T_LPAREN | T_LBRACKET | T_OWNER_LBRACKET | T_LAYOUT_NEWLINE | T_TIGHT_COLONCOLON => Reduce(1, NT_identifier, yy_action_332)
+    T_LPAREN | T_LBRACKET | T_OWNER_LBRACKET | T_LAYOUT_NEWLINE | T_TIGHT_COLONCOLON => Reduce(1, NT_identifier, yy_action_334)
     _ => Error
   }
 }
@@ -9902,11 +9948,11 @@ fn yy_state_462(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_463(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_handler_with_block, yy_action_116)
+  ReduceNoLookahead(5, NT_handler_with_block, yy_action_118)
 }
 
 fn yy_state_464(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_handler_with_blocks, yy_action_115)
+  ReduceNoLookahead(1, NT_handler_with_blocks, yy_action_117)
 }
 
 fn yy_state_465(_lookahead : YYSymbol) -> YYDecision {
@@ -9931,7 +9977,7 @@ fn yy_state_467(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_468)
-    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -9945,27 +9991,27 @@ fn yy_state_468(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_469(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_handler_final_branch, yy_action_114)
+  ReduceNoLookahead(4, NT_handler_final_branch, yy_action_116)
 }
 
 fn yy_state_470(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_handler_with_blocks, yy_action_113)
+  ReduceNoLookahead(2, NT_handler_with_blocks, yy_action_115)
 }
 
 fn yy_state_471(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_handler_expression, yy_action_112)
+  ReduceNoLookahead(4, NT_handler_expression, yy_action_114)
 }
 
 fn yy_state_472(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_local_item, yy_action_111)
+  ReduceNoLookahead(1, NT_local_item, yy_action_113)
 }
 
 fn yy_state_473(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_local_item, yy_action_110)
+  ReduceNoLookahead(1, NT_local_item, yy_action_112)
 }
 
 fn yy_state_474(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_local_item, yy_action_109)
+  ReduceNoLookahead(1, NT_local_item, yy_action_111)
 }
 
 fn yy_state_475(_lookahead : YYSymbol) -> YYDecision {
@@ -9978,7 +10024,7 @@ fn yy_state_475(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_476(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_local_items, yy_action_108)
+  ReduceNoLookahead(3, NT_local_items, yy_action_110)
 }
 
 fn yy_state_477(_lookahead : YYSymbol) -> YYDecision {
@@ -9998,13 +10044,13 @@ fn yy_state_477(_lookahead : YYSymbol) -> YYDecision {
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
     T_RBRACE => Shift(yy_state_478)
-    T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(1, NT_local_item, yy_action_107)
+    T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(1, NT_local_item, yy_action_109)
     _ => Error
   }
 }
 
 fn yy_state_478(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_block_expression, yy_action_106)
+  ReduceNoLookahead(5, NT_block_expression, yy_action_108)
 }
 
 fn yy_state_479(_lookahead : YYSymbol) -> YYDecision {
@@ -10032,7 +10078,7 @@ fn yy_state_480(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COLON => Shift(yy_state_138)
     NT_local_type_annotation => Shift(yy_state_481)
-    T_EQUAL => Reduce(0, NT_local_type_annotation, yy_action_301)
+    T_EQUAL => Reduce(0, NT_local_type_annotation, yy_action_303)
     _ => Error
   }
 }
@@ -10104,7 +10150,7 @@ fn yy_state_483(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(5, NT_local_let_item, yy_action_105)
+    T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(5, NT_local_let_item, yy_action_107)
     _ => Error
   }
 }
@@ -10210,7 +10256,7 @@ fn yy_state_489(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(6, NT_offer_value_declaration, yy_action_104)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(6, NT_offer_value_declaration, yy_action_106)
     _ => Error
   }
 }
@@ -10221,7 +10267,7 @@ fn yy_state_490(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_491)
     NT_type_parameter_bracket_list => Shift(yy_state_493)
     NT_type_parameters => Shift(yy_state_494)
-    T_IDENT => Reduce(0, NT_type_parameters, yy_action_103)
+    T_IDENT => Reduce(0, NT_type_parameters, yy_action_105)
     _ => Error
   }
 }
@@ -10235,11 +10281,11 @@ fn yy_state_491(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_492(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_type_parameters, yy_action_102)
+  ReduceNoLookahead(2, NT_type_parameters, yy_action_104)
 }
 
 fn yy_state_493(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_type_parameters, yy_action_101)
+  ReduceNoLookahead(1, NT_type_parameters, yy_action_103)
 }
 
 fn yy_state_494(_lookahead : YYSymbol) -> YYDecision {
@@ -10255,7 +10301,7 @@ fn yy_state_495(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_496)
     NT_parameters => Shift(yy_state_512)
-    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -10275,7 +10321,7 @@ fn yy_state_497(_lookahead : YYSymbol) -> YYDecision {
     NT_parameter => Shift(yy_state_506)
     NT_non_empty_parameter_list => Shift(yy_state_507)
     T_RPAREN => Shift(yy_state_511)
-    T_IDENT => Reduce(0, NT_parameter_modifiers, yy_action_100)
+    T_IDENT => Reduce(0, NT_parameter_modifiers, yy_action_102)
     _ => Error
   }
 }
@@ -10283,25 +10329,25 @@ fn yy_state_497(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_498(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_AUTO => Shift(yy_state_499)
-    T_IDENT => Reduce(1, NT_parameter_modifiers, yy_action_99)
+    T_IDENT => Reduce(1, NT_parameter_modifiers, yy_action_101)
     _ => Error
   }
 }
 
 fn yy_state_499(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_parameter_modifiers, yy_action_98)
+  ReduceNoLookahead(2, NT_parameter_modifiers, yy_action_100)
 }
 
 fn yy_state_500(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_OFFER => Shift(yy_state_501)
-    T_IDENT => Reduce(1, NT_parameter_modifiers, yy_action_97)
+    T_IDENT => Reduce(1, NT_parameter_modifiers, yy_action_99)
     _ => Error
   }
 }
 
 fn yy_state_501(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_parameter_modifiers, yy_action_96)
+  ReduceNoLookahead(2, NT_parameter_modifiers, yy_action_98)
 }
 
 fn yy_state_502(_lookahead : YYSymbol) -> YYDecision {
@@ -10338,11 +10384,11 @@ fn yy_state_504(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_505(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_parameter, yy_action_95)
+  ReduceNoLookahead(4, NT_parameter, yy_action_97)
 }
 
 fn yy_state_506(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_parameter_list, yy_action_94)
+  ReduceNoLookahead(1, NT_non_empty_parameter_list, yy_action_96)
 }
 
 fn yy_state_507(_lookahead : YYSymbol) -> YYDecision {
@@ -10359,21 +10405,21 @@ fn yy_state_508(_lookahead : YYSymbol) -> YYDecision {
     T_AUTO => Shift(yy_state_500)
     NT_parameter_modifiers => Shift(yy_state_502)
     NT_parameter => Shift(yy_state_509)
-    T_IDENT => Reduce(0, NT_parameter_modifiers, yy_action_100)
+    T_IDENT => Reduce(0, NT_parameter_modifiers, yy_action_102)
     _ => Error
   }
 }
 
 fn yy_state_509(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_parameter_list, yy_action_93)
+  ReduceNoLookahead(3, NT_non_empty_parameter_list, yy_action_95)
 }
 
 fn yy_state_510(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_parameters, yy_action_92)
+  ReduceNoLookahead(4, NT_parameters, yy_action_94)
 }
 
 fn yy_state_511(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_parameters, yy_action_91)
+  ReduceNoLookahead(3, NT_parameters, yy_action_93)
 }
 
 fn yy_state_512(_lookahead : YYSymbol) -> YYDecision {
@@ -10406,7 +10452,7 @@ fn yy_state_514(_lookahead : YYSymbol) -> YYDecision {
     T_BANG => Shift(yy_state_24)
     NT_effect_annotation => Shift(yy_state_96)
     NT_effect_annotation_opt => Shift(yy_state_515)
-    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_361)
+    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_363)
     _ => Error
   }
 }
@@ -10415,7 +10461,7 @@ fn yy_state_515(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_516)
-    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -10429,7 +10475,7 @@ fn yy_state_516(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_517(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(10, NT_function_declaration, yy_action_90)
+  ReduceNoLookahead(10, NT_function_declaration, yy_action_92)
 }
 
 fn yy_state_518(_lookahead : YYSymbol) -> YYDecision {
@@ -10439,7 +10485,7 @@ fn yy_state_518(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_491)
     NT_type_parameter_bracket_list => Shift(yy_state_519)
     NT_type_parameters => Shift(yy_state_520)
-    T_IDENT => Reduce(0, NT_type_parameters, yy_action_103)
+    T_IDENT => Reduce(0, NT_type_parameters, yy_action_105)
     _ => Error
   }
 }
@@ -10448,7 +10494,7 @@ fn yy_state_519(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_129)
     T_LPAREN => Shift(yy_state_131)
-    T_IDENT => Reduce(1, NT_type_parameters, yy_action_101)
+    T_IDENT => Reduce(1, NT_type_parameters, yy_action_103)
     _ => Error
   }
 }
@@ -10466,7 +10512,7 @@ fn yy_state_521(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_496)
     NT_parameters => Shift(yy_state_522)
-    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -10501,7 +10547,7 @@ fn yy_state_524(_lookahead : YYSymbol) -> YYDecision {
     T_BANG => Shift(yy_state_24)
     NT_effect_annotation => Shift(yy_state_96)
     NT_effect_annotation_opt => Shift(yy_state_525)
-    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_361)
+    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_363)
     _ => Error
   }
 }
@@ -10510,7 +10556,7 @@ fn yy_state_525(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_526)
-    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -10524,7 +10570,7 @@ fn yy_state_526(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_527(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(9, NT_function_declaration, yy_action_89)
+  ReduceNoLookahead(9, NT_function_declaration, yy_action_91)
 }
 
 fn yy_state_528(_lookahead : YYSymbol) -> YYDecision {
@@ -10543,7 +10589,7 @@ fn yy_state_528(_lookahead : YYSymbol) -> YYDecision {
     T_AMPAMP => Shift(yy_state_259)
     T_BARBAR => Shift(yy_state_261)
     T_PIPE => Shift(yy_state_263)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_LAYOUT_NEWLINE => Reduce(6, NT_top_level_let_declaration, yy_action_88)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_LAYOUT_NEWLINE => Reduce(6, NT_top_level_let_declaration, yy_action_90)
     _ => Error
   }
 }
@@ -10554,7 +10600,7 @@ fn yy_state_529(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_491)
     NT_type_parameter_bracket_list => Shift(yy_state_493)
     NT_type_parameters => Shift(yy_state_520)
-    T_IDENT => Reduce(0, NT_type_parameters, yy_action_103)
+    T_IDENT => Reduce(0, NT_type_parameters, yy_action_105)
     _ => Error
   }
 }
@@ -10594,11 +10640,11 @@ fn yy_state_533(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_534(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_nominal_body_open, yy_action_87)
+  ReduceNoLookahead(3, NT_nominal_body_open, yy_action_89)
 }
 
 fn yy_state_535(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_nominal_body_open, yy_action_86)
+  ReduceNoLookahead(2, NT_nominal_body_open, yy_action_88)
 }
 
 fn yy_state_536(_lookahead : YYSymbol) -> YYDecision {
@@ -10626,25 +10672,25 @@ fn yy_state_538(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_539(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_nominal_body_open, yy_action_85)
+  ReduceNoLookahead(4, NT_nominal_body_open, yy_action_87)
 }
 
 fn yy_state_540(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_nominal_body_open, yy_action_84)
+  ReduceNoLookahead(3, NT_nominal_body_open, yy_action_86)
 }
 
 fn yy_state_541(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_nominal_body_open, yy_action_83)
+  ReduceNoLookahead(2, NT_nominal_body_open, yy_action_85)
 }
 
 fn yy_state_542(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_nominal_body_open, yy_action_82)
+  ReduceNoLookahead(1, NT_nominal_body_open, yy_action_84)
 }
 
 fn yy_state_543(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_layout_semicolons => Shift(yy_state_544)
-    T_IDENT | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_IDENT | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
@@ -10657,7 +10703,7 @@ fn yy_state_544(_lookahead : YYSymbol) -> YYDecision {
     NT_effect_operation => Shift(yy_state_559)
     NT_non_empty_effect_operations => Shift(yy_state_560)
     NT_effect_operations => Shift(yy_state_563)
-    T_RBRACE => Reduce(0, NT_effect_operations, yy_action_81)
+    T_RBRACE => Reduce(0, NT_effect_operations, yy_action_83)
     _ => Error
   }
 }
@@ -10666,7 +10712,7 @@ fn yy_state_545(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_546)
-    T_LPAREN | T_LBRACKET => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LPAREN | T_LBRACKET => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -10684,7 +10730,7 @@ fn yy_state_547(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_548)
-    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -10712,7 +10758,7 @@ fn yy_state_549(_lookahead : YYSymbol) -> YYDecision {
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
     NT_type_list => Shift(yy_state_550)
-    T_RPAREN => Reduce(0, NT_type_list, yy_action_366)
+    T_RPAREN => Reduce(0, NT_type_list, yy_action_368)
     _ => Error
   }
 }
@@ -10750,7 +10796,7 @@ fn yy_state_552(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_553(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(9, NT_effect_operation, yy_action_80)
+  ReduceNoLookahead(9, NT_effect_operation, yy_action_82)
 }
 
 fn yy_state_554(_lookahead : YYSymbol) -> YYDecision {
@@ -10769,7 +10815,7 @@ fn yy_state_554(_lookahead : YYSymbol) -> YYDecision {
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
     NT_type_list => Shift(yy_state_555)
-    T_RPAREN => Reduce(0, NT_type_list, yy_action_366)
+    T_RPAREN => Reduce(0, NT_type_list, yy_action_368)
     _ => Error
   }
 }
@@ -10807,11 +10853,11 @@ fn yy_state_557(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_558(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(7, NT_effect_operation, yy_action_79)
+  ReduceNoLookahead(7, NT_effect_operation, yy_action_81)
 }
 
 fn yy_state_559(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_effect_operations, yy_action_78)
+  ReduceNoLookahead(1, NT_non_empty_effect_operations, yy_action_80)
 }
 
 fn yy_state_560(_lookahead : YYSymbol) -> YYDecision {
@@ -10819,7 +10865,7 @@ fn yy_state_560(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_404)
     T_SEMICOLON => Shift(yy_state_405)
     NT_item_semicolon => Shift(yy_state_561)
-    T_RBRACE => Reduce(1, NT_effect_operations, yy_action_77)
+    T_RBRACE => Reduce(1, NT_effect_operations, yy_action_79)
     _ => Error
   }
 }
@@ -10829,13 +10875,13 @@ fn yy_state_561(_lookahead : YYSymbol) -> YYDecision {
     T_IDENT => Shift(yy_state_72)
     NT_identifier => Shift(yy_state_545)
     NT_effect_operation => Shift(yy_state_562)
-    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_effect_operations, yy_action_76)
+    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_effect_operations, yy_action_78)
     _ => Error
   }
 }
 
 fn yy_state_562(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_effect_operations, yy_action_75)
+  ReduceNoLookahead(3, NT_non_empty_effect_operations, yy_action_77)
 }
 
 fn yy_state_563(_lookahead : YYSymbol) -> YYDecision {
@@ -10846,7 +10892,7 @@ fn yy_state_563(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_564(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_effect_declaration, yy_action_74)
+  ReduceNoLookahead(6, NT_effect_declaration, yy_action_76)
 }
 
 fn yy_state_565(_lookahead : YYSymbol) -> YYDecision {
@@ -10871,7 +10917,7 @@ fn yy_state_566(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_567(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_layout_semicolons => Shift(yy_state_568)
-    T_IDENT | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_IDENT | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
@@ -10884,7 +10930,7 @@ fn yy_state_568(_lookahead : YYSymbol) -> YYDecision {
     NT_enum_variant => Shift(yy_state_579)
     NT_non_empty_enum_variants => Shift(yy_state_580)
     NT_enum_variants => Shift(yy_state_583)
-    T_RBRACE => Reduce(0, NT_enum_variants, yy_action_73)
+    T_RBRACE => Reduce(0, NT_enum_variants, yy_action_75)
     _ => Error
   }
 }
@@ -10893,7 +10939,7 @@ fn yy_state_569(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_570)
-    T_LPAREN | T_LBRACKET => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LPAREN | T_LBRACKET => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -10911,7 +10957,7 @@ fn yy_state_571(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_114)
     NT_layout_continuation_opt => Shift(yy_state_572)
-    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
@@ -10939,7 +10985,7 @@ fn yy_state_573(_lookahead : YYSymbol) -> YYDecision {
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
     NT_type_list => Shift(yy_state_574)
-    T_RPAREN => Reduce(0, NT_type_list, yy_action_366)
+    T_RPAREN => Reduce(0, NT_type_list, yy_action_368)
     _ => Error
   }
 }
@@ -10952,7 +10998,7 @@ fn yy_state_574(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_575(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(7, NT_enum_variant, yy_action_72)
+  ReduceNoLookahead(7, NT_enum_variant, yy_action_74)
 }
 
 fn yy_state_576(_lookahead : YYSymbol) -> YYDecision {
@@ -10971,7 +11017,7 @@ fn yy_state_576(_lookahead : YYSymbol) -> YYDecision {
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
     NT_type_list => Shift(yy_state_577)
-    T_RPAREN => Reduce(0, NT_type_list, yy_action_366)
+    T_RPAREN => Reduce(0, NT_type_list, yy_action_368)
     _ => Error
   }
 }
@@ -10984,11 +11030,11 @@ fn yy_state_577(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_578(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_enum_variant, yy_action_71)
+  ReduceNoLookahead(5, NT_enum_variant, yy_action_73)
 }
 
 fn yy_state_579(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_enum_variants, yy_action_70)
+  ReduceNoLookahead(1, NT_non_empty_enum_variants, yy_action_72)
 }
 
 fn yy_state_580(_lookahead : YYSymbol) -> YYDecision {
@@ -10996,7 +11042,7 @@ fn yy_state_580(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_404)
     T_SEMICOLON => Shift(yy_state_405)
     NT_item_semicolon => Shift(yy_state_581)
-    T_RBRACE => Reduce(1, NT_enum_variants, yy_action_69)
+    T_RBRACE => Reduce(1, NT_enum_variants, yy_action_71)
     _ => Error
   }
 }
@@ -11006,13 +11052,13 @@ fn yy_state_581(_lookahead : YYSymbol) -> YYDecision {
     T_IDENT => Shift(yy_state_72)
     NT_identifier => Shift(yy_state_569)
     NT_enum_variant => Shift(yy_state_582)
-    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_enum_variants, yy_action_68)
+    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_enum_variants, yy_action_70)
     _ => Error
   }
 }
 
 fn yy_state_582(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_enum_variants, yy_action_67)
+  ReduceNoLookahead(3, NT_non_empty_enum_variants, yy_action_69)
 }
 
 fn yy_state_583(_lookahead : YYSymbol) -> YYDecision {
@@ -11023,7 +11069,7 @@ fn yy_state_583(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_584(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_enum_declaration, yy_action_66)
+  ReduceNoLookahead(6, NT_enum_declaration, yy_action_68)
 }
 
 fn yy_state_585(_lookahead : YYSymbol) -> YYDecision {
@@ -11048,7 +11094,7 @@ fn yy_state_586(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_587(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_layout_semicolons => Shift(yy_state_588)
-    T_IDENT | T_TYPE | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_IDENT | T_TYPE | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
@@ -11064,7 +11110,7 @@ fn yy_state_588(_lookahead : YYSymbol) -> YYDecision {
     NT_struct_member => Shift(yy_state_598)
     NT_non_empty_struct_members => Shift(yy_state_599)
     NT_struct_members => Shift(yy_state_602)
-    T_RBRACE => Reduce(0, NT_struct_members, yy_action_65)
+    T_RBRACE => Reduce(0, NT_struct_members, yy_action_67)
     _ => Error
   }
 }
@@ -11095,7 +11141,7 @@ fn yy_state_590(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_591(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_field_declaration, yy_action_64)
+  ReduceNoLookahead(3, NT_field_declaration, yy_action_66)
 }
 
 fn yy_state_592(_lookahead : YYSymbol) -> YYDecision {
@@ -11109,7 +11155,7 @@ fn yy_state_592(_lookahead : YYSymbol) -> YYDecision {
 fn yy_state_593(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COLON => Shift(yy_state_594)
-    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_type_member_declaration, yy_action_63)
+    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_type_member_declaration, yy_action_65)
     _ => Error
   }
 }
@@ -11126,19 +11172,19 @@ fn yy_state_594(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_595(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(4, NT_type_member_declaration, yy_action_62)
+  ReduceNoLookahead(4, NT_type_member_declaration, yy_action_64)
 }
 
 fn yy_state_596(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_struct_member, yy_action_61)
+  ReduceNoLookahead(1, NT_struct_member, yy_action_63)
 }
 
 fn yy_state_597(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_struct_member, yy_action_60)
+  ReduceNoLookahead(1, NT_struct_member, yy_action_62)
 }
 
 fn yy_state_598(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_struct_members, yy_action_59)
+  ReduceNoLookahead(1, NT_non_empty_struct_members, yy_action_61)
 }
 
 fn yy_state_599(_lookahead : YYSymbol) -> YYDecision {
@@ -11146,7 +11192,7 @@ fn yy_state_599(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_404)
     T_SEMICOLON => Shift(yy_state_405)
     NT_item_semicolon => Shift(yy_state_600)
-    T_RBRACE => Reduce(1, NT_struct_members, yy_action_58)
+    T_RBRACE => Reduce(1, NT_struct_members, yy_action_60)
     _ => Error
   }
 }
@@ -11159,13 +11205,13 @@ fn yy_state_600(_lookahead : YYSymbol) -> YYDecision {
     NT_field_declaration => Shift(yy_state_596)
     NT_type_member_declaration => Shift(yy_state_597)
     NT_struct_member => Shift(yy_state_601)
-    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_struct_members, yy_action_57)
+    T_RBRACE | T_SEMICOLON | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_struct_members, yy_action_59)
     _ => Error
   }
 }
 
 fn yy_state_601(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_non_empty_struct_members, yy_action_56)
+  ReduceNoLookahead(3, NT_non_empty_struct_members, yy_action_58)
 }
 
 fn yy_state_602(_lookahead : YYSymbol) -> YYDecision {
@@ -11176,7 +11222,7 @@ fn yy_state_602(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_603(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_struct_declaration, yy_action_55)
+  ReduceNoLookahead(6, NT_struct_declaration, yy_action_57)
 }
 
 fn yy_state_604(_lookahead : YYSymbol) -> YYDecision {
@@ -11193,7 +11239,7 @@ fn yy_state_605(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_491)
     NT_type_parameter_bracket_list => Shift(yy_state_493)
     NT_type_parameters => Shift(yy_state_606)
-    T_COLON | T_EQUAL => Reduce(0, NT_type_parameters, yy_action_103)
+    T_COLON | T_EQUAL => Reduce(0, NT_type_parameters, yy_action_105)
     _ => Error
   }
 }
@@ -11202,7 +11248,7 @@ fn yy_state_606(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_COLON => Shift(yy_state_607)
     NT_type_alias_result_kind_opt => Shift(yy_state_609)
-    T_EQUAL => Reduce(0, NT_type_alias_result_kind_opt, yy_action_54)
+    T_EQUAL => Reduce(0, NT_type_alias_result_kind_opt, yy_action_56)
     _ => Error
   }
 }
@@ -11219,7 +11265,7 @@ fn yy_state_607(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_608(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_type_alias_result_kind_opt, yy_action_53)
+  ReduceNoLookahead(2, NT_type_alias_result_kind_opt, yy_action_55)
 }
 
 fn yy_state_609(_lookahead : YYSymbol) -> YYDecision {
@@ -11265,7 +11311,7 @@ fn yy_state_611(_lookahead : YYSymbol) -> YYDecision {
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
     NT_type_list => Shift(yy_state_612)
-    T_RBRACE => Reduce(0, NT_type_list, yy_action_366)
+    T_RBRACE => Reduce(0, NT_type_list, yy_action_368)
     _ => Error
   }
 }
@@ -11278,15 +11324,15 @@ fn yy_state_612(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_613(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_type_alias_body, yy_action_52)
+  ReduceNoLookahead(3, NT_type_alias_body, yy_action_54)
 }
 
 fn yy_state_614(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_type_alias_body, yy_action_51)
+  ReduceNoLookahead(1, NT_type_alias_body, yy_action_53)
 }
 
 fn yy_state_615(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_type_alias_declaration, yy_action_50)
+  ReduceNoLookahead(6, NT_type_alias_declaration, yy_action_52)
 }
 
 fn yy_state_616(_lookahead : YYSymbol) -> YYDecision {
@@ -11310,7 +11356,7 @@ fn yy_state_618(_lookahead : YYSymbol) -> YYDecision {
     T_LAYOUT_NEWLINE => Shift(yy_state_491)
     NT_type_parameter_bracket_list => Shift(yy_state_493)
     NT_type_parameters => Shift(yy_state_619)
-    T_COLON => Reduce(0, NT_type_parameters, yy_action_103)
+    T_COLON => Reduce(0, NT_type_parameters, yy_action_105)
     _ => Error
   }
 }
@@ -11332,51 +11378,51 @@ fn yy_state_620(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_621(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_external_type_result_kind, yy_action_49)
+  ReduceNoLookahead(1, NT_external_type_result_kind, yy_action_51)
 }
 
 fn yy_state_622(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_external_type_result_kind, yy_action_48)
+  ReduceNoLookahead(1, NT_external_type_result_kind, yy_action_50)
 }
 
 fn yy_state_623(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_external_type_declaration, yy_action_47)
+  ReduceNoLookahead(6, NT_external_type_declaration, yy_action_49)
 }
 
 fn yy_state_624(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_46)
+  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_48)
 }
 
 fn yy_state_625(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_45)
+  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_47)
 }
 
 fn yy_state_626(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_44)
+  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_46)
 }
 
 fn yy_state_627(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_43)
+  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_45)
 }
 
 fn yy_state_628(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_42)
+  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_44)
 }
 
 fn yy_state_629(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_41)
+  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_43)
 }
 
 fn yy_state_630(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_40)
+  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_42)
 }
 
 fn yy_state_631(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_39)
+  ReduceNoLookahead(1, NT_non_public_top_level_declaration, yy_action_41)
 }
 
 fn yy_state_632(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_top_level_declaration, yy_action_38)
+  ReduceNoLookahead(1, NT_top_level_declaration, yy_action_40)
 }
 
 fn yy_state_633(_lookahead : YYSymbol) -> YYDecision {
@@ -11392,9 +11438,9 @@ fn yy_state_634(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_AS => Shift(yy_state_635)
     T_DOTLBRACE => Shift(yy_state_637)
-    T_DOTSTAR => Shift(yy_state_645)
-    NT_module_alias => Shift(yy_state_646)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_PUB | T_LAYOUT_NEWLINE => Reduce(2, NT_import_declaration, yy_action_37)
+    T_DOTSTAR => Shift(yy_state_648)
+    NT_module_alias => Shift(yy_state_649)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_PUB | T_LAYOUT_NEWLINE => Reduce(2, NT_import_declaration, yy_action_39)
     _ => Error
   }
 }
@@ -11408,110 +11454,133 @@ fn yy_state_635(_lookahead : YYSymbol) -> YYDecision {
 }
 
 fn yy_state_636(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_module_alias, yy_action_36)
+  ReduceNoLookahead(2, NT_module_alias, yy_action_38)
 }
 
 fn yy_state_637(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_IDENT => Shift(yy_state_638)
-    NT_import_item => Shift(yy_state_639)
-    NT_non_empty_import_item_list => Shift(yy_state_640)
-    NT_import_item_list => Shift(yy_state_643)
-    T_RBRACE => Reduce(0, NT_import_item_list, yy_action_35)
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_638)
+    NT_import_item => Shift(yy_state_642)
+    NT_non_empty_import_item_list => Shift(yy_state_643)
+    NT_import_item_list => Shift(yy_state_646)
+    T_RBRACE => Reduce(0, NT_import_item_list, yy_action_37)
     _ => Error
   }
 }
 
 fn yy_state_638(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_import_item, yy_action_34)
+  match _lookahead {
+    T_AS => Shift(yy_state_639)
+    NT_import_alias => Shift(yy_state_641)
+    T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(1, NT_import_item, yy_action_36)
+    _ => Error
+  }
 }
 
 fn yy_state_639(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_non_empty_import_item_list, yy_action_33)
+  match _lookahead {
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_640)
+    _ => Error
+  }
 }
 
 fn yy_state_640(_lookahead : YYSymbol) -> YYDecision {
+  ReduceNoLookahead(2, NT_import_alias, yy_action_35)
+}
+
+fn yy_state_641(_lookahead : YYSymbol) -> YYDecision {
+  ReduceNoLookahead(2, NT_import_item, yy_action_34)
+}
+
+fn yy_state_642(_lookahead : YYSymbol) -> YYDecision {
+  ReduceNoLookahead(1, NT_non_empty_import_item_list, yy_action_33)
+}
+
+fn yy_state_643(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_81)
     T_COMMA => Shift(yy_state_82)
-    NT_layout_list_separator => Shift(yy_state_641)
+    NT_layout_list_separator => Shift(yy_state_644)
     T_RBRACE => Reduce(1, NT_import_item_list, yy_action_32)
     _ => Error
   }
 }
 
-fn yy_state_641(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_644(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_IDENT => Shift(yy_state_638)
-    NT_import_item => Shift(yy_state_642)
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_638)
+    NT_import_item => Shift(yy_state_645)
     T_RBRACE | T_COMMA | T_LAYOUT_NEWLINE => Reduce(2, NT_non_empty_import_item_list, yy_action_31)
     _ => Error
   }
 }
 
-fn yy_state_642(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_645(_lookahead : YYSymbol) -> YYDecision {
   ReduceNoLookahead(3, NT_non_empty_import_item_list, yy_action_30)
 }
 
-fn yy_state_643(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_646(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_RBRACE => Shift(yy_state_644)
+    T_RBRACE => Shift(yy_state_647)
     _ => Error
   }
-}
-
-fn yy_state_644(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(5, NT_import_declaration, yy_action_29)
-}
-
-fn yy_state_645(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_import_declaration, yy_action_28)
-}
-
-fn yy_state_646(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_import_declaration, yy_action_27)
 }
 
 fn yy_state_647(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_LET => Shift(yy_state_648)
-    T_OFFER => Shift(yy_state_654)
-    T_FN => Shift(yy_state_669)
-    T_EFFECT => Shift(yy_state_678)
-    T_ENUM => Shift(yy_state_684)
-    T_STRUCT => Shift(yy_state_690)
-    T_TYPE => Shift(yy_state_696)
-    T_EXTERN => Shift(yy_state_702)
-    NT_public_offer_value_declaration => Shift(yy_state_708)
-    NT_public_top_level_let_declaration => Shift(yy_state_709)
-    NT_public_function_declaration => Shift(yy_state_710)
-    NT_public_type_alias_declaration => Shift(yy_state_711)
-    NT_public_external_type_declaration => Shift(yy_state_712)
-    NT_public_effect_declaration => Shift(yy_state_713)
-    NT_public_enum_declaration => Shift(yy_state_714)
-    NT_public_struct_declaration => Shift(yy_state_715)
-    NT_public_top_level_declaration => Shift(yy_state_716)
-    T_IMPORT => Shift(yy_state_717)
-    _ => Error
-  }
+  ReduceNoLookahead(5, NT_import_declaration, yy_action_29)
 }
 
 fn yy_state_648(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_IDENT => Shift(yy_state_72)
-    NT_identifier => Shift(yy_state_649)
-    _ => Error
-  }
+  ReduceNoLookahead(3, NT_import_declaration, yy_action_28)
 }
 
 fn yy_state_649(_lookahead : YYSymbol) -> YYDecision {
+  ReduceNoLookahead(3, NT_import_declaration, yy_action_27)
+}
+
+fn yy_state_650(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_COLON => Shift(yy_state_650)
+    T_LET => Shift(yy_state_651)
+    T_OFFER => Shift(yy_state_657)
+    T_FN => Shift(yy_state_672)
+    T_EFFECT => Shift(yy_state_681)
+    T_ENUM => Shift(yy_state_687)
+    T_STRUCT => Shift(yy_state_693)
+    T_TYPE => Shift(yy_state_699)
+    T_EXTERN => Shift(yy_state_705)
+    NT_public_offer_value_declaration => Shift(yy_state_711)
+    NT_public_top_level_let_declaration => Shift(yy_state_712)
+    NT_public_function_declaration => Shift(yy_state_713)
+    NT_public_type_alias_declaration => Shift(yy_state_714)
+    NT_public_external_type_declaration => Shift(yy_state_715)
+    NT_public_effect_declaration => Shift(yy_state_716)
+    NT_public_enum_declaration => Shift(yy_state_717)
+    NT_public_struct_declaration => Shift(yy_state_718)
+    NT_public_top_level_declaration => Shift(yy_state_719)
+    T_IMPORT => Shift(yy_state_720)
     _ => Error
   }
 }
 
-fn yy_state_650(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_651(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_652)
+    _ => Error
+  }
+}
+
+fn yy_state_652(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_COLON => Shift(yy_state_653)
+    _ => Error
+  }
+}
+
+fn yy_state_653(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_type_parameter_bracket_list => Shift(yy_state_13)
     T_LPAREN => Shift(yy_state_20)
@@ -11524,19 +11593,19 @@ fn yy_state_650(_lookahead : YYSymbol) -> YYDecision {
     NT_type_lambda => Shift(yy_state_46)
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
-    NT_type => Shift(yy_state_651)
+    NT_type => Shift(yy_state_654)
     _ => Error
   }
 }
 
-fn yy_state_651(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_654(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_EQUAL => Shift(yy_state_652)
+    T_EQUAL => Shift(yy_state_655)
     _ => Error
   }
 }
 
-fn yy_state_652(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_655(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_EXTERN => Shift(yy_state_117)
     T_BUILTIN => Shift(yy_state_123)
@@ -11575,12 +11644,12 @@ fn yy_state_652(_lookahead : YYSymbol) -> YYDecision {
     T_IDENT => Shift(yy_state_234)
     NT_unary_expression => Shift(yy_state_235)
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
-    NT_expression => Shift(yy_state_653)
+    NT_expression => Shift(yy_state_656)
     _ => Error
   }
 }
 
-fn yy_state_653(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_656(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_PERCENT => Shift(yy_state_237)
     T_SLASH => Shift(yy_state_239)
@@ -11601,23 +11670,23 @@ fn yy_state_653(_lookahead : YYSymbol) -> YYDecision {
   }
 }
 
-fn yy_state_654(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_657(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_IDENT => Shift(yy_state_72)
-    NT_identifier => Shift(yy_state_655)
-    T_FN => Shift(yy_state_660)
+    NT_identifier => Shift(yy_state_658)
+    T_FN => Shift(yy_state_663)
     _ => Error
   }
 }
 
-fn yy_state_655(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_658(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_COLON => Shift(yy_state_656)
+    T_COLON => Shift(yy_state_659)
     _ => Error
   }
 }
 
-fn yy_state_656(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_659(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_type_parameter_bracket_list => Shift(yy_state_13)
     T_LPAREN => Shift(yy_state_20)
@@ -11630,19 +11699,19 @@ fn yy_state_656(_lookahead : YYSymbol) -> YYDecision {
     NT_type_lambda => Shift(yy_state_46)
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
-    NT_type => Shift(yy_state_657)
+    NT_type => Shift(yy_state_660)
     _ => Error
   }
 }
 
-fn yy_state_657(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_660(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_EQUAL => Shift(yy_state_658)
+    T_EQUAL => Shift(yy_state_661)
     _ => Error
   }
 }
 
-fn yy_state_658(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_661(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_EXTERN => Shift(yy_state_117)
     T_BUILTIN => Shift(yy_state_123)
@@ -11681,12 +11750,12 @@ fn yy_state_658(_lookahead : YYSymbol) -> YYDecision {
     T_IDENT => Shift(yy_state_234)
     NT_unary_expression => Shift(yy_state_235)
     T_VALUE_IDENTIFIER_SLOT => Shift(yy_state_265)
-    NT_expression => Shift(yy_state_659)
+    NT_expression => Shift(yy_state_662)
     _ => Error
   }
 }
 
-fn yy_state_659(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_662(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_PERCENT => Shift(yy_state_237)
     T_SLASH => Shift(yy_state_239)
@@ -11707,128 +11776,43 @@ fn yy_state_659(_lookahead : YYSymbol) -> YYDecision {
   }
 }
 
-fn yy_state_660(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_663(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LBRACKET => Shift(yy_state_48)
     T_LAYOUT_NEWLINE => Shift(yy_state_491)
     NT_type_parameter_bracket_list => Shift(yy_state_493)
-    NT_type_parameters => Shift(yy_state_661)
-    T_IDENT => Reduce(0, NT_type_parameters, yy_action_103)
-    _ => Error
-  }
-}
-
-fn yy_state_661(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_IDENT => Shift(yy_state_72)
-    NT_identifier => Shift(yy_state_662)
-    _ => Error
-  }
-}
-
-fn yy_state_662(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_LAYOUT_NEWLINE => Shift(yy_state_114)
-    NT_layout_continuation_opt => Shift(yy_state_496)
-    NT_parameters => Shift(yy_state_663)
-    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_367)
-    _ => Error
-  }
-}
-
-fn yy_state_663(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_THIN_ARROW => Shift(yy_state_664)
+    NT_type_parameters => Shift(yy_state_664)
+    T_IDENT => Reduce(0, NT_type_parameters, yy_action_105)
     _ => Error
   }
 }
 
 fn yy_state_664(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    NT_type_parameter_bracket_list => Shift(yy_state_13)
-    T_LPAREN => Shift(yy_state_20)
-    T_IDENT => Shift(yy_state_28)
-    NT_qualified_type_name => Shift(yy_state_31)
-    NT_type_primary => Shift(yy_state_34)
-    T_TYPE => Shift(yy_state_35)
-    NT_type_application => Shift(yy_state_39)
-    NT_function_type => Shift(yy_state_45)
-    NT_type_lambda => Shift(yy_state_46)
-    T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
-    T_LBRACKET => Shift(yy_state_48)
-    NT_type => Shift(yy_state_665)
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_665)
     _ => Error
   }
 }
 
 fn yy_state_665(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_BANG => Shift(yy_state_24)
-    NT_effect_annotation => Shift(yy_state_96)
-    NT_effect_annotation_opt => Shift(yy_state_666)
-    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_361)
+    T_LAYOUT_NEWLINE => Shift(yy_state_114)
+    NT_layout_continuation_opt => Shift(yy_state_496)
+    NT_parameters => Shift(yy_state_666)
+    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
 
 fn yy_state_666(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_LAYOUT_NEWLINE => Shift(yy_state_114)
-    NT_layout_continuation_opt => Shift(yy_state_667)
-    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_THIN_ARROW => Shift(yy_state_667)
     _ => Error
   }
 }
 
 fn yy_state_667(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_LBRACE => Shift(yy_state_152)
-    NT_block_expression => Shift(yy_state_668)
-    _ => Error
-  }
-}
-
-fn yy_state_668(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(10, NT_public_function_declaration, yy_action_23)
-}
-
-fn yy_state_669(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_LBRACKET => Shift(yy_state_48)
-    T_LAYOUT_NEWLINE => Shift(yy_state_491)
-    NT_type_parameter_bracket_list => Shift(yy_state_493)
-    NT_type_parameters => Shift(yy_state_670)
-    T_IDENT => Reduce(0, NT_type_parameters, yy_action_103)
-    _ => Error
-  }
-}
-
-fn yy_state_670(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_IDENT => Shift(yy_state_72)
-    NT_identifier => Shift(yy_state_671)
-    _ => Error
-  }
-}
-
-fn yy_state_671(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_LAYOUT_NEWLINE => Shift(yy_state_114)
-    NT_layout_continuation_opt => Shift(yy_state_496)
-    NT_parameters => Shift(yy_state_672)
-    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_367)
-    _ => Error
-  }
-}
-
-fn yy_state_672(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_THIN_ARROW => Shift(yy_state_673)
-    _ => Error
-  }
-}
-
-fn yy_state_673(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_type_parameter_bracket_list => Shift(yy_state_13)
     T_LPAREN => Shift(yy_state_20)
@@ -11841,172 +11825,257 @@ fn yy_state_673(_lookahead : YYSymbol) -> YYDecision {
     NT_type_lambda => Shift(yy_state_46)
     T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
     T_LBRACKET => Shift(yy_state_48)
-    NT_type => Shift(yy_state_674)
+    NT_type => Shift(yy_state_668)
+    _ => Error
+  }
+}
+
+fn yy_state_668(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_BANG => Shift(yy_state_24)
+    NT_effect_annotation => Shift(yy_state_96)
+    NT_effect_annotation_opt => Shift(yy_state_669)
+    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_363)
+    _ => Error
+  }
+}
+
+fn yy_state_669(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_LAYOUT_NEWLINE => Shift(yy_state_114)
+    NT_layout_continuation_opt => Shift(yy_state_670)
+    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_369)
+    _ => Error
+  }
+}
+
+fn yy_state_670(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_LBRACE => Shift(yy_state_152)
+    NT_block_expression => Shift(yy_state_671)
+    _ => Error
+  }
+}
+
+fn yy_state_671(_lookahead : YYSymbol) -> YYDecision {
+  ReduceNoLookahead(10, NT_public_function_declaration, yy_action_23)
+}
+
+fn yy_state_672(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_LBRACKET => Shift(yy_state_48)
+    T_LAYOUT_NEWLINE => Shift(yy_state_491)
+    NT_type_parameter_bracket_list => Shift(yy_state_493)
+    NT_type_parameters => Shift(yy_state_673)
+    T_IDENT => Reduce(0, NT_type_parameters, yy_action_105)
+    _ => Error
+  }
+}
+
+fn yy_state_673(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_674)
     _ => Error
   }
 }
 
 fn yy_state_674(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_BANG => Shift(yy_state_24)
-    NT_effect_annotation => Shift(yy_state_96)
-    NT_effect_annotation_opt => Shift(yy_state_675)
-    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_361)
+    T_LAYOUT_NEWLINE => Shift(yy_state_114)
+    NT_layout_continuation_opt => Shift(yy_state_496)
+    NT_parameters => Shift(yy_state_675)
+    T_LPAREN => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
 
 fn yy_state_675(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_LAYOUT_NEWLINE => Shift(yy_state_114)
-    NT_layout_continuation_opt => Shift(yy_state_676)
-    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_367)
+    T_THIN_ARROW => Shift(yy_state_676)
     _ => Error
   }
 }
 
 fn yy_state_676(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_LBRACE => Shift(yy_state_152)
-    NT_block_expression => Shift(yy_state_677)
+    NT_type_parameter_bracket_list => Shift(yy_state_13)
+    T_LPAREN => Shift(yy_state_20)
+    T_IDENT => Shift(yy_state_28)
+    NT_qualified_type_name => Shift(yy_state_31)
+    NT_type_primary => Shift(yy_state_34)
+    T_TYPE => Shift(yy_state_35)
+    NT_type_application => Shift(yy_state_39)
+    NT_function_type => Shift(yy_state_45)
+    NT_type_lambda => Shift(yy_state_46)
+    T_TYPE_IDENTIFIER_SLOT => Shift(yy_state_47)
+    T_LBRACKET => Shift(yy_state_48)
+    NT_type => Shift(yy_state_677)
     _ => Error
   }
 }
 
 fn yy_state_677(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(9, NT_public_function_declaration, yy_action_21)
+  match _lookahead {
+    T_BANG => Shift(yy_state_24)
+    NT_effect_annotation => Shift(yy_state_96)
+    NT_effect_annotation_opt => Shift(yy_state_678)
+    T_LBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_effect_annotation_opt, yy_action_363)
+    _ => Error
+  }
 }
 
 fn yy_state_678(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_IDENT => Shift(yy_state_72)
-    NT_identifier => Shift(yy_state_679)
+    T_LAYOUT_NEWLINE => Shift(yy_state_114)
+    NT_layout_continuation_opt => Shift(yy_state_679)
+    T_LBRACE => Reduce(0, NT_layout_continuation_opt, yy_action_369)
     _ => Error
   }
 }
 
 fn yy_state_679(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_LBRACKET => Shift(yy_state_48)
-    NT_type_parameter_bracket_list => Shift(yy_state_532)
-    T_LAYOUT_NEWLINE => Shift(yy_state_536)
-    T_LBRACE => Shift(yy_state_542)
-    NT_nominal_body_open => Shift(yy_state_680)
+    T_LBRACE => Shift(yy_state_152)
+    NT_block_expression => Shift(yy_state_680)
     _ => Error
   }
 }
 
 fn yy_state_680(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    NT_layout_semicolons => Shift(yy_state_681)
-    T_IDENT | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
-    _ => Error
-  }
+  ReduceNoLookahead(9, NT_public_function_declaration, yy_action_21)
 }
 
 fn yy_state_681(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_IDENT => Shift(yy_state_72)
-    T_LAYOUT_NEWLINE => Shift(yy_state_408)
-    NT_identifier => Shift(yy_state_545)
-    NT_effect_operation => Shift(yy_state_559)
-    NT_non_empty_effect_operations => Shift(yy_state_560)
-    NT_effect_operations => Shift(yy_state_682)
-    T_RBRACE => Reduce(0, NT_effect_operations, yy_action_81)
+    NT_identifier => Shift(yy_state_682)
     _ => Error
   }
 }
 
 fn yy_state_682(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_RBRACE => Shift(yy_state_683)
+    T_LBRACKET => Shift(yy_state_48)
+    NT_type_parameter_bracket_list => Shift(yy_state_532)
+    T_LAYOUT_NEWLINE => Shift(yy_state_536)
+    T_LBRACE => Shift(yy_state_542)
+    NT_nominal_body_open => Shift(yy_state_683)
     _ => Error
   }
 }
 
 fn yy_state_683(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_public_effect_declaration, yy_action_20)
+  match _lookahead {
+    NT_layout_semicolons => Shift(yy_state_684)
+    T_IDENT | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
+    _ => Error
+  }
 }
 
 fn yy_state_684(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_IDENT => Shift(yy_state_72)
-    NT_identifier => Shift(yy_state_685)
+    T_LAYOUT_NEWLINE => Shift(yy_state_408)
+    NT_identifier => Shift(yy_state_545)
+    NT_effect_operation => Shift(yy_state_559)
+    NT_non_empty_effect_operations => Shift(yy_state_560)
+    NT_effect_operations => Shift(yy_state_685)
+    T_RBRACE => Reduce(0, NT_effect_operations, yy_action_83)
     _ => Error
   }
 }
 
 fn yy_state_685(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_LBRACKET => Shift(yy_state_48)
-    NT_type_parameter_bracket_list => Shift(yy_state_532)
-    T_LAYOUT_NEWLINE => Shift(yy_state_536)
-    T_LBRACE => Shift(yy_state_542)
-    NT_nominal_body_open => Shift(yy_state_686)
+    T_RBRACE => Shift(yy_state_686)
     _ => Error
   }
 }
 
 fn yy_state_686(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    NT_layout_semicolons => Shift(yy_state_687)
-    T_IDENT | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
-    _ => Error
-  }
+  ReduceNoLookahead(6, NT_public_effect_declaration, yy_action_20)
 }
 
 fn yy_state_687(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_IDENT => Shift(yy_state_72)
-    T_LAYOUT_NEWLINE => Shift(yy_state_408)
-    NT_identifier => Shift(yy_state_569)
-    NT_enum_variant => Shift(yy_state_579)
-    NT_non_empty_enum_variants => Shift(yy_state_580)
-    NT_enum_variants => Shift(yy_state_688)
-    T_RBRACE => Reduce(0, NT_enum_variants, yy_action_73)
+    NT_identifier => Shift(yy_state_688)
     _ => Error
   }
 }
 
 fn yy_state_688(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_RBRACE => Shift(yy_state_689)
+    T_LBRACKET => Shift(yy_state_48)
+    NT_type_parameter_bracket_list => Shift(yy_state_532)
+    T_LAYOUT_NEWLINE => Shift(yy_state_536)
+    T_LBRACE => Shift(yy_state_542)
+    NT_nominal_body_open => Shift(yy_state_689)
     _ => Error
   }
 }
 
 fn yy_state_689(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_public_enum_declaration, yy_action_19)
+  match _lookahead {
+    NT_layout_semicolons => Shift(yy_state_690)
+    T_IDENT | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
+    _ => Error
+  }
 }
 
 fn yy_state_690(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_IDENT => Shift(yy_state_72)
-    NT_identifier => Shift(yy_state_691)
+    T_LAYOUT_NEWLINE => Shift(yy_state_408)
+    NT_identifier => Shift(yy_state_569)
+    NT_enum_variant => Shift(yy_state_579)
+    NT_non_empty_enum_variants => Shift(yy_state_580)
+    NT_enum_variants => Shift(yy_state_691)
+    T_RBRACE => Reduce(0, NT_enum_variants, yy_action_75)
     _ => Error
   }
 }
 
 fn yy_state_691(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_LBRACKET => Shift(yy_state_48)
-    NT_type_parameter_bracket_list => Shift(yy_state_532)
-    T_LAYOUT_NEWLINE => Shift(yy_state_536)
-    T_LBRACE => Shift(yy_state_542)
-    NT_nominal_body_open => Shift(yy_state_692)
+    T_RBRACE => Shift(yy_state_692)
     _ => Error
   }
 }
 
 fn yy_state_692(_lookahead : YYSymbol) -> YYDecision {
+  ReduceNoLookahead(6, NT_public_enum_declaration, yy_action_19)
+}
+
+fn yy_state_693(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    NT_layout_semicolons => Shift(yy_state_693)
-    T_IDENT | T_TYPE | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_694)
     _ => Error
   }
 }
 
-fn yy_state_693(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_694(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_LBRACKET => Shift(yy_state_48)
+    NT_type_parameter_bracket_list => Shift(yy_state_532)
+    T_LAYOUT_NEWLINE => Shift(yy_state_536)
+    T_LBRACE => Shift(yy_state_542)
+    NT_nominal_body_open => Shift(yy_state_695)
+    _ => Error
+  }
+}
+
+fn yy_state_695(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    NT_layout_semicolons => Shift(yy_state_696)
+    T_IDENT | T_TYPE | T_RBRACE | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
+    _ => Error
+  }
+}
+
+fn yy_state_696(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_IDENT => Shift(yy_state_72)
     T_LAYOUT_NEWLINE => Shift(yy_state_408)
@@ -12016,59 +12085,59 @@ fn yy_state_693(_lookahead : YYSymbol) -> YYDecision {
     NT_type_member_declaration => Shift(yy_state_597)
     NT_struct_member => Shift(yy_state_598)
     NT_non_empty_struct_members => Shift(yy_state_599)
-    NT_struct_members => Shift(yy_state_694)
-    T_RBRACE => Reduce(0, NT_struct_members, yy_action_65)
-    _ => Error
-  }
-}
-
-fn yy_state_694(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_RBRACE => Shift(yy_state_695)
-    _ => Error
-  }
-}
-
-fn yy_state_695(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_public_struct_declaration, yy_action_18)
-}
-
-fn yy_state_696(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_IDENT => Shift(yy_state_72)
-    NT_identifier => Shift(yy_state_697)
+    NT_struct_members => Shift(yy_state_697)
+    T_RBRACE => Reduce(0, NT_struct_members, yy_action_67)
     _ => Error
   }
 }
 
 fn yy_state_697(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_LBRACKET => Shift(yy_state_48)
-    T_LAYOUT_NEWLINE => Shift(yy_state_491)
-    NT_type_parameter_bracket_list => Shift(yy_state_493)
-    NT_type_parameters => Shift(yy_state_698)
-    T_COLON | T_EQUAL => Reduce(0, NT_type_parameters, yy_action_103)
+    T_RBRACE => Shift(yy_state_698)
     _ => Error
   }
 }
 
 fn yy_state_698(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_COLON => Shift(yy_state_607)
-    NT_type_alias_result_kind_opt => Shift(yy_state_699)
-    T_EQUAL => Reduce(0, NT_type_alias_result_kind_opt, yy_action_54)
-    _ => Error
-  }
+  ReduceNoLookahead(6, NT_public_struct_declaration, yy_action_18)
 }
 
 fn yy_state_699(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_EQUAL => Shift(yy_state_700)
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_700)
     _ => Error
   }
 }
 
 fn yy_state_700(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_LBRACKET => Shift(yy_state_48)
+    T_LAYOUT_NEWLINE => Shift(yy_state_491)
+    NT_type_parameter_bracket_list => Shift(yy_state_493)
+    NT_type_parameters => Shift(yy_state_701)
+    T_COLON | T_EQUAL => Reduce(0, NT_type_parameters, yy_action_105)
+    _ => Error
+  }
+}
+
+fn yy_state_701(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_COLON => Shift(yy_state_607)
+    NT_type_alias_result_kind_opt => Shift(yy_state_702)
+    T_EQUAL => Reduce(0, NT_type_alias_result_kind_opt, yy_action_56)
+    _ => Error
+  }
+}
+
+fn yy_state_702(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_EQUAL => Shift(yy_state_703)
+    _ => Error
+  }
+}
+
+fn yy_state_703(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_type_parameter_bracket_list => Shift(yy_state_13)
     T_LPAREN => Shift(yy_state_20)
@@ -12083,153 +12152,154 @@ fn yy_state_700(_lookahead : YYSymbol) -> YYDecision {
     T_LBRACKET => Shift(yy_state_48)
     T_LBRACE => Shift(yy_state_611)
     NT_type => Shift(yy_state_614)
-    NT_type_alias_body => Shift(yy_state_701)
-    _ => Error
-  }
-}
-
-fn yy_state_701(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_public_type_alias_declaration, yy_action_17)
-}
-
-fn yy_state_702(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_TYPE => Shift(yy_state_703)
-    _ => Error
-  }
-}
-
-fn yy_state_703(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_IDENT => Shift(yy_state_72)
-    NT_identifier => Shift(yy_state_704)
+    NT_type_alias_body => Shift(yy_state_704)
     _ => Error
   }
 }
 
 fn yy_state_704(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_LBRACKET => Shift(yy_state_48)
-    T_LAYOUT_NEWLINE => Shift(yy_state_491)
-    NT_type_parameter_bracket_list => Shift(yy_state_493)
-    NT_type_parameters => Shift(yy_state_705)
-    T_COLON => Reduce(0, NT_type_parameters, yy_action_103)
-    _ => Error
-  }
+  ReduceNoLookahead(6, NT_public_type_alias_declaration, yy_action_17)
 }
 
 fn yy_state_705(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_COLON => Shift(yy_state_706)
+    T_TYPE => Shift(yy_state_706)
     _ => Error
   }
 }
 
 fn yy_state_706(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_KIND_EFFECT => Shift(yy_state_621)
-    T_KIND_TYPE => Shift(yy_state_622)
-    NT_external_type_result_kind => Shift(yy_state_707)
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_707)
     _ => Error
   }
 }
 
 fn yy_state_707(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_public_external_type_declaration, yy_action_16)
+  match _lookahead {
+    T_LBRACKET => Shift(yy_state_48)
+    T_LAYOUT_NEWLINE => Shift(yy_state_491)
+    NT_type_parameter_bracket_list => Shift(yy_state_493)
+    NT_type_parameters => Shift(yy_state_708)
+    T_COLON => Reduce(0, NT_type_parameters, yy_action_105)
+    _ => Error
+  }
 }
 
 fn yy_state_708(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_15)
+  match _lookahead {
+    T_COLON => Shift(yy_state_709)
+    _ => Error
+  }
 }
 
 fn yy_state_709(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_14)
+  match _lookahead {
+    T_KIND_EFFECT => Shift(yy_state_621)
+    T_KIND_TYPE => Shift(yy_state_622)
+    NT_external_type_result_kind => Shift(yy_state_710)
+    _ => Error
+  }
 }
 
 fn yy_state_710(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_13)
+  ReduceNoLookahead(6, NT_public_external_type_declaration, yy_action_16)
 }
 
 fn yy_state_711(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_12)
+  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_15)
 }
 
 fn yy_state_712(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_11)
+  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_14)
 }
 
 fn yy_state_713(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_10)
+  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_13)
 }
 
 fn yy_state_714(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_9)
+  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_12)
 }
 
 fn yy_state_715(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_8)
+  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_11)
 }
 
 fn yy_state_716(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(2, NT_top_level_declaration, yy_action_7)
+  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_10)
 }
 
 fn yy_state_717(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_IDENT => Shift(yy_state_3)
-    NT_non_empty_module_path => Shift(yy_state_4)
-    NT_module_path => Shift(yy_state_718)
-    _ => Error
-  }
+  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_9)
 }
 
 fn yy_state_718(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_DOTLBRACE => Shift(yy_state_719)
-    _ => Error
-  }
+  ReduceNoLookahead(1, NT_public_top_level_declaration, yy_action_8)
 }
 
 fn yy_state_719(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_IDENT => Shift(yy_state_638)
-    NT_import_item => Shift(yy_state_639)
-    NT_non_empty_import_item_list => Shift(yy_state_640)
-    NT_import_item_list => Shift(yy_state_720)
-    T_RBRACE => Reduce(0, NT_import_item_list, yy_action_35)
-    _ => Error
-  }
+  ReduceNoLookahead(2, NT_top_level_declaration, yy_action_7)
 }
 
 fn yy_state_720(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_RBRACE => Shift(yy_state_721)
+    T_IDENT => Shift(yy_state_3)
+    NT_non_empty_module_path => Shift(yy_state_4)
+    NT_module_path => Shift(yy_state_721)
     _ => Error
   }
 }
 
 fn yy_state_721(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(6, NT_public_import_declaration, yy_action_6)
+  match _lookahead {
+    T_DOTLBRACE => Shift(yy_state_722)
+    _ => Error
+  }
 }
 
 fn yy_state_722(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    NT_layout_semicolons => Shift(yy_state_723)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_IDENT => Shift(yy_state_72)
+    NT_identifier => Shift(yy_state_638)
+    NT_import_item => Shift(yy_state_642)
+    NT_non_empty_import_item_list => Shift(yy_state_643)
+    NT_import_item_list => Shift(yy_state_723)
+    T_RBRACE => Reduce(0, NT_import_item_list, yy_action_37)
     _ => Error
   }
 }
 
 fn yy_state_723(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_LAYOUT_NEWLINE => Shift(yy_state_408)
-    NT_top_level_declarations => Shift(yy_state_724)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB => Reduce(0, NT_top_level_declarations, yy_action_5)
+    T_RBRACE => Shift(yy_state_724)
     _ => Error
   }
 }
 
 fn yy_state_724(_lookahead : YYSymbol) -> YYDecision {
+  ReduceNoLookahead(6, NT_public_import_declaration, yy_action_6)
+}
+
+fn yy_state_725(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    NT_layout_semicolons => Shift(yy_state_726)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
+    _ => Error
+  }
+}
+
+fn yy_state_726(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_LAYOUT_NEWLINE => Shift(yy_state_408)
+    NT_top_level_declarations => Shift(yy_state_727)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB => Reduce(0, NT_top_level_declarations, yy_action_5)
+    _ => Error
+  }
+}
+
+fn yy_state_727(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LET => Shift(yy_state_10)
     T_OFFER => Shift(yy_state_484)
@@ -12248,45 +12318,45 @@ fn yy_state_724(_lookahead : YYSymbol) -> YYDecision {
     NT_enum_declaration => Shift(yy_state_630)
     NT_struct_declaration => Shift(yy_state_631)
     NT_non_public_top_level_declaration => Shift(yy_state_632)
-    T_PUB => Shift(yy_state_725)
-    NT_top_level_declaration => Shift(yy_state_726)
+    T_PUB => Shift(yy_state_728)
+    NT_top_level_declaration => Shift(yy_state_729)
     T_EOF => Reduce(3, NT_module_body, yy_action_4)
     _ => Error
   }
 }
 
-fn yy_state_725(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_728(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_LET => Shift(yy_state_648)
-    T_OFFER => Shift(yy_state_654)
-    T_FN => Shift(yy_state_669)
-    T_EFFECT => Shift(yy_state_678)
-    T_ENUM => Shift(yy_state_684)
-    T_STRUCT => Shift(yy_state_690)
-    T_TYPE => Shift(yy_state_696)
-    T_EXTERN => Shift(yy_state_702)
-    NT_public_offer_value_declaration => Shift(yy_state_708)
-    NT_public_top_level_let_declaration => Shift(yy_state_709)
-    NT_public_function_declaration => Shift(yy_state_710)
-    NT_public_type_alias_declaration => Shift(yy_state_711)
-    NT_public_external_type_declaration => Shift(yy_state_712)
-    NT_public_effect_declaration => Shift(yy_state_713)
-    NT_public_enum_declaration => Shift(yy_state_714)
-    NT_public_struct_declaration => Shift(yy_state_715)
-    NT_public_top_level_declaration => Shift(yy_state_716)
+    T_LET => Shift(yy_state_651)
+    T_OFFER => Shift(yy_state_657)
+    T_FN => Shift(yy_state_672)
+    T_EFFECT => Shift(yy_state_681)
+    T_ENUM => Shift(yy_state_687)
+    T_STRUCT => Shift(yy_state_693)
+    T_TYPE => Shift(yy_state_699)
+    T_EXTERN => Shift(yy_state_705)
+    NT_public_offer_value_declaration => Shift(yy_state_711)
+    NT_public_top_level_let_declaration => Shift(yy_state_712)
+    NT_public_function_declaration => Shift(yy_state_713)
+    NT_public_type_alias_declaration => Shift(yy_state_714)
+    NT_public_external_type_declaration => Shift(yy_state_715)
+    NT_public_effect_declaration => Shift(yy_state_716)
+    NT_public_enum_declaration => Shift(yy_state_717)
+    NT_public_struct_declaration => Shift(yy_state_718)
+    NT_public_top_level_declaration => Shift(yy_state_719)
     _ => Error
   }
 }
 
-fn yy_state_726(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_729(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    NT_layout_semicolons => Shift(yy_state_727)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    NT_layout_semicolons => Shift(yy_state_730)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
 
-fn yy_state_727(_lookahead : YYSymbol) -> YYDecision {
+fn yy_state_730(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     T_LAYOUT_NEWLINE => Shift(yy_state_408)
     T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_PUB => Reduce(3, NT_top_level_declarations, yy_action_3)
@@ -12294,53 +12364,10 @@ fn yy_state_727(_lookahead : YYSymbol) -> YYDecision {
   }
 }
 
-fn yy_state_728(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    NT_layout_semicolons => Shift(yy_state_729)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
-    _ => Error
-  }
-}
-
-fn yy_state_729(_lookahead : YYSymbol) -> YYDecision {
-  match _lookahead {
-    T_LET => Shift(yy_state_10)
-    T_LAYOUT_NEWLINE => Shift(yy_state_408)
-    T_OFFER => Shift(yy_state_484)
-    T_FN => Shift(yy_state_529)
-    T_EFFECT => Shift(yy_state_530)
-    T_ENUM => Shift(yy_state_565)
-    T_STRUCT => Shift(yy_state_585)
-    T_TYPE => Shift(yy_state_604)
-    T_EXTERN => Shift(yy_state_616)
-    NT_offer_value_declaration => Shift(yy_state_624)
-    NT_top_level_let_declaration => Shift(yy_state_625)
-    NT_function_declaration => Shift(yy_state_626)
-    NT_type_alias_declaration => Shift(yy_state_627)
-    NT_external_type_declaration => Shift(yy_state_628)
-    NT_effect_declaration => Shift(yy_state_629)
-    NT_enum_declaration => Shift(yy_state_630)
-    NT_struct_declaration => Shift(yy_state_631)
-    NT_non_public_top_level_declaration => Shift(yy_state_632)
-    T_IMPORT => Shift(yy_state_633)
-    T_PUB => Shift(yy_state_647)
-    NT_top_level_declaration => Shift(yy_state_722)
-    NT_public_import_declaration => Shift(yy_state_728)
-    NT_module_body => Shift(yy_state_730)
-    NT_import_declaration => Shift(yy_state_731)
-    T_EOF => Reduce(0, NT_module_body, yy_action_368)
-    _ => Error
-  }
-}
-
-fn yy_state_730(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_module_body, yy_action_2)
-}
-
 fn yy_state_731(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
     NT_layout_semicolons => Shift(yy_state_732)
-    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_369)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
@@ -12366,28 +12393,71 @@ fn yy_state_732(_lookahead : YYSymbol) -> YYDecision {
     NT_struct_declaration => Shift(yy_state_631)
     NT_non_public_top_level_declaration => Shift(yy_state_632)
     T_IMPORT => Shift(yy_state_633)
-    T_PUB => Shift(yy_state_647)
-    NT_top_level_declaration => Shift(yy_state_722)
-    NT_public_import_declaration => Shift(yy_state_728)
-    NT_import_declaration => Shift(yy_state_731)
+    T_PUB => Shift(yy_state_650)
+    NT_top_level_declaration => Shift(yy_state_725)
+    NT_public_import_declaration => Shift(yy_state_731)
     NT_module_body => Shift(yy_state_733)
-    T_EOF => Reduce(0, NT_module_body, yy_action_368)
+    NT_import_declaration => Shift(yy_state_734)
+    T_EOF => Reduce(0, NT_module_body, yy_action_370)
     _ => Error
   }
 }
 
 fn yy_state_733(_lookahead : YYSymbol) -> YYDecision {
-  ReduceNoLookahead(3, NT_module_body, yy_action_1)
+  ReduceNoLookahead(3, NT_module_body, yy_action_2)
 }
 
 fn yy_state_734(_lookahead : YYSymbol) -> YYDecision {
   match _lookahead {
-    T_EOF => Shift(yy_state_735)
+    NT_layout_semicolons => Shift(yy_state_735)
+    T_EOF | T_STRUCT | T_ENUM | T_EFFECT | T_FN | T_LET | T_TYPE | T_OFFER | T_EXTERN | T_IMPORT | T_PUB | T_LAYOUT_NEWLINE => Reduce(0, NT_layout_semicolons, yy_action_371)
     _ => Error
   }
 }
 
 fn yy_state_735(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_LET => Shift(yy_state_10)
+    T_LAYOUT_NEWLINE => Shift(yy_state_408)
+    T_OFFER => Shift(yy_state_484)
+    T_FN => Shift(yy_state_529)
+    T_EFFECT => Shift(yy_state_530)
+    T_ENUM => Shift(yy_state_565)
+    T_STRUCT => Shift(yy_state_585)
+    T_TYPE => Shift(yy_state_604)
+    T_EXTERN => Shift(yy_state_616)
+    NT_offer_value_declaration => Shift(yy_state_624)
+    NT_top_level_let_declaration => Shift(yy_state_625)
+    NT_function_declaration => Shift(yy_state_626)
+    NT_type_alias_declaration => Shift(yy_state_627)
+    NT_external_type_declaration => Shift(yy_state_628)
+    NT_effect_declaration => Shift(yy_state_629)
+    NT_enum_declaration => Shift(yy_state_630)
+    NT_struct_declaration => Shift(yy_state_631)
+    NT_non_public_top_level_declaration => Shift(yy_state_632)
+    T_IMPORT => Shift(yy_state_633)
+    T_PUB => Shift(yy_state_650)
+    NT_top_level_declaration => Shift(yy_state_725)
+    NT_public_import_declaration => Shift(yy_state_731)
+    NT_import_declaration => Shift(yy_state_734)
+    NT_module_body => Shift(yy_state_736)
+    T_EOF => Reduce(0, NT_module_body, yy_action_370)
+    _ => Error
+  }
+}
+
+fn yy_state_736(_lookahead : YYSymbol) -> YYDecision {
+  ReduceNoLookahead(3, NT_module_body, yy_action_1)
+}
+
+fn yy_state_737(_lookahead : YYSymbol) -> YYDecision {
+  match _lookahead {
+    T_EOF => Shift(yy_state_738)
+    _ => Error
+  }
+}
+
+fn yy_state_738(_lookahead : YYSymbol) -> YYDecision {
   ReduceNoLookahead(4, NT_source_file, yy_action_0)
 }
 

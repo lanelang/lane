@@ -361,7 +361,7 @@ fn ModuleNamespaceSource::type_binding(
         match binding.declaration {
           NominalType(type_) =>
             match type_ {
-              Struct(declaration) if declaration.name == name =>
+              Struct(declaration) if binding.export_.exposed_name == name =>
                 return Some({
                   owner_module_path: binding.export_.target.provider_module,
                   parameter_kinds: interface_type_parameter_kinds(
@@ -370,7 +370,7 @@ fn ModuleNamespaceSource::type_binding(
                   kind: NominalType(symbol=declaration.symbol, variants=[]),
                   import_origins,
                 })
-              Enum(declaration) if declaration.name == name =>
+              Enum(declaration) if binding.export_.exposed_name == name =>
                 return Some({
                   owner_module_path: binding.export_.target.provider_module,
                   parameter_kinds: interface_type_parameter_kinds(
@@ -384,7 +384,7 @@ fn ModuleNamespaceSource::type_binding(
                   ),
                   import_origins,
                 })
-              External(declaration) if declaration.name == name =>
+              External(declaration) if binding.export_.exposed_name == name =>
                 return Some({
                   owner_module_path: binding.export_.target.provider_module,
                   parameter_kinds: [],

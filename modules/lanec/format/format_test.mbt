@@ -1035,6 +1035,22 @@ test "format source preserves selective public imports" {
 }
 
 ///|
+test "format source preserves selective import item aliases" {
+  assert_format(
+    (
+      #|module Facade
+      #|pub import Provider.{Box as Container,value as answer}
+    ),
+    (
+      #|module Facade
+      #|
+      #|pub import Provider.{ Box as Container, value as answer }
+      #|
+    ),
+  )
+}
+
+///|
 test "format source preserves selective import comments" {
   assert_format(
     (

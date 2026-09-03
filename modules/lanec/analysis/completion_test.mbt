@@ -333,7 +333,7 @@ test "completion returns a public facade surface" {
       text: (
         #|module Main
         #|import Facade
-        #|pub let answer : I64 = Facade.value
+        #|pub let answer : I64 = Facade.Con
       ),
     },
     [
@@ -341,7 +341,7 @@ test "completion returns a public facade surface" {
         source_id: "file:///Facade.lane",
         text: (
           #|module Facade
-          #|pub import Provider.{ Box, value }
+          #|pub import Provider.{ Box as Container, value as answer }
         ),
       },
       {
@@ -355,10 +355,10 @@ test "completion returns a public facade surface" {
     ],
     "file:///Main.lane",
     3,
-    31,
+    33,
     TriggerCharacter("."),
   )
-  assert_eq(entries.map(fn(entry) { entry.label }), ["Box", "value"])
+  assert_eq(entries.map(fn(entry) { entry.label }), ["Container"])
 }
 
 ///|

@@ -750,6 +750,43 @@ test "golden missing selective import item diagnostic is specific" {
 }
 
 ///|
+test "missing aliased import diagnoses only the provider name" {
+  let diagnostic = single_check_sources_diagnostic(
+    (
+      #|module Main
+      #|import Lib.{ missing as local }
+    ),
+    [
+      (
+        #|module Lib
+        #|pub let value : I64 = 1
+      ),
+    ],
+  )
+  assert_diagnostic_headline(
+    diagnostic, "E2009", "cannot import `missing` from `Lib`",
+  )
+  debug_inspect(
+    diagnostic.span,
+    content=(
+      #|Some(
+      #|  Source(
+      #|    source_id="<root>",
+      #|    span={
+      #|      start_offset: 25,
+      #|      end_offset: 32,
+      #|      start_line: 2,
+      #|      start_column: 14,
+      #|      end_line: 2,
+      #|      end_column: 21,
+      #|    },
+      #|  ),
+      #|)
+    ),
+  )
+}
+
+///|
 test "golden type diagnostic renders span summary and facts" {
   let diagnostic = single_check_diagnostic(
     (

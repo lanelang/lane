@@ -178,14 +178,14 @@ test "definition through a public facade resolves to the provider" {
         text: (
           #|module Main
           #|import Facade
-          #|pub let answer : I64 = Facade.value
+          #|pub let result : I64 = Facade.answer
         ),
       },
       {
         source_id: "file:///Facade.lane",
         text: (
           #|module Facade
-          #|pub import Provider.{ value }
+          #|pub import Provider.{ value as answer }
         ),
       },
       {

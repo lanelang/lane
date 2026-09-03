@@ -192,7 +192,23 @@ non_empty_import_item_list -> Array[ImportItem]
   ;
 
 import_item -> ImportItem
-  : IDENT { { name: $1, loc: span($sloc) } }
+  : identifier {
+    { name: $1.name, name_loc: $1.loc, alias_: None, loc: span($sloc) }
+  }
+  | identifier import_alias {
+    {
+      name: $1.name,
+      name_loc: $1.loc,
+      alias_: Some($2),
+      loc: span($sloc),
+    }
+  }
+  ;
+
+import_alias -> ImportAlias
+  : "as" identifier {
+    { name: $2.name, name_loc: $2.loc, loc: span($sloc) }
+  }
   ;
 
 identifier -> Identifier

@@ -20,6 +20,7 @@ using @syntax {
   type HandlerOperationArm,
   type HandlerWithBlock,
   type ImportDeclaration,
+  type ImportAlias,
   type ImportItem,
   type Kind,
   type LetDeclaration,

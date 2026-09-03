@@ -11,7 +11,7 @@ module Basic.Prelude
 
 pub import Basic.Data.Option.{ Option }
 pub import Basic.Trait.Equal.{ Equal }
-pub import Basic.Data.I64.{ i64_impl_equal }
+pub import Basic.Data.I64.{ i64_impl_equal as equal_i64 }
 ```
 
 Each declaration performs an ordinary selective import in the current Module and
@@ -22,16 +22,15 @@ Module:
 ```lane
 module Example
 
-import Basic.Prelude.{ Equal, Option, i64_impl_equal }
+import Basic.Prelude.{ Equal, Option, equal_i64 }
 ```
 
 A re-export is an additional public access path to a provider-owned declaration.
 It does not create or copy a declaration, change its canonical identity, transfer
 ownership, or emit a forwarding implementation.
 
-The first version supports only selective re-exports. Qualified Module Bindings,
-aliases, and open imports remain local import mechanisms, so these forms are not
-valid:
+Only selective imports may be public. Qualified Module Bindings and open imports
+remain local import mechanisms, so these forms are not valid:
 
 ```lane
 pub import Basic.Data.Option
@@ -69,13 +68,14 @@ The implementation must preserve these invariants:
 - Keep declaration metadata under one provider-owned semantic authority.
 - Preserve offer, dependency, and linking behavior through the additional access
   path.
+- Let a selective import choose a local or public access name without changing
+  the provider-owned declaration identity.
 - Keep the first syntax small and explicit.
 
 ## Non-goals
 
 - Exporting a Module Binding or introducing nested Module namespaces.
 - Wildcard re-exports.
-- Renaming selected bindings during re-export.
 - Re-exporting private declarations.
 - Automatically adding declarations mentioned by a selected declaration's
   signature to the facade's public surface.
@@ -88,7 +88,7 @@ The implementation must preserve these invariants:
 The new form is:
 
 ```lane
-pub import Module.Path.{ item1, item2 }
+pub import Module.Path.{ item1, item2 as exposed2 }
 ```
 
 `pub` applies to the complete selective import declaration. The parser records
@@ -100,17 +100,26 @@ existing formatting rules for selective imports, including comments and
 multiline item lists.
 
 Using `pub` on a qualified, aliased qualified, or open import is a syntax error.
-Selective item aliases are outside the first version, so each exposed name is the
-authored item name.
+Every selective item consists of a provider name and an optional access-name
+alias. `item2` is used to select a public binding from `Module.Path`, while
+`exposed2` becomes the unqualified binding in the current Module. For a public
+import, `exposed2` is also the name published by the current Module Interface.
 
 ## Source semantics
 
 ### Local import behavior
 
-For resolution inside the declaring Module, `pub import A.{ x }` behaves exactly
-like `import A.{ x }`. The selected binding is available unqualified,
-participates in the same namespace, and reports the same ambiguity or collision
-diagnostics as an ordinary selective import.
+For resolution inside the declaring Module, `pub import A.{ x as y }` behaves
+exactly like `import A.{ x as y }`. The provider name `x` selects the target and
+the access name `y` is available unqualified. It participates in the target's
+ordinary semantic namespace and reports collisions under `y`. The original name
+`x` is not introduced unless another import or declaration introduces it.
+
+One provider spelling may identify declarations in multiple existing Lane
+namespaces. The alias applies uniformly to every matching declaration. In
+particular, a nominal type keeps its provider-owned fields, variants, operations,
+and construction capabilities; subordinate members cannot be independently
+renamed by an import item alias.
 
 The public import itself is an observable use: it contributes to the Module
 Interface. An unused-import diagnostic must therefore not report a successfully
@@ -120,9 +129,9 @@ binding.
 ### Public export behavior
 
 After resolving an item, the compiler adds every matching public binding to the
-current public export table under that item name. As with an ordinary selective
-import, one spelling may identify bindings in multiple existing Lane namespaces;
-each binding then receives its own export entry.
+current public export table under the access name: the alias when present, or the
+provider name otherwise. Each matching semantic namespace receives its own
+export entry with the same access name.
 
 The public export table is keyed by `(export_namespace, exposed_name)`. That key
 is unique across locally owned public declarations and re-exports. Publishing
@@ -131,10 +140,10 @@ declaration. This is an explicit public-surface invariant; it must not be
 inferred from incidental behavior of local name resolution.
 
 An item that resolves to no public binding reports the ordinary unresolved import
-item diagnostic. Re-export provides no route to a private declaration. Local
-import collisions and public export collisions are diagnosed at the authored
-`pub import` item but remain separate checks because the local and public tables
-have different responsibilities.
+item diagnostic at the provider name. Re-export provides no route to a private
+declaration. Local import collisions and public export collisions name and point
+at the authored access name, but remain separate checks because the local and
+public tables have different responsibilities.
 
 ### Canonical identity
 
@@ -150,16 +159,16 @@ pub struct T {}
 ```lane
 module B
 
-pub import A.{ T }
+pub import A.{ T as U }
 ```
 
 ```lane
 module C
 
-pub import B.{ T }
+pub import B.{ U as V }
 ```
 
-`A.T`, `B.T`, and `C.T` all resolve to the declaration reference for `A.T`.
+`A.T`, `B.U`, and `C.V` all resolve to the declaration reference for `A.T`.
 Transitive re-exports are flattened when an interface is constructed: `C` records
 the original declaration in `A`, not an export entry owned by `B`.
 
@@ -235,8 +244,9 @@ function parameter metadata, and optimization metadata for those declarations.
 `ModuleInterface.exports` stores the Public Exports visible through the current
 Module. A locally declared public binding has an export that targets its own
 provider declaration. A re-export has the same shape but targets another
-provider Module. Public lookup therefore has one path without duplicating the
-target descriptor.
+provider Module. `exposed_name` stores the authored alias while
+`target.declaration_name` stores the provider name. Public lookup therefore has
+one path without duplicating the target descriptor.
 
 The concrete representation may partition declarations by Module Interface
 Export Namespace, but it must retain these ownership and lookup rules. In
@@ -330,12 +340,12 @@ Qualified, open, and selective imports all read the same public export table:
 module Consumer
 
 import Basic.Prelude as Prelude
-import Basic.Prelude.{ Option }
+import Basic.Prelude.{ Option as Maybe }
 
-let first : Prelude.Option[I64] = Option::none
+let first : Prelude.Option[I64] = Maybe::none
 ```
 
-Resolving `Prelude.Option` or `Option` selects the facade access entry and asks the
+Resolving `Prelude.Option` or `Maybe` selects the facade access entry and asks the
 catalog for its target. The catalog publishes the provider-owned descriptor and
 canonical local symbol. Type checking, elaboration, optimization, and linking
 therefore observe the original declaration identity.
@@ -385,18 +395,18 @@ artifacts.
 ### Syntax and formatting
 
 - Record public visibility on selective `ImportDeclaration` nodes and retain the
-  complete declaration and item spans in the live source model.
+  provider name, optional alias, and their spans in the live source model.
 - Reject public qualified, aliased qualified, and open forms during parsing.
 - Extend formatter and syntax round-trip tests for inline, multiline, and
   commented forms.
 
 ### Resolution and interface construction
 
-- Resolve each public selective item through the ordinary selective-import
-  lookup.
+- Resolve each public selective item by its provider name through the ordinary
+  selective-import lookup, then bind it under its access name.
 - Publish the selected bindings locally exactly as for an ordinary selective
   import.
-- Add public export entries containing only the local access key, flattened
+- Add public export entries containing only the aliased access key, flattened
   `ModuleInterfaceDeclarationRef`, and expected provider fingerprint.
 - Build one export-namespace-keyed public export table containing both owned
   declarations and re-exports, and diagnose duplicate keys at the authored
@@ -434,12 +444,13 @@ artifacts.
 
 - Completion on a facade includes its re-exported access names.
 - Go-to-definition on a re-exported use navigates to the original provider
-  declaration. The `pub import` item itself remains a navigable local source site.
+  declaration. Both the provider name and alias in a `pub import` remain
+  navigable source sites for that declaration.
 - Hover may show both the canonical provider and the facade access path.
 - Find-references groups semantic references by catalog-interned declaration
   identity, so direct and facade paths form one result set.
-- Rename of a facade-only access name is not introduced until selective import
-  aliases exist.
+- Tooling presents the authored alias as the local or facade access name while
+  retaining the provider declaration as semantic identity.
 - Diagnostics for an invalid facade surface point at the local `pub import` item;
   diagnostics about a loaded target use the provider presentation index when it
   is available.
@@ -470,7 +481,7 @@ module Basic.Prelude
 pub import Basic.Data.Bool.{ Bool }
 pub import Basic.Data.Option.{ Option }
 pub import Basic.Trait.Equal.{ Equal }
-pub import Basic.Data.I64.{ i64_impl_equal }
+pub import Basic.Data.I64.{ i64_impl_equal as equal_i64 }
 
 pub fn identity[T](value : T) -> T {
   value
@@ -478,7 +489,7 @@ pub fn identity[T](value : T) -> T {
 ```
 
 The resulting interface has access entries for `Bool`, `Option`, `Equal`,
-`i64_impl_equal`, and `identity`. The first four target declarations in their
+`equal_i64`, and `identity`. The first four target declarations in their
 original providers; `identity` targets an owned declaration in `Basic.Prelude`.
 Only `identity` appears as an implementation export of `Basic.Prelude`.
 
@@ -511,6 +522,9 @@ unless `Api` explicitly re-exports them.
 
 - `pub import A.{ x }` imports `x` locally and exposes it through the current
   Module Interface.
+- `import A.{ x as y }` and `pub import A.{ x as y }` select `A.x` while binding
+  and, for the public form, exporting it as `y`; the provider identity remains
+  `A.x`.
 - Downstream qualified, selective, and open imports can access re-exported types,
   effects, type aliases, values, and offers.
 - Direct and transitive paths resolve to the original provider and the same local

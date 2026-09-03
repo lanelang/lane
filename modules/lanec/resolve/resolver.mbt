@@ -204,7 +204,7 @@ fn Resolver::validate_local_public_export_collisions(
           ConflictingPublicExport(
             name~,
             export_namespace~,
-            existing_loc=existing.loc,
+            existing_loc=existing.exposed_loc,
           ),
           loc,
         )

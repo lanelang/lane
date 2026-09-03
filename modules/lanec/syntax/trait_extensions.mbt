@@ -184,6 +184,10 @@ pub extend ImportDeclaration with Debug::{to_repr}
 pub extend ImportDeclaration with Eq::{not_equal, equal}
 
 ///|
+pub extend ImportAlias with Debug::{to_repr}
+
+///|
+pub extend ImportAlias with Eq::{not_equal, equal}
 
 ///|
 pub extend ImportItem with @prettyprinter.Pretty::{pretty}
