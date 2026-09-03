@@ -634,40 +634,42 @@ fn completion_list_json(entries : Array[@analysis.CompletionEntry]) -> Json {
 
 ///|
 fn completion_item_json(entry : @analysis.CompletionEntry) -> Json {
-  let fields : Map[String, Json] = {
-    "label": entry.label.to_json(),
-    "kind": completion_item_kind_json(entry.kind),
+  let (textEdit, insertText) : (Json?, String?) = match entry.replace {
+    Some(location) =>
+      (
+        Some({
+          "range": range_json(location.span),
+          "newText": entry.insert_text.unwrap_or(entry.label),
+        }),
+        None,
+      )
+    None => (None, entry.insert_text)
   }
-  if entry.detail is Some(detail) {
-    fields["detail"] = detail.to_json()
-  }
-  if entry.documentation is Some(documentation) {
-    fields["documentation"] = documentation.to_json()
-  }
-  if entry.sort_text is Some(sort_text) {
-    fields["sortText"] = sort_text.to_json()
-  }
-  match entry.replace {
-    Some(location) => {
-      let new_text = match entry.insert_text {
-        Some(text) => text
-        None => entry.label
-      }
-      fields["textEdit"] = {
-        "range": range_json(location.span),
-        "newText": new_text,
-      }
-    }
-    None =>
-      if entry.insert_text is Some(text) {
-        fields["insertText"] = text.to_json()
-      }
-  }
-  fields.to_json()
+  @json_object.object([
+    @json_object.required("label", entry.label.to_json()),
+    @json_object.required("kind", completion_item_kind(entry.kind).to_json()),
+    @json_object.optional(
+      "detail",
+      entry.detail.map(detail => detail.to_json()),
+    ),
+    @json_object.optional(
+      "documentation",
+      entry.documentation.map(documentation => documentation.to_json()),
+    ),
+    @json_object.optional(
+      "sortText",
+      entry.sort_text.map(sort_text => sort_text.to_json()),
+    ),
+    @json_object.optional("textEdit", textEdit),
+    @json_object.optional(
+      "insertText",
+      insertText.map(insert_text => insert_text.to_json()),
+    ),
+  ])
 }
 
 ///|
-fn completion_item_kind_json(kind : @analysis.CompletionKind) -> Json {
+fn completion_item_kind(kind : @analysis.CompletionKind) -> Int {
   match kind {
     Value => 6
     Function => 3

@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/json_object"
+
+// Values
+pub fn object(Array[Member]) -> Json
+
+pub fn optional(String, Json?) -> Member
+
+pub fn required(String, Json) -> Member
+
+// Errors
+
+// Types and methods
+pub struct Member {
+  // private fields
+}
+
+// Type aliases
+
+// Traits

@@ -9,3 +9,7 @@ license = "MIT"
 keywords = [ "diagnostic", "reporting", "compiler" ]
 
 description = "Structured diagnostic reporting utilities for MoonBit tools."
+
+import {
+  "Milky2018/json_object@0.1.0",
+}

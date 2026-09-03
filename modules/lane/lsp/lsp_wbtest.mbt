@@ -38,14 +38,19 @@ fn completion_params(
   character : Int,
   trigger_character : String?,
 ) -> Json {
-  let params : Map[String, Json] = {
-    "textDocument": { "uri": uri },
-    "position": { "line": line, "character": character },
+  match trigger_character {
+    Some(trigger_character) =>
+      {
+        "textDocument": { "uri": uri },
+        "position": { "line": line, "character": character },
+        "context": { "triggerCharacter": trigger_character },
+      }
+    None =>
+      {
+        "textDocument": { "uri": uri },
+        "position": { "line": line, "character": character },
+      }
   }
-  if trigger_character is Some(character) {
-    params["context"] = { "triggerCharacter": character }
-  }
-  params.to_json()
 }
 
 ///|

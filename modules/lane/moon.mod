@@ -13,6 +13,7 @@ description = "The native Lane2 command line tool and language server."
 preferred_target = "native"
 
 import {
+  "Milky2018/json_object@0.1.0",
   "Milky2018/lane_wasm_abi@0.1.0",
   "Milky2018/buslane@0.1.0",
   "Milky2018/diagnostic@0.1.0",

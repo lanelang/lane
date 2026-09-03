@@ -13,6 +13,7 @@ description = "A wasm1 Lane IR explorer module for browser integrations."
 preferred_target = "wasm"
 
 import {
+  "Milky2018/json_object@0.1.0",
   "Milky2018/buslane@0.1.0",
   "Milky2018/lanec@0.1.0",
   "Milky2018/lane_runtime@0.1.0",

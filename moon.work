@@ -2,6 +2,7 @@ members = [
   "./modules/buslane",
   "./modules/bytecodec",
   "./modules/diagnostic",
+  "./modules/json_object",
   "./modules/lane",
   "./modules/lane_wasm",
   "./modules/lane_wasm_abi",

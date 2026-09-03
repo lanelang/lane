@@ -4,25 +4,29 @@ pub fn diagnostic_to_lsp_json(
   sources : @source.SourceDatabase,
   source? : String,
 ) -> Json {
-  let fields : Map[String, Json] = {
-    "severity": severity_to_lsp_number(diagnostic.severity).to_json(),
-    "message": diagnostic_message(diagnostic).to_json(),
-  }
-  if source is Some(source) {
-    fields["source"] = source.to_json()
-  }
-  if diagnostic.code is Some(code) {
-    fields["code"] = code.to_json()
-  }
-  fields["range"] = diagnostic_range_to_lsp_json(diagnostic, sources)
-  if diagnostic_data_json(diagnostic) is Some(data) {
-    fields["data"] = data
-  }
   let related = related_information_json(diagnostic, sources)
-  if !related.is_empty() {
-    fields["relatedInformation"] = related.to_json()
-  }
-  fields.to_json()
+  @json_object.object([
+    @json_object.required(
+      "severity",
+      severity_to_lsp_number(diagnostic.severity).to_json(),
+    ),
+    @json_object.required("message", diagnostic_message(diagnostic).to_json()),
+    @json_object.optional("source", source.map(source => source.to_json())),
+    @json_object.optional("code", diagnostic.code.map(code => code.to_json())),
+    @json_object.required(
+      "range",
+      diagnostic_range_to_lsp_json(diagnostic, sources),
+    ),
+    @json_object.optional("data", diagnostic_data_json(diagnostic)),
+    @json_object.optional(
+      "relatedInformation",
+      if related.is_empty() {
+        None
+      } else {
+        Some(related.to_json())
+      },
+    ),
+  ])
 }
 
 ///|
@@ -136,22 +140,42 @@ fn diagnostic_data_json(diagnostic : @core.Diagnostic) -> Json? {
     diagnostic.helps.is_empty() {
     return None
   }
-  let fields : Map[String, Json] = Map([])
-  if !diagnostic.notes.is_empty() {
-    fields["notes"] = diagnostic.notes.to_json()
-  }
-  if !diagnostic.helps.is_empty() {
-    fields["helps"] = diagnostic.helps.to_json()
-  }
-  if !diagnostic.facts.is_empty() {
-    fields["facts"] = diagnostic.facts.map(fact_to_json).to_json()
-  }
-  if !diagnostic.suggestions.is_empty() {
-    fields["suggestions"] = diagnostic.suggestions
-      .map(suggestion_data_json)
-      .to_json()
-  }
-  Some(fields.to_json())
+  Some(
+    @json_object.object([
+      @json_object.optional(
+        "notes",
+        if diagnostic.notes.is_empty() {
+          None
+        } else {
+          Some(diagnostic.notes.to_json())
+        },
+      ),
+      @json_object.optional(
+        "helps",
+        if diagnostic.helps.is_empty() {
+          None
+        } else {
+          Some(diagnostic.helps.to_json())
+        },
+      ),
+      @json_object.optional(
+        "facts",
+        if diagnostic.facts.is_empty() {
+          None
+        } else {
+          Some(diagnostic.facts.map(fact_to_json).to_json())
+        },
+      ),
+      @json_object.optional(
+        "suggestions",
+        if diagnostic.suggestions.is_empty() {
+          None
+        } else {
+          Some(diagnostic.suggestions.map(suggestion_data_json).to_json())
+        },
+      ),
+    ]),
+  )
 }
 
 ///|

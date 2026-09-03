@@ -183,62 +183,74 @@ fn invalid_request_response(reason : String, schema_version~ : Int) -> Json {
 
 ///|
 fn report_json(report : @driver.ExploreReport) -> Json {
-  let root : Map[String, Json] = { "sourceId": report.root.source_id.to_json() }
-  if report.root.module_path_text is Some(module_) {
-    root["module"] = module_.to_json()
-  }
-  let fields : Map[String, Json] = {
-    "schemaVersion": report.schema_version,
-    "compiler": {
+  @json_object.object([
+    @json_object.required("schemaVersion", report.schema_version.to_json()),
+    @json_object.required("compiler", {
       "name": report.compiler.name,
       "version": report.compiler.version,
-    },
-    "root": root,
-    "status": report_status_json(report.status),
-    "diagnostics": report.diagnostics.map(compile_diagnostic_json),
-    "stages": report.stages.ordered().map(stage_json),
-    "functions": function_graph_json(report.functions),
+    }),
+    @json_object.required("root", explore_root_json(report.root)),
+    @json_object.required("status", report_status_json(report.status)),
+    @json_object.required(
+      "diagnostics",
+      report.diagnostics.map(compile_diagnostic_json).to_json(),
+    ),
+    @json_object.required(
+      "stages",
+      report.stages.ordered().map(stage_json).to_json(),
+    ),
+    @json_object.required("functions", function_graph_json(report.functions)),
+    @json_object.optional(
+      "selectedEntry",
+      report.selected_entry.map(entry => explore_entry_json(entry)),
+    ),
+  ])
+}
+
+///|
+fn explore_root_json(root : @driver.ExploreRootIdentity) -> Json {
+  match root.module_path_text {
+    Some(module_) => { "sourceId": root.source_id, "module": module_ }
+    None => { "sourceId": root.source_id }
   }
-  if report.selected_entry is Some(entry) {
-    fields["selectedEntry"] = {
-      "module": entry.module_path_text,
-      "name": entry.name,
-      "type": entry.type_text,
-    }
+}
+
+///|
+fn explore_entry_json(entry : @driver.EntrySummary) -> Json {
+  {
+    "module": entry.module_path_text,
+    "name": entry.name,
+    "type": entry.type_text,
   }
-  fields.to_json()
 }
 
 ///|
 fn stage_json(stage : @driver.ExploreStage) -> Json {
-  let fields : Map[String, Json] = { "id": stage.id, "title": stage.title }
   match stage.state {
-    Completed(snapshot) => {
-      fields["status"] = "completed"
-      fields["domain"] = snapshot.domain.name().to_json()
-      fields["format"] = snapshot.text_format.name().to_json()
-      fields["text"] = snapshot.text.to_json()
-      fields["diagnostics"] = snapshot.diagnostics
-        .map(compile_diagnostic_json)
-        .to_json()
-      fields["metrics"] = snapshot.scale.metrics.map(metric_json).to_json()
-      fields["functions"] = snapshot.scale.functions
-        .map(function_scale_json)
-        .to_json()
-      fields["modules"] = snapshot.scale.modules
-        .map(module_scale_json)
-        .to_json()
-      fields["indirectCalls"] = snapshot.indirect_calls
-        .map(indirect_call_json)
-        .to_json()
-    }
-    Failed(diagnostics) => {
-      fields["status"] = "failed"
-      fields["diagnostics"] = diagnostics.map(compile_diagnostic_json).to_json()
-    }
-    Unavailable => fields["status"] = "unavailable"
+    Completed(snapshot) =>
+      {
+        "id": stage.id,
+        "title": stage.title,
+        "status": "completed",
+        "domain": snapshot.domain.name(),
+        "format": snapshot.text_format.name(),
+        "text": snapshot.text,
+        "diagnostics": snapshot.diagnostics.map(compile_diagnostic_json),
+        "metrics": snapshot.scale.metrics.map(metric_json),
+        "functions": snapshot.scale.functions.map(function_scale_json),
+        "modules": snapshot.scale.modules.map(module_scale_json),
+        "indirectCalls": snapshot.indirect_calls.map(indirect_call_json),
+      }
+    Failed(diagnostics) =>
+      {
+        "id": stage.id,
+        "title": stage.title,
+        "status": "failed",
+        "diagnostics": diagnostics.map(compile_diagnostic_json),
+      }
+    Unavailable =>
+      { "id": stage.id, "title": stage.title, "status": "unavailable" }
   }
-  fields.to_json()
 }
 
 ///|
@@ -369,30 +381,22 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
     RuntimeAnfEscapingClosure => { "kind": "runtimeAnfEscapingClosure" }
     RuntimeAnfDirectFunction => { "kind": "runtimeAnfDirectFunction" }
     RuntimeAnfJoinPoint => { "kind": "runtimeAnfJoinPoint" }
-    SourceFunction(value~, name~) => {
-      let fields : Map[String, Json] = {
-        "kind": "source".to_json(),
-        "value": value.to_json(),
-      }
-      if name is Some(name) {
-        fields["name"] = name.to_json()
-      }
-      fields.to_json()
-    }
+    SourceFunction(value~, name~) =>
+      @json_object.object([
+        @json_object.required("kind", "source".to_json()),
+        @json_object.required("value", value.to_json()),
+        @json_object.optional("name", name.map(name => name.to_json())),
+      ])
     SourceAnonymousFunction => { "kind": "sourceAnonymous" }
     HandlerElaborationFunction => { "kind": "handlerElaboration" }
     MonadicTransformationFunction => { "kind": "monadicTransformation" }
     SelectiveCpsFunction => { "kind": "selectiveCps" }
-    Initializer(value~, name~) => {
-      let fields : Map[String, Json] = {
-        "kind": "initializer".to_json(),
-        "value": value.to_json(),
-      }
-      if name is Some(name) {
-        fields["name"] = name.to_json()
-      }
-      fields.to_json()
-    }
+    Initializer(value~, name~) =>
+      @json_object.object([
+        @json_object.required("kind", "initializer".to_json()),
+        @json_object.required("value", value.to_json()),
+        @json_object.optional("name", name.map(name => name.to_json())),
+      ])
     InitializerOrchestrator => { "kind": "initializerOrchestrator" }
     IntrinsicWrapper(name~) => { "kind": "intrinsicWrapper", "name": name }
     RepresentationWorker => { "kind": "representationWorker" }
@@ -409,18 +413,14 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
         },
       }
     LayoutConstructor => { "kind": "layoutConstructor" }
-    RuntimeImport(value~, name~, module_name~, field_name~) => {
-      let fields : Map[String, Json] = {
-        "kind": "runtimeImport".to_json(),
-        "value": value.to_json(),
-        "moduleName": module_name.to_json(),
-        "fieldName": field_name.to_json(),
-      }
-      if name is Some(name) {
-        fields["name"] = name.to_json()
-      }
-      fields.to_json()
-    }
+    RuntimeImport(value~, name~, module_name~, field_name~) =>
+      @json_object.object([
+        @json_object.required("kind", "runtimeImport".to_json()),
+        @json_object.required("value", value.to_json()),
+        @json_object.required("moduleName", module_name.to_json()),
+        @json_object.required("fieldName", field_name.to_json()),
+        @json_object.optional("name", name.map(name => name.to_json())),
+      ])
     WasmBuiltinFunction(name~) =>
       { "kind": "wasmBuiltinFunction", "name": name }
     CoreImport(module_name~, field_name~) =>
@@ -438,16 +438,15 @@ fn function_role_json(role : @driver.ExploreFunctionRole) -> Json {
       }
     WasmRuntimeFunction(name~) =>
       { "kind": "wasmRuntimeFunction", "name": name }
-    WasmHelperFunction(name~, ordinal~) => {
-      let fields : Map[String, Json] = {
-        "kind": "wasmHelperFunction".to_json(),
-        "name": name.to_json(),
-      }
-      if ordinal is Some(ordinal) {
-        fields["ordinal"] = ordinal.to_json()
-      }
-      fields.to_json()
-    }
+    WasmHelperFunction(name~, ordinal~) =>
+      @json_object.object([
+        @json_object.required("kind", "wasmHelperFunction".to_json()),
+        @json_object.required("name", name.to_json()),
+        @json_object.optional(
+          "ordinal",
+          ordinal.map(ordinal => ordinal.to_json()),
+        ),
+      ])
     InitializerWrapper => { "kind": "initializerWrapper" }
     ExportWrapper => { "kind": "exportWrapper" }
   }
@@ -477,39 +476,58 @@ fn report_status_json(status : @driver.ExploreStatus) -> Json {
 fn compile_diagnostic_json(
   diagnostic : @compiler_diag.CompilerDiagnostic,
 ) -> Json {
-  let fields : Map[String, Json] = {
-    "source": "lane",
-    "severity": diagnostic_severity_json(diagnostic.severity),
-    "message": diagnostic.message,
-    "range": diagnostic_range_json(diagnostic.span),
-  }
-  if diagnostic.source_id is Some(source_id) {
-    fields["sourceId"] = source_id.to_json()
-  }
-  if diagnostic.code is Some(code) {
-    fields["code"] = code.to_json()
-  }
   let labels = diagnostic.labels.map(fn(label) {
-    let fields : Map[String, Json] = {
-      "message": label.message,
-      "style": diagnostic_label_style_json(label.style),
-      "range": compiler_span_range_json(label.span),
-    }
-    if label.span.source_id() is Some(source_id) {
-      fields["sourceId"] = source_id.to_json()
-    }
-    fields.to_json()
+    @json_object.object([
+      @json_object.required("message", label.message.to_json()),
+      @json_object.required(
+        "style",
+        diagnostic_label_style_json(label.style).to_json(),
+      ),
+      @json_object.required("range", compiler_span_range_json(label.span)),
+      @json_object.optional(
+        "sourceId",
+        label.span.source_id().map(source_id => source_id.to_json()),
+      ),
+    ])
   })
-  if !labels.is_empty() {
-    fields["labels"] = labels.to_json()
-  }
-  if !diagnostic.notes.is_empty() {
-    fields["notes"] = diagnostic.notes.to_json()
-  }
-  if !diagnostic.helps.is_empty() {
-    fields["helps"] = diagnostic.helps.to_json()
-  }
-  fields.to_json()
+  @json_object.object([
+    @json_object.required("source", "lane".to_json()),
+    @json_object.required(
+      "severity",
+      diagnostic_severity_json(diagnostic.severity).to_json(),
+    ),
+    @json_object.required("message", diagnostic.message.to_json()),
+    @json_object.required("range", diagnostic_range_json(diagnostic.span)),
+    @json_object.optional(
+      "sourceId",
+      diagnostic.source_id.map(source_id => source_id.to_json()),
+    ),
+    @json_object.optional("code", diagnostic.code.map(code => code.to_json())),
+    @json_object.optional(
+      "labels",
+      if labels.is_empty() {
+        None
+      } else {
+        Some(labels.to_json())
+      },
+    ),
+    @json_object.optional(
+      "notes",
+      if diagnostic.notes.is_empty() {
+        None
+      } else {
+        Some(diagnostic.notes.to_json())
+      },
+    ),
+    @json_object.optional(
+      "helps",
+      if diagnostic.helps.is_empty() {
+        None
+      } else {
+        Some(diagnostic.helps.to_json())
+      },
+    ),
+  ])
 }
 
 ///|

@@ -1,5 +1,6 @@
 import {
   "Milky2018/buslane",
+  "Milky2018/json_object",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/driver",

@@ -1,24 +1,29 @@
 ///|
 pub fn diagnostic_to_json(diagnostic : @core.Diagnostic) -> Json {
-  let fields : Map[String, Json] = {
-    "severity": diagnostic.severity.as_text().to_json(),
-    "message": diagnostic.message.to_json(),
-  }
-  if diagnostic.code is Some(code) {
-    fields["code"] = code.to_json()
-  }
-  fields["labels"] = diagnostic.labels.map(label_to_json).to_json()
-  fields["notes"] = diagnostic.notes.to_json()
-  fields["helps"] = diagnostic.helps.to_json()
-  fields["facts"] = diagnostic.facts.map(fact_to_json).to_json()
-  fields["suggestions"] = diagnostic.suggestions
-    .map(suggestion_to_json)
-    .to_json()
-  fields["relatedLocations"] = diagnostic.related_locations
-    .map(related_location_to_json)
-    .to_json()
-  fields["related"] = diagnostic.related.map(diagnostic_to_json).to_json()
-  fields.to_json()
+  @json_object.object([
+    @json_object.required("severity", diagnostic.severity.as_text().to_json()),
+    @json_object.required("message", diagnostic.message.to_json()),
+    @json_object.optional("code", diagnostic.code.map(code => code.to_json())),
+    @json_object.required(
+      "labels",
+      diagnostic.labels.map(label_to_json).to_json(),
+    ),
+    @json_object.required("notes", diagnostic.notes.to_json()),
+    @json_object.required("helps", diagnostic.helps.to_json()),
+    @json_object.required("facts", diagnostic.facts.map(fact_to_json).to_json()),
+    @json_object.required(
+      "suggestions",
+      diagnostic.suggestions.map(suggestion_to_json).to_json(),
+    ),
+    @json_object.required(
+      "relatedLocations",
+      diagnostic.related_locations.map(related_location_to_json).to_json(),
+    ),
+    @json_object.required(
+      "related",
+      diagnostic.related.map(diagnostic_to_json).to_json(),
+    ),
+  ])
 }
 
 ///|
