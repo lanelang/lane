@@ -1847,6 +1847,36 @@ async test "workspace libraries exclude current document by realpath" {
 }
 
 ///|
+async test "workspace discovers modules inside build directories" {
+  let workspace = ".tmp-lsp-build-workspace"
+  let build_directory = "\{workspace}/build"
+  let library_path = "\{build_directory}/Inspection.lane"
+  @fs.rmdir(workspace, recursive=true) catch {
+    _ => ()
+  }
+  @fs.mkdir(workspace)
+  @fs.mkdir(build_directory)
+  @fs.write_file(
+    library_path,
+    "module Build.Inspection",
+    create_mode=CreateOrTruncate,
+  )
+  let sources = []
+  append_lane_sources(
+    workspace,
+    HashSet([]),
+    sources,
+    [],
+    is_workspace_root=true,
+  )
+  @fs.rmdir(workspace, recursive=true)
+  inspect(
+    sources.map(fn(source) { source.source_id }).join(","),
+    content="file://.tmp-lsp-build-workspace/build/Inspection.lane",
+  )
+}
+
+///|
 async test "definition returns encoded URI for discovered library source" {
   let workspace = ".tmp-lsp encoded-中"
   let main_path = "\{workspace}/Main.lane"

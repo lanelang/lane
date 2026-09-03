@@ -1320,6 +1320,36 @@ async test "lib-dir excludes root source and deduplicates libraries" {
 }
 
 ///|
+async test "lib-dir discovers modules inside build directories" {
+  let workspace = ".tmp-lane-build-library"
+  let build_directory = "\{workspace}/build"
+  let root = "\{workspace}/Main.lane"
+  let library = "\{build_directory}/Inspection.lane"
+  cleanup_library_fixture(workspace)
+  @fs.mkdir(workspace)
+  @fs.mkdir(build_directory)
+  @fs.write_file(root, "root", create_mode=CreateOrTruncate)
+  @fs.write_file(library, "inspection", create_mode=CreateOrTruncate)
+  guard read_library_source_inputs(root, [], [workspace]) is Ok(sources) else {
+    cleanup_library_fixture(workspace)
+    abort("expected a library below build/ to be discovered")
+  }
+  cleanup_library_fixture(workspace)
+  debug_inspect(
+    sources.map(fn(source) { (source.source_id, source.path, source.text) }),
+    content=(
+      #|[
+      #|  (
+      #|    ".tmp-lane-build-library/build/Inspection.lane",
+      #|    Some(".tmp-lane-build-library/build/Inspection.lane"),
+      #|    "inspection",
+      #|  ),
+      #|]
+    ),
+  )
+}
+
+///|
 test "source commands prepend the default Basic library directory" {
   debug_inspect(
     source_command_library_dirs(

@@ -269,8 +269,5 @@ async fn append_lane_sources(
 
 ///|
 fn should_skip_workspace_entry(entry : String) -> Bool {
-  entry.has_prefix(".") ||
-  entry == "_build" ||
-  entry == "build" ||
-  entry == "dist"
+  entry.has_prefix(".") || entry == "_build"
 }

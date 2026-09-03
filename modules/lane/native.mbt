@@ -319,11 +319,7 @@ async fn append_library_dir_sources(
 
 ///|
 fn should_skip_library_entry(entry : String) -> Bool {
-  // TODO: Decide the final default-excluded directory names for library discovery.
-  entry.has_prefix(".") ||
-  entry == "_build" ||
-  entry == "build" ||
-  entry == "dist"
+  entry.has_prefix(".") || entry == "_build"
 }
 
 ///|
