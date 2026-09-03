@@ -339,7 +339,10 @@ _Avoid_: linked artifact, persisted instruction format, second runtime target
 
 **WebAssembly Execution Image**:
 The sole persisted and executable Lane target image: a standards-valid raw
-WebAssembly module whose import section owns its physical host contract.
+WebAssembly module whose import section owns its physical host contract. The
+artifact boundary exposes compiler-produced bytes only after reparsing and
+validating those exact bytes; runtime loading independently validates external
+bytes again.
 _Avoid_: Physical Program, canonical core, per-module cache
 
 **Closure Conversion**:
@@ -448,7 +451,8 @@ _Avoid_: global unification equation, Buslane verifier rule, optimizer rewrite
 - A **Physical Program** is verified before WebAssembly emission and never
   crosses the compiler/runtime or persistence boundary.
 - A **WebAssembly Execution Image** is the only payload accepted by `exec`;
-  module interfaces and objects remain target-independent.
+  compiler-produced bytes are certified before publication, while module
+  interfaces and objects remain target-independent.
 - Buslane has no `if` node; source conditionals lower to **Synthetic Bool Matches**.
 - Buslane uses **One-Level Buslane Matches**; nested source patterns are compiled into nested one-level matches before entering Buslane.
 - Every **One-Level Buslane Match** must be an **Exhaustive Buslane Match**.

@@ -107,9 +107,9 @@ async fn write_wasm_executable(
   path : String,
   program : @executable.ExecutableProgram,
 ) -> Result[Unit, CliError] {
-  let bytes = match @artifact.executable_to_wasm_binary(program) {
-    Ok(bytes) => bytes
-    Err(error) => return Err(ExecutionImageLowering(message="\{Repr(error)}"))
+  let bytes = match @artifact.executable_to_verified_wasm(program) {
+    Ok(artifact) => artifact.bytes()
+    Err(error) => return Err(wasm_executable_error_to_cli(error))
   }
   write_binary_file(path, bytes) catch {
     error => return Err(CliError::file_io(Write, path, "\{error}"))

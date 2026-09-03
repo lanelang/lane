@@ -36,3 +36,15 @@ pub extend WasmExecutableError with Debug::{to_repr}
 
 ///|
 pub extend WasmExecutableError with Eq::{not_equal, equal}
+
+///|
+pub extend WasmArtifactCertificationError with Debug::{to_repr}
+
+///|
+pub extend WasmArtifactCertificationError with Eq::{not_equal, equal}
+
+///|
+pub extend VerifiedWasmExecutable with Debug::{to_repr}
+
+///|
+pub extend VerifiedWasmExecutable with Eq::{not_equal, equal}

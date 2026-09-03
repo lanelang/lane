@@ -93,9 +93,9 @@ async fn execute_entry_with_output(
 fn lower_executable_wasm(
   executable : @executable.ExecutableProgram,
 ) -> Result[Bytes, CliError] {
-  match @artifact.executable_to_wasm_binary(executable) {
-    Ok(wasm) => Ok(wasm)
-    Err(error) => Err(ExecutionImageLowering(message="\{Repr(error)}"))
+  match @artifact.executable_to_verified_wasm(executable) {
+    Ok(wasm) => Ok(wasm.bytes())
+    Err(error) => Err(wasm_executable_error_to_cli(error))
   }
 }
 

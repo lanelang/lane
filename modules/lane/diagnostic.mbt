@@ -107,6 +107,19 @@ fn CliError::file_io(
 }
 
 ///|
+fn wasm_executable_error_to_cli(
+  error : @artifact.WasmExecutableError,
+) -> CliError {
+  match error {
+    WasmCertification(cause) =>
+      Internal(
+        message="WebAssembly artifact certification rejected compiler output: \{Repr(cause)}",
+      )
+    _ => ExecutionImageLowering(message="\{Repr(error)}")
+  }
+}
+
+///|
 fn CliError::render_human(self : CliError) -> String {
   match self {
     InvalidCommand(message~) => message

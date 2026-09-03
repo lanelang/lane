@@ -89,8 +89,8 @@ test "module artifacts roundtrip through binary, link, and Wasm" {
     ),
   )
   let executable = test_executable_program(program)
-  let wasm = match @artifact.executable_to_wasm_binary(executable) {
-    Ok(wasm) => wasm
+  let wasm = match @artifact.executable_to_verified_wasm(executable) {
+    Ok(wasm) => wasm.bytes()
     Err(error) => abort("unexpected Wasm lowering error: \{Repr(error)}")
   }
   inspect(byte_prefix_text(wasm, 8), content="0,97,115,109,1,0,0,0")
@@ -697,8 +697,8 @@ test "module artifact binary rejects wrong kind" {
     abort("expected linked program")
   }
   let wasm = match
-    @artifact.executable_to_wasm_binary(test_executable_program(program)) {
-    Ok(wasm) => wasm
+    @artifact.executable_to_verified_wasm(test_executable_program(program)) {
+    Ok(wasm) => wasm.bytes()
     Err(error) => abort("unexpected Wasm lowering error: \{Repr(error)}")
   }
   if @artifact.parse_module_object_artifact_binary(wasm) is Err(message) {

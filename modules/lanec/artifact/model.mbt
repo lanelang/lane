@@ -52,6 +52,22 @@ pub(all) struct ModuleObjectArtifact {
 pub(all) enum WasmExecutableError {
   Lowering(@physical_lowering.PhysicalLoweringError)
   WasmCompilation(@wasm_compiler.WasmCompileError)
+  WasmCertification(WasmArtifactCertificationError)
+} derive(Debug, Eq)
+
+///|
+/// Identifies which canonical WebAssembly certification step rejected
+/// compiler-produced output.
+pub(all) enum WasmArtifactCertificationError {
+  EncodedBytesUnparseable(detail~ : String)
+  EncodedModuleInvalid(detail~ : String)
+} derive(Debug, Eq)
+
+///|
+/// Exact WebAssembly bytes that passed the canonical parser and validator.
+/// The private payload makes artifact certification the only constructor.
+pub struct VerifiedWasmExecutable {
+  priv bytes : Bytes
 } derive(Debug, Eq)
 
 ///|

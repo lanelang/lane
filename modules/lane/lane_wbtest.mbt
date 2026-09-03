@@ -1089,6 +1089,14 @@ test "internal compiler error is marked as a compiler bug" {
 }
 
 ///|
+test "Wasm artifact certification failure is a compiler bug" {
+  let error = @artifact.WasmExecutableError::WasmCertification(
+    EncodedModuleInvalid(detail="invalid function index 0"),
+  )
+  assert_true(wasm_executable_error_to_cli(error) is Internal(_))
+}
+
+///|
 test "check deny controls warning failures" {
   let warning : @compiler_diag.CompilerDiagnostic = {
     source_id: None,

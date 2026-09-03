@@ -89,14 +89,15 @@ the selected export.
 
 - Module interfaces persist imported and exported semantic contracts.
 - Module objects persist checked, linkable implementation data.
-- Linked executables are raw WebAssembly modules.
+- Linked executables are raw WebAssembly modules certified from their exact
+  encoded bytes before successful compilation returns.
 - Compilation fingerprints reject stale or mismatched inputs.
 
 Artifact schemas are current-only compiler contracts, not archival formats.
 Incompatible module interfaces and objects are rejected and regenerated.
-Executable loading validates the raw WebAssembly module; WASI contracts are
-certified by the shared catalog and other imports are linked by exact core Wasm
-function type.
+Executable loading validates untrusted raw WebAssembly again; WASI contracts
+are certified by the shared catalog and other imports are linked by exact core
+Wasm function type.
 
 `lane link` explicitly selects one or more public Lane functions and assigns
 each a WebAssembly export name. `_start` is an ordinary export name. Retained

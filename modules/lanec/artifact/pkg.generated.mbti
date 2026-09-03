@@ -23,7 +23,7 @@ pub let compiled_module_artifact_schema_version : Int
 
 pub let compiled_module_set_artifact_schema_version : Int
 
-pub fn executable_to_wasm_binary(@executable.ExecutableProgram) -> Result[Bytes, WasmExecutableError]
+pub fn executable_to_verified_wasm(@executable.ExecutableProgram) -> Result[VerifiedWasmExecutable, WasmExecutableError]
 
 pub fn imported_environment_fingerprints(@module.ModuleInterfaceCatalog) -> Array[@model.ImportedInterfaceFingerprint]
 
@@ -111,9 +111,26 @@ pub fn ModuleObjectArtifact::pretty(Self) -> @prettyprinter.Document
 pub fn ModuleObjectArtifact::to_repr(Self) -> @debug.Repr
 pub impl @prettyprinter.Pretty for ModuleObjectArtifact
 
+pub struct VerifiedWasmExecutable {
+  // private fields
+} derive(Eq, @debug.Debug)
+pub fn VerifiedWasmExecutable::bytes(Self) -> Bytes
+pub fn VerifiedWasmExecutable::equal(Self, Self) -> Bool
+pub fn VerifiedWasmExecutable::not_equal(Self, Self) -> Bool
+pub fn VerifiedWasmExecutable::to_repr(Self) -> @debug.Repr
+
+pub(all) enum WasmArtifactCertificationError {
+  EncodedBytesUnparseable(detail~ : String)
+  EncodedModuleInvalid(detail~ : String)
+} derive(Eq, @debug.Debug)
+pub fn WasmArtifactCertificationError::equal(Self, Self) -> Bool
+pub fn WasmArtifactCertificationError::not_equal(Self, Self) -> Bool
+pub fn WasmArtifactCertificationError::to_repr(Self) -> @debug.Repr
+
 pub(all) enum WasmExecutableError {
   Lowering(@physical_lowering.PhysicalLoweringError)
   WasmCompilation(@wasm_target.WasmCompileError)
+  WasmCertification(WasmArtifactCertificationError)
 } derive(Eq, @debug.Debug)
 pub fn WasmExecutableError::equal(Self, Self) -> Bool
 pub fn WasmExecutableError::not_equal(Self, Self) -> Bool

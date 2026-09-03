@@ -18,6 +18,9 @@ import {
   "Milky2018/lane_wasm_abi" @wasm_abi,
   "Milky2018/lanec/wasm_target" @wasm_compiler,
   "Milky2018/wasm_core/encoder" @wasm_encoder,
+  "Milky2018/wasm_core/parser" @wasm_parser,
+  "Milky2018/wasm_core/types" @wasm_types,
+  "Milky2018/wasm_core/validator" @wasm_validator,
   "moonbit-community/prettyprinter",
   "moonbitlang/x/crypto",
 }
