@@ -241,7 +241,15 @@ pub fn ParsedSource::module_path_text(self : ParsedSource) -> String? {
 
 ///|
 fn module_header(source : @syntax.SourceFile) -> ModuleHeader {
-  let imports = source.imports.map(import_header)
+  let imports : Array[ImportHeader] = []
+  for declaration in source.imports {
+    let header = import_header(declaration)
+    if !imports.any(fn(existing) {
+        existing.module_path_text == header.module_path_text
+      }) {
+      imports.push(header)
+    }
+  }
   let current_module_path = module_path_text(source.module_path)
   if source.first_derive_loc() is Some(import_span) {
     for

@@ -61,6 +61,35 @@ test "module input headers keep aliased imports canonical" {
 }
 
 ///|
+test "module input headers contain each directly imported module once" {
+  let parsed = parse_module_inputs(
+    {
+      source_id: "file:///Main.lane",
+      text: (
+        #|module App.Main
+        #|import Basic.Data.Bool.{ Bool }
+        #|import Basic.Data.Bool.{ not }
+        #|import Basic.Data.Bool as BoolModule
+      ),
+    },
+    [],
+  )
+  debug_inspect(parsed.sources.map(ParsedSource::diagnostics), content="[[]]")
+  debug_inspect(
+    parsed.sources.filter_map(ParsedSource::module_header),
+    content=(
+      #|[
+      #|  {
+      #|    source_id: "file:///Main.lane",
+      #|    module_path_text: "App.Main",
+      #|    imports: ["Basic.Data.Bool"],
+      #|  },
+      #|]
+    ),
+  )
+}
+
+///|
 test "derive module header includes every canonical compiler dependency" {
   let parsed = parse_module_inputs(
     {
