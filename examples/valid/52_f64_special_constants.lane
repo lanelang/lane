@@ -1,5 +1,6 @@
 module Examples.Valid.F64SpecialConstants
 
+import Basic.Ops
 import Basic.Builtins.{ f64_inf, f64_nan, f64_ninf }
 import Basic.Io.{ println }
 import Basic.Data.F64.*

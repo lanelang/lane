@@ -1,6 +1,7 @@
 // invalid: offering Compare[I64] does not derive an Equal[I64] contextual offer
 module Examples.Invalid60
 
+import Basic.Ops
 import Basic.Trait.Equal.{ Equal }
 import Basic.Trait.Compare.{ Compare }
 

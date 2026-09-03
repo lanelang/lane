@@ -251,22 +251,6 @@ fn module_header(source : @syntax.SourceFile) -> ModuleHeader {
     }
   }
   let current_module_path = module_path_text(source.module_path)
-  if source.first_derive_loc() is Some(import_span) {
-    for
-      dependency in ["Basic.Trait.Derive", "Basic.Trait.Iso", "Basic.Data.Void"] {
-      if current_module_path != dependency &&
-        !imports.any(fn(import_) { import_.module_path_text == dependency }) {
-        imports.push({ module_path_text: dependency, import_span, })
-      }
-    }
-  }
-  if source.first_operator_loc() is Some(import_span) {
-    let dependency = @abi.BasicValueProvider::OpAdd.module_path()
-    if current_module_path != dependency &&
-      !imports.any(fn(import_) { import_.module_path_text == dependency }) {
-      imports.push({ module_path_text: dependency, import_span, })
-    }
-  }
   {
     module_path_text: current_module_path,
     module_span: source.module_path.loc,

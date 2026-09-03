@@ -277,6 +277,7 @@ test "operator syntax resolves to canonical Basic Ops instead of a lexical homon
       source_id: "main",
       text: (
         #|module Main
+        #|import Basic.Ops
         #|import Basic.Trait.Num.{ Add }
         #|
         #|fn op_add(_a : I64, _b : I64) -> Bool { false }
@@ -320,6 +321,7 @@ test "operator syntax uses the Basic-owned provider type" {
       source_id: "main",
       text: (
         #|module Main
+        #|import Basic.Ops
         #|pub let symbolic : Bool = 1 + 2
       ),
     },
@@ -341,7 +343,7 @@ test "operator syntax uses the Basic-owned provider type" {
 }
 
 ///|
-test "operator syntax requires only the canonical Basic Ops identity" {
+test "operator syntax rejects an unavailable canonical Basic Ops identity" {
   let outcome = check({
     root: {
       source_id: "main",
@@ -371,10 +373,45 @@ test "operator syntax requires only the canonical Basic Ops identity" {
         Some("E3039"),
         "invalid canonical Basic provider `Basic.Ops.op_add`",
         ["the required public declaration is missing"],
-        ["export the required operator value from `Basic.Ops`"],
+        [
+          "import `Basic.Ops` or a facade that re-exports the required operator value",
+        ],
       ),
     ],
   )
+}
+
+///|
+test "operator syntax resolves through an authored re-export facade" {
+  let outcome = check({
+    root: {
+      source_id: "main",
+      text: (
+        #|module Main
+        #|import Prelude.{ op_add }
+        #|pub let symbolic : I64 = 1 + 2
+      ),
+    },
+    libraries: [
+      {
+        source_id: "ops",
+        text: (
+          #|module Basic.Ops
+          #|pub fn op_add(a : I64, b : I64) -> I64 {
+          #|  builtin("%i64_add")(a, b)
+          #|}
+        ),
+      },
+      {
+        source_id: "prelude",
+        text: (
+          #|module Prelude
+          #|pub import Basic.Ops.{ op_add }
+        ),
+      },
+    ],
+  })
+  assert_true(outcome is Succeeded(_))
 }
 
 ///|

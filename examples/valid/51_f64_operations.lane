@@ -1,5 +1,6 @@
 module Examples.Valid.F64Operations
 
+import Basic.Ops
 import Basic.Io.{ println }
 import Basic.Data.F64.*
 import Basic.Data.Bool.*

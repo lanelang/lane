@@ -1,5 +1,6 @@
 module Examples.Valid08
 
+import Basic.Ops
 import Basic.Io.{ println }
 import Basic.Data.I64.*
 import Basic.Trait.Equal.{ Equal }

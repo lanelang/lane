@@ -27,7 +27,7 @@ test "semantic snapshot composes right-nested operator inlays inner first" {
   let workspace = SemanticWorkspace::new()
   let source =
     #|module Main
-    #|import Basic.Trait.Num.{ Add, Mul }
+    #|import Basic.Ops.{ Add, Mul }
     #|
     #|offer i64_add : Add[I64] = Add::{ add: fn(left : I64, right : I64) { builtin("%i64_add")(left, right) } }
     #|offer i64_multiply : Mul[I64] = Mul::{ mul: fn(left : I64, right : I64) { builtin("%i64_mul")(left, right) } }
@@ -47,7 +47,7 @@ test "semantic snapshot composes right-nested operator inlays inner first" {
         source_id: "file:///Ops.lane",
         text: (
           #|module Basic.Ops
-          #|import Basic.Trait.Num.{ Add, Mul }
+          #|pub import Basic.Trait.Num.{ Add, Mul }
           #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T { op.add(a, b) }
           #|pub fn[T] op_mul(a : T, b : T, auto op : Mul[T]) -> T { op.mul(a, b) }
         ),

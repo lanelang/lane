@@ -29,10 +29,10 @@ module-input frontend and writes one stable JSON object to standard output:
 {"schema":1,"module":"App.Main","imports":["App.Model"]}
 ```
 
-The ordered `imports` array is the frontend's direct dependency projection,
-including compiler-owned implicit source dependencies. Inspection reports
-ordinary parser diagnostics for invalid source. It performs no repository
-discovery, graph construction, compilation, or scheduling.
+The ordered `imports` array is the frontend's authored direct dependency
+projection. Language sugar does not add hidden source dependencies. Inspection
+reports ordinary parser diagnostics for invalid source. It performs no
+repository discovery, graph construction, compilation, or scheduling.
 
 Build code in Basic owns source discovery, aggregate DAG construction,
 topological or parallel scheduling, cache policy, artifact paths, and the final
@@ -48,7 +48,8 @@ build library may decode a command's documented machine-readable output.
 
 ## Consequences
 
-- Lane source syntax and implicit dependencies retain one frontend owner.
+- Lane source inspection reports only authored direct imports; library-backed
+  syntax creates no hidden dependency edges.
 - Build policy stays replaceable ordinary Lane code.
 - Source inspection is a small semantic projection rather than an alternate
   compiler pipeline or manifest language.

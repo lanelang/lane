@@ -1,0 +1,23 @@
+// Valid: ordinary Basic-backed syntax can be enabled through one explicit
+// prelude import without creating a compiler-owned dependency on Basic.
+
+module Examples.Valid.BasicPrelude
+
+import Basic.Prelude.*
+import Basic.Io.{ println }
+
+struct Point {
+  x : I64
+  y : I64
+}
+
+pub fn answer() -> Unit ! Io {
+  offer point_equal : Equal[Point] = derive[Equal, Point]()
+  let _values : List[I64] = [1, 2, 3]
+  let _pair : (I64, I64) = (1, 2)
+  if 1 + 1 == 2 && point_equal.equal(Point::{ x: 1, y: 2 }, Point::{ x: 1, y: 2 }) {
+    println("basic prelude=ok")
+  } else {
+    println("basic prelude failed")
+  }
+}

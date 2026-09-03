@@ -76,7 +76,19 @@ test "public export targets stay provider-owned without forwarding terms" {
 
 ///|
 test "public exports survive separate interface artifact compilation" {
-  let provider = compile_modules_for_test(re_export_provider_source(), [])
+  let provider = compile_modules_for_test(
+    (
+      #|module Provider
+      #|pub struct Box {
+      #|  value : I64
+      #|}
+      #|pub enum Choice {
+      #|  yes(I64)
+      #|  no()
+      #|}
+    ),
+    [],
+  )
   guard provider.modules is Some(provider_modules) else {
     abort("expected provider module")
   }
@@ -89,7 +101,10 @@ test "public exports survive separate interface artifact compilation" {
   }
   let provider_interface = provider_module.to_interface_artifact()
   let facade = compile_module_with_interfaces_for_test(
-    re_export_facade_source(),
+    (
+      #|module Facade
+      #|pub import Provider.{ Box, Choice }
+    ),
     [provider_interface],
   )
   assert_eq(facade.diagnostics, [])
@@ -107,10 +122,9 @@ test "public exports survive separate interface artifact compilation" {
   let consumer = compile_module_with_interfaces_for_test(
     (
       #|module Main
-      #|import Facade
-      #|pub fn answer(box : Facade.Box) -> I64 {
-      #|  box.value
-      #|}
+      #|import Facade.{ Box, Choice }
+      #|pub let box : Box = Box::{ value: 42 }
+      #|pub let choice : Choice = yes(42)
     ),
     [provider_interface, decoded],
   )

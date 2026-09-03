@@ -1,5 +1,4 @@
 import {
-  "Milky2018/lanec/abi",
   "Milky2018/lanec/basic",
   "Milky2018/lanec/diagnostic" @compiler_diag,
   "Milky2018/lanec/lexer",

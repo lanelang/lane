@@ -4,7 +4,7 @@ test "explicit derive checks through the canonical structural interface" {
     (
       #|module Main
       #|
-      #|import Basic.Trait.Derive.{ Deriver }
+      #|import Basic.Derive.{ Deriver }
       #|
       #|pub struct Equal[T] {
       #|  equal : (T, T) -> Bool
@@ -33,7 +33,12 @@ test "explicit derive checks through the canonical structural interface" {
       #|  derive[Equal, Wrapper[T]](deriver=deriver)
       #|}
     ),
-    [derive_void_source(), derive_iso_source(), derive_interface_source()],
+    [
+      derive_void_source(),
+      derive_iso_source(),
+      derive_interface_source(),
+      derive_facade_source(),
+    ],
   )
   debug_inspect(result.diagnostics, content="[]")
 }
@@ -48,7 +53,7 @@ test "derive rejects a malformed canonical structural interface" {
     (
       #|module Main
       #|
-      #|import Basic.Trait.Derive.{ Deriver }
+      #|import Basic.Derive.{ Deriver }
       #|
       #|pub struct Box[_T] {}
       #|pub struct Point { value : I64 }
@@ -60,7 +65,12 @@ test "derive rejects a malformed canonical structural interface" {
       #|  derive[Box, Point](deriver=deriver)
       #|}
     ),
-    [derive_void_source(), derive_iso_source(), malformed_interface],
+    [
+      derive_void_source(),
+      derive_iso_source(),
+      malformed_interface,
+      derive_facade_source(),
+    ],
   )
   debug_inspect(
     result.diagnostics,
@@ -73,8 +83,8 @@ test "derive rejects a malformed canonical structural interface" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 204,
-      #|          end_offset: 239,
+      #|          start_offset: 198,
+      #|          end_offset: 233,
       #|          start_line: 12,
       #|          start_column: 3,
       #|          end_line: 12,
@@ -89,8 +99,8 @@ test "derive rejects a malformed canonical structural interface" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 204,
-      #|            end_offset: 239,
+      #|            start_offset: 198,
+      #|            end_offset: 233,
       #|            start_line: 12,
       #|            start_column: 3,
       #|            end_line: 12,
@@ -133,7 +143,7 @@ test "derive rejects hidden type members in canonical structs" {
       (
         #|module Main
         #|
-        #|import Basic.Trait.Derive.{ Deriver }
+        #|import Basic.Derive.{ Deriver }
         #|
         #|pub struct Box[_T] {}
         #|pub struct Point { value : I64 }
@@ -145,7 +155,12 @@ test "derive rejects hidden type members in canonical structs" {
         #|  derive[Box, Point](deriver=deriver)
         #|}
       ),
-      [derive_void_source(), malformed_iso, malformed_interface],
+      [
+        derive_void_source(),
+        malformed_iso,
+        malformed_interface,
+        derive_facade_source(),
+      ],
     )
     if result.diagnostics is [diagnostic] {
       assert_diagnostic_headline(
@@ -174,7 +189,7 @@ test "derive rejects a nonempty canonical void type" {
     (
       #|module Main
       #|
-      #|import Basic.Trait.Derive.{ Deriver }
+      #|import Basic.Derive.{ Deriver }
       #|
       #|pub struct Box[_T] {}
       #|pub struct Empty {}
@@ -183,7 +198,12 @@ test "derive rejects a nonempty canonical void type" {
       #|  derive[Box, Empty](deriver=deriver)
       #|}
     ),
-    [nonempty_void, derive_iso_source(), derive_interface_source()],
+    [
+      nonempty_void,
+      derive_iso_source(),
+      derive_interface_source(),
+      derive_facade_source(),
+    ],
   )
   debug_inspect(
     result.diagnostics,
@@ -196,8 +216,8 @@ test "derive rejects a nonempty canonical void type" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 154,
-      #|          end_offset: 189,
+      #|          start_offset: 148,
+      #|          end_offset: 183,
       #|          start_line: 9,
       #|          start_column: 3,
       #|          end_line: 9,
@@ -212,8 +232,8 @@ test "derive rejects a nonempty canonical void type" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 154,
-      #|            end_offset: 189,
+      #|            start_offset: 148,
+      #|            end_offset: 183,
       #|            start_line: 9,
       #|            start_column: 3,
       #|            end_line: 9,
@@ -235,7 +255,7 @@ test "derive rejects a nonempty canonical void type" {
 }
 
 ///|
-test "derive uses a contextual deriver without importing its canonical module" {
+test "derive uses a contextual deriver through an authored support facade" {
   let result = check_sources_for_test(
     (
       #|module Main
@@ -268,6 +288,7 @@ test "derive uses a contextual deriver without importing its canonical module" {
       derive_void_source(),
       derive_iso_source(),
       derive_interface_source(),
+      derive_facade_source(),
       derive_support_source(),
     ],
   )
@@ -292,7 +313,7 @@ test "derive uses a contextual deriver without importing its canonical module" {
 }
 
 ///|
-test "nested derive adds its canonical compiler dependencies" {
+test "nested derive uses an authored support facade dependency" {
   let result = compile_sources_for_test(
     (
       #|module Main
@@ -311,6 +332,7 @@ test "nested derive adds its canonical compiler dependencies" {
       derive_void_source(),
       derive_iso_source(),
       derive_interface_source(),
+      derive_facade_source(),
       derive_support_source(),
     ],
   )
@@ -334,6 +356,7 @@ test "derive metadata follows a normalized target through an imported alias" {
       derive_void_source(),
       derive_iso_source(),
       derive_interface_source(),
+      derive_facade_source(),
       derive_support_source(),
       (
         #|module Hidden
@@ -393,6 +416,7 @@ test "derive treats a closed existential nominal as ordinary component evidence"
       derive_void_source(),
       derive_iso_source(),
       derive_interface_source(),
+      derive_facade_source(),
       derive_support_source(),
     ],
   )
@@ -419,6 +443,7 @@ test "derive type arguments retain semantic navigation" {
       { source_id: "file:///Void.lane", text: derive_void_source(), },
       { source_id: "file:///Iso.lane", text: derive_iso_source(), },
       { source_id: "file:///Derive.lane", text: derive_interface_source(), },
+      { source_id: "file:///DeriveFacade.lane", text: derive_facade_source(), },
       { source_id: "file:///Support.lane", text: derive_support_source(), },
     ])
     is Some(snapshot) else {
@@ -449,8 +474,8 @@ test "derive type arguments retain semantic navigation" {
       #|    {
       #|      source_id: "file:///Support.lane",
       #|      span: {
-      #|        start_offset: 825,
-      #|        end_offset: 835,
+      #|        start_offset: 837,
+      #|        end_offset: 847,
       #|        start_line: 26,
       #|        start_column: 11,
       #|        end_line: 26,
@@ -492,7 +517,7 @@ test "explicit derive has hover without implicit navigation" {
   let root =
     #|module Main
     #|
-    #|import Basic.Trait.Derive.{ Deriver }
+    #|import Basic.Derive.{ Deriver }
     #|import Support.{ Box }
     #|
     #|pub struct Pair {
@@ -509,6 +534,7 @@ test "explicit derive has hover without implicit navigation" {
       { source_id: "file:///Void.lane", text: derive_void_source(), },
       { source_id: "file:///Iso.lane", text: derive_iso_source(), },
       { source_id: "file:///Derive.lane", text: derive_interface_source(), },
+      { source_id: "file:///DeriveFacade.lane", text: derive_facade_source(), },
       { source_id: "file:///Support.lane", text: derive_support_source(), },
     ])
     is Some(snapshot) else {
@@ -551,6 +577,7 @@ test "invalid generic derive target retains explanatory hover" {
       { source_id: "file:///Void.lane", text: derive_void_source(), },
       { source_id: "file:///Iso.lane", text: derive_iso_source(), },
       { source_id: "file:///Derive.lane", text: derive_interface_source(), },
+      { source_id: "file:///DeriveFacade.lane", text: derive_facade_source(), },
       { source_id: "file:///Support.lane", text: derive_support_source(), },
     ])
     is Some(snapshot) else {
@@ -577,7 +604,7 @@ test "derive groups ambiguous component evidence by required type" {
     (
       #|module Main
       #|
-      #|import Basic.Trait.Derive.{ Deriver }
+      #|import Basic.Derive.{ Deriver }
       #|
       #|pub struct Witness[_T] {}
       #|
@@ -595,7 +622,12 @@ test "derive groups ambiguous component evidence by required type" {
       #|  derive[Witness, Pair](deriver=deriver)
       #|}
     ),
-    [derive_void_source(), derive_iso_source(), derive_interface_source()],
+    [
+      derive_void_source(),
+      derive_iso_source(),
+      derive_interface_source(),
+      derive_facade_source(),
+    ],
   )
   debug_inspect(
     result.diagnostics,
@@ -608,8 +640,8 @@ test "derive groups ambiguous component evidence by required type" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 309,
-      #|          end_offset: 347,
+      #|          start_offset: 303,
+      #|          end_offset: 341,
       #|          start_line: 18,
       #|          start_column: 3,
       #|          end_line: 18,
@@ -624,8 +656,8 @@ test "derive groups ambiguous component evidence by required type" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 309,
-      #|            end_offset: 347,
+      #|            start_offset: 303,
+      #|            end_offset: 341,
       #|            start_line: 18,
       #|            start_column: 3,
       #|            end_line: 18,
@@ -655,6 +687,8 @@ test "derive collects component evidence diagnostics after missing deriver" {
     (
       #|module Main
       #|
+      #|import Basic.Derive.*
+      #|
       #|pub struct Witness[_T] {}
       #|
       #|pub struct Pair {
@@ -664,7 +698,12 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|
       #|pub let pair_witness : Witness[Pair] = derive[Witness, Pair]()
     ),
-    [derive_void_source(), derive_iso_source(), derive_interface_source()],
+    [
+      derive_void_source(),
+      derive_iso_source(),
+      derive_interface_source(),
+      derive_facade_source(),
+    ],
   )
   debug_inspect(
     result.diagnostics,
@@ -677,11 +716,11 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 130,
-      #|          end_offset: 153,
-      #|          start_line: 10,
+      #|          start_offset: 153,
+      #|          end_offset: 176,
+      #|          start_line: 12,
       #|          start_column: 40,
-      #|          end_line: 10,
+      #|          end_line: 12,
       #|          end_column: 63,
       #|        },
       #|      ),
@@ -693,11 +732,11 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 130,
-      #|            end_offset: 153,
-      #|            start_line: 10,
+      #|            start_offset: 153,
+      #|            end_offset: 176,
+      #|            start_line: 12,
       #|            start_column: 40,
-      #|            end_line: 10,
+      #|            end_line: 12,
       #|            end_column: 63,
       #|          },
       #|        ),
@@ -717,11 +756,11 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 130,
-      #|          end_offset: 153,
-      #|          start_line: 10,
+      #|          start_offset: 153,
+      #|          end_offset: 176,
+      #|          start_line: 12,
       #|          start_column: 40,
-      #|          end_line: 10,
+      #|          end_line: 12,
       #|          end_column: 63,
       #|        },
       #|      ),
@@ -733,11 +772,11 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 130,
-      #|            end_offset: 153,
-      #|            start_line: 10,
+      #|            start_offset: 153,
+      #|            end_offset: 176,
+      #|            start_line: 12,
       #|            start_column: 40,
-      #|            end_line: 10,
+      #|            end_line: 12,
       #|            end_column: 63,
       #|          },
       #|        ),
@@ -757,11 +796,11 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|      Source(
       #|        source_id="<root>",
       #|        span={
-      #|          start_offset: 130,
-      #|          end_offset: 153,
-      #|          start_line: 10,
+      #|          start_offset: 153,
+      #|          end_offset: 176,
+      #|          start_line: 12,
       #|          start_column: 40,
-      #|          end_line: 10,
+      #|          end_line: 12,
       #|          end_column: 63,
       #|        },
       #|      ),
@@ -773,11 +812,11 @@ test "derive collects component evidence diagnostics after missing deriver" {
       #|        span: Source(
       #|          source_id="<root>",
       #|          span={
-      #|            start_offset: 130,
-      #|            end_offset: 153,
-      #|            start_line: 10,
+      #|            start_offset: 153,
+      #|            end_offset: 176,
+      #|            start_line: 12,
       #|            start_column: 40,
-      #|            end_line: 10,
+      #|            end_line: 12,
       #|            end_column: 63,
       #|          },
       #|        ),
@@ -861,13 +900,31 @@ fn derive_interface_source() -> String {
 }
 
 ///|
+fn derive_facade_source() -> String {
+  (
+    #|module Basic.Derive
+    #|
+    #|pub import Basic.Trait.Derive.{
+    #|  Deriver,
+    #|  Product,
+    #|  Sum,
+    #|  TypeInfo,
+    #|  FieldInfo,
+    #|  VariantInfo
+    #|}
+    #|pub import Basic.Trait.Iso.{ Iso }
+    #|pub import Basic.Data.Void.{ Void }
+  )
+}
+
+///|
 fn derive_support_source() -> String {
   (
     #|module Support
     #|
-    #|import Basic.Data.Void.{ Void }
-    #|import Basic.Trait.Derive.{ Deriver, FieldInfo, Product, Sum, TypeInfo, VariantInfo }
-    #|import Basic.Trait.Iso.{ Iso }
+    #|pub import Basic.Data.Void.{ Void }
+    #|pub import Basic.Trait.Derive.{ Deriver, FieldInfo, Product, Sum, TypeInfo, VariantInfo }
+    #|pub import Basic.Trait.Iso.{ Iso }
     #|
     #|pub struct Box[_T] {}
     #|

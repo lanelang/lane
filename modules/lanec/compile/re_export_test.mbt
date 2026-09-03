@@ -117,6 +117,39 @@ test "selective public import preserves enum and effect surfaces" {
 }
 
 ///|
+test "re-exported nominal types preserve construction capability" {
+  let diagnostics = successful_compile_modules_diagnostics(
+    (
+      #|module Main
+      #|import Facade.{ Box, Choice }
+      #|pub let box : Box = Box::{ value: 42 }
+      #|pub let choice : Choice = yes(42)
+    ),
+    [
+      (
+        #|module Provider
+        #|pub struct Box {
+        #|  value : I64
+        #|}
+        #|pub enum Choice {
+        #|  yes(I64)
+        #|  no()
+        #|}
+      ),
+      (
+        #|module Middle
+        #|pub import Provider.{ Box, Choice }
+      ),
+      (
+        #|module Facade
+        #|pub import Middle.{ Box, Choice }
+      ),
+    ],
+  )
+  assert_eq(diagnostics, [])
+}
+
+///|
 test "public export target dependencies enter the interface closure" {
   let diagnostics = successful_compile_modules_diagnostics(
     (

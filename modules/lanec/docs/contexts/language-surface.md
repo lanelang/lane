@@ -234,6 +234,11 @@ _Avoid_: F64-mediated literal conversion, double rounding
   **Canonical Basic ABI**. Missing reachable providers, declarations, or
   incompatible signatures use that adapter's diagnostics; the compiler neither
   configures providers nor searches for structurally similar declarations.
+- Library-backed syntax creates no hidden source dependency. Tuple, list,
+  operator, and structural-derivation providers must enter the **Reachable
+  Interface Closure** through authored imports or re-exports. The optional
+  `Basic.Prelude` facade provides one explicit path for ordinary applications;
+  `--no-basic` modules remain free to omit it.
 - A **Right-Nested Tuple Chain** makes `(A, B, C)` and `(A, (B, C))`
   semantically identical; `()` remains `Unit`, `(A)` remains grouping, and
   singleton tuple syntax is invalid.

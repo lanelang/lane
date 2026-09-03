@@ -115,7 +115,9 @@ _Avoid_: placeholder builtin, implementation-only primitive
 - A **Contextual Parameter** is not an **Offered Parameter** unless it is explicitly marked as offered.
 - **Operator Aliases** are fixed mappings to **Canonical Basic Operator Providers**.
 - A **Canonical Basic Operator Provider** supplies a stable value identity; if its Basic-owned declaration has contextual parameters, visible **Contextual Offers** may supply them through the ordinary call judgment.
-- Resolving an operator adds a dependency on `Basic.Ops` but does not expose any `Basic.Ops` value as an unqualified lexical binding.
+- Resolving an operator requires an authored import path that makes `Basic.Ops`
+  reachable, but does not expose any `Basic.Ops` value as an unqualified lexical
+  binding unless that path also imports it normally.
 - An explicit call such as `op_add(a, b)` uses ordinary name resolution and may call a user-defined value without changing `a + b`.
 - `&&` and `||` are **Short-Circuit Boolean Operations** and elaborate to **Thunked Operator Calls**.
 - Ordinary calls to `op_and` and `op_or` are strict.

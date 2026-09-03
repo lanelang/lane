@@ -1,5 +1,6 @@
 module Examples.Valid.StructuralDerivationCompare
 
+import Basic.Ops
 import Basic.Data.List.*
 import Basic.Data.Void.{ Void, absurd }
 import Basic.Io.{ println }

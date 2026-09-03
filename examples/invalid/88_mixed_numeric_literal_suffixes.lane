@@ -1,5 +1,6 @@
 module Examples.Invalid.MixedNumericLiteralSuffixes
 
+import Basic.Ops
 import Basic.Data.I32.*
 
 pub fn answer() -> I32 {

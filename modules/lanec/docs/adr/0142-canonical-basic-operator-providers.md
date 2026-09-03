@@ -6,8 +6,9 @@ status: accepted
 
 Lane operator tokens resolve to public values in `Basic.Ops`. The fixed
 token-to-provider-name mapping belongs to the Canonical Basic ABI. Source
-modules that contain an operator gain an implicit module dependency on
-`Basic.Ops`, but no `Basic.Ops` value enters their lexical scope.
+modules must make `Basic.Ops` reachable through an authored import or re-export;
+operator syntax creates no hidden module dependency and exposes no `Basic.Ops`
+value in lexical scope.
 
 Consequently, `a + b` always targets the certified `Basic.Ops.op_add` identity.
 A local or imported value also named `op_add` cannot capture `+`. An explicit

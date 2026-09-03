@@ -998,7 +998,7 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
     source_id: "file:///generic-operator.lane",
     text: (
       #|module Main
-      #|import Basic.Trait.Num.{ Add }
+      #|import Basic.Ops.{ Add }
       #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
       #|pub let x : I64 = 1 + true
     ),
@@ -1014,7 +1014,7 @@ test "lsp generic operator conflict keeps diagnostic message concise" {
         source_id: "file:///Ops.lane",
         text: (
           #|module Basic.Ops
-          #|import Basic.Trait.Num.{ Add }
+          #|pub import Basic.Trait.Num.{ Add }
           #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T { op.add(a, b) }
         ),
       },

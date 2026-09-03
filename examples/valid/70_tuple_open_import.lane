@@ -1,5 +1,6 @@
 module Examples.Valid.TupleOpenImport
 
+import Basic.Ops
 import Basic.Data.Tuple.*
 import Basic.Io.{ println }
 import Basic.Data.I64.*

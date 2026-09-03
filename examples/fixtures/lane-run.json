@@ -2554,6 +2554,15 @@
       "expect": {
         "equals": "panic void elimination=42"
       }
+    },
+    {
+      "name": "124 explicit Basic prelude",
+      "file": "examples/valid/124_basic_prelude.lane",
+      "mode": "run",
+      "entry": "answer",
+      "expect": {
+        "equals": "basic prelude=ok"
+      }
     }
   ]
 }

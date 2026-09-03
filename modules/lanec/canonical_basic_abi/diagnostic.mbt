@@ -85,7 +85,9 @@ pub impl @compiler_diag.ToCompilerDiagnostic for CanonicalBasicAbiDiagnostic wit
         notes=[
           "compiler-owned operator syntax requires the named public Basic value",
         ],
-        helps=["export the required operator value from `Basic.Ops`"],
+        helps=[
+          "import `Basic.Ops` or a facade that re-exports the required operator value",
+        ],
         context~,
       )
     InvalidStructuralDerivation(reason~) =>

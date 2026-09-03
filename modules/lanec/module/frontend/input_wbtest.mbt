@@ -90,62 +90,19 @@ test "module input headers contain each directly imported module once" {
 }
 
 ///|
-test "derive module header includes every canonical compiler dependency" {
+test "language sugar does not synthesize module dependencies" {
   let parsed = parse_module_inputs(
     {
       source_id: "file:///Main.lane",
-      text: "module Main\npub let value : Capability[Target] = derive[Capability, Target]()",
+      text: (
+        #|module Main
+        #|pub let derived : Capability[Target] = derive[Capability, Target]()
+        #|pub let operated : I64 = (1 + 2) * 3
+      ),
     },
     [],
   )
   debug_inspect(parsed.sources.map(ParsedSource::diagnostics), content="[[]]")
-  debug_inspect(
-    parsed.sources.filter_map(ParsedSource::module_header),
-    content=(
-      #|[
-      #|  {
-      #|    source_id: "file:///Main.lane",
-      #|    module_path_text: "Main",
-      #|    imports: ["Basic.Trait.Derive", "Basic.Trait.Iso", "Basic.Data.Void"],
-      #|  },
-      #|]
-    ),
-  )
-}
-
-///|
-test "operator syntax adds the canonical Basic Ops dependency once" {
-  let parsed = parse_module_inputs(
-    {
-      source_id: "file:///Main.lane",
-      text: "module Main\npub let value : I64 = (1 + 2) * 3",
-    },
-    [],
-  )
-  debug_inspect(parsed.sources.map(ParsedSource::diagnostics), content="[[]]")
-  debug_inspect(
-    parsed.sources.filter_map(ParsedSource::module_header),
-    content=(
-      #|[
-      #|  {
-      #|    source_id: "file:///Main.lane",
-      #|    module_path_text: "Main",
-      #|    imports: ["Basic.Ops"],
-      #|  },
-      #|]
-    ),
-  )
-}
-
-///|
-test "signed numeric literals do not add an operator dependency" {
-  let parsed = parse_module_inputs(
-    {
-      source_id: "file:///Main.lane",
-      text: "module Main\npub let value : I64 = -1",
-    },
-    [],
-  )
   debug_inspect(
     parsed.sources.filter_map(ParsedSource::module_header),
     content=(
@@ -161,11 +118,11 @@ test "signed numeric literals do not add an operator dependency" {
 }
 
 ///|
-test "canonical Basic Ops does not depend on itself" {
+test "signed numeric literals do not require a module dependency" {
   let parsed = parse_module_inputs(
     {
-      source_id: "file:///Ops.lane",
-      text: "module Basic.Ops\npub fn op_not(value : Bool) -> Bool { !value }",
+      source_id: "file:///Main.lane",
+      text: "module Main\npub let value : I64 = -1",
     },
     [],
   )
@@ -174,8 +131,8 @@ test "canonical Basic Ops does not depend on itself" {
     content=(
       #|[
       #|  {
-      #|    source_id: "file:///Ops.lane",
-      #|    module_path_text: "Basic.Ops",
+      #|    source_id: "file:///Main.lane",
+      #|    module_path_text: "Main",
       #|    imports: [],
       #|  },
       #|]

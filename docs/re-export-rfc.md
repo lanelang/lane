@@ -344,6 +344,13 @@ For a type export, fields, variants, and type members remain subordinate to the
 provider-owned type. For an effect export, operations remain subordinate to the
 provider-owned effect. They are not independent facade declarations.
 
+Importing that type through a facade nevertheless grants exactly the same
+construction and pattern-matching capabilities as importing it from its owner:
+a struct type remains usable in qualified struct literals and patterns, and an
+enum type brings all of its variants into the ordinary qualified and
+unqualified variant-resolution paths. A facade does not need, and cannot
+produce, separate forwarding declarations for those subordinate members.
+
 ## Runtime and linking
 
 Re-export is an interface-only feature. The facade Module Object contains no
@@ -509,6 +516,9 @@ unless `Api` explicitly re-exports them.
 - Direct and transitive paths resolve to the original provider and the same local
   semantic identity, including subordinate field, variant, operation, and
   parameter identities.
+- Direct and transitive type re-exports preserve struct construction and enum
+  variant construction and pattern matching without separately exporting
+  subordinate members.
 - Direct import and facade import of the same declaration in one consumer
   converge to one catalog entry rather than separately freshened descriptors.
 - Re-exported offers preserve provider-owned offer and parameter behavior under

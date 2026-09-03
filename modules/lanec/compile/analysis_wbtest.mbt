@@ -24,7 +24,7 @@ fn operator_analysis_libraries() -> Array[@module_frontend.SourceInput] {
       source_id: "file:///Ops.lane",
       text: (
         #|module Basic.Ops
-        #|import Basic.Trait.Num.{ Add }
+        #|pub import Basic.Trait.Num.{ Add }
         #|pub fn[T] op_add(a : T, b : T, auto op : Add[T]) -> T {
         #|  op.add(a, b)
         #|}
@@ -761,7 +761,7 @@ test "analysis skips parameter name inlay hints for source operators" {
       source_id: "file:///Main.lane",
       text: (
         #|module Main
-        #|import Basic.Trait.Num.{ Add }
+        #|import Basic.Ops.{ Add }
         #|
         #|offer addition : Add[I64] = Add::{
         #|  add: fn(left : I64, _right : I64) -> I64 { left }
@@ -802,7 +802,7 @@ test "analysis produces implicit argument inlay hints for auto offers" {
       source_id: "file:///Main.lane",
       text: (
         #|module Main
-        #|import Basic.Trait.Num.{ Add }
+        #|import Basic.Ops.{ Add }
         #|
         #|offer i64_add_ops : Add[I64] = Add::{ add: fn(a : I64, b : I64) -> I64 { builtin("%i64_add")(a, b) } }
         #|

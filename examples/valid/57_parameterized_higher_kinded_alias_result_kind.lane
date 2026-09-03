@@ -3,6 +3,7 @@
 
 module Examples.Valid.ParameterizedHigherKindedAliasResultKind
 
+import Basic.Ops
 import Basic.Io.{ println }
 import Basic.Data.I64.*
 

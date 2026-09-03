@@ -1,5 +1,6 @@
 module Examples.Valid.ByteBufferAllocationLifecycle
 
+import Basic.Ops
 import Basic.Builtins.{ i32_to_i64, i64_to_i32 }
 import Basic.Data.I64.*
 import Basic.Io.{ println }

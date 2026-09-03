@@ -32,6 +32,12 @@ pub offer point_impl_equal : Equal[Point] =
   derive[Equal, Point]()
 ```
 
+Using `derive` creates no hidden module dependency. The canonical structural
+derivation declarations must be reachable through an authored import or
+re-export path. The shipped Basic library exposes them together through
+`Basic.Derive`, so a module may write `import Basic.Derive.*` instead of naming
+the three provider modules separately.
+
 ## Structural interface
 
 The canonical structural algebra lives in `Basic.Trait.Derive`, while the
