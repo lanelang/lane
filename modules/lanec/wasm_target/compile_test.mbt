@@ -763,6 +763,21 @@ test "ordinary functions emit no execution-policy runtime guard" {
 }
 
 ///|
+test "Wasm function parameters are the physical locals for input slots" {
+  let function = body(
+    slots=[trivial_slot(I64)],
+    parameters=[{ value: 0, }],
+    result=Value(I64, Trivial, ScalarValue),
+    terminator=Return(Some({ value: 0, })),
+  )
+  let wasm_module = compile_test_image(image([PhysicalBody(function)])).unwrap()
+  debug_inspect(
+    wasm_module.codes[0],
+    content="{ locals: [], body: [LocalGet(1), Return] }",
+  )
+}
+
+///|
 test "packed callable ownership ABI mismatch traps in both Wasm modes" {
   let entry = body(slots=[owned_slot(I64, OwnedCallable), trivial_slot(I32)], instructions=[
     ConstFunction({ value: 0, }, { value: 2, }),
@@ -1424,6 +1439,42 @@ test "descriptor destructors preserve owners across consuming projection" {
   assert_eq(@executor.call_exported_func(store, instance, "_start", []), [])
   assert_true(
     store.get_global(instance.global_addrs[3]).get() is I32(head) && head != 0,
+  )
+}
+
+///|
+test "Wasm shares destructor helpers by physical cleanup plan" {
+  let member_schema : @physical.MemberSchema = {
+    representation: I32,
+    cleanup: OwnedRef,
+    kind: ByteSequenceValue,
+    witness_ordinal: None,
+  }
+  let physical_program : @physical.PhysicalProgram = {
+    ..image([PhysicalBody(body())]),
+    data_family_count: 2,
+    layouts: [Data({ value: 0, }), Data({ value: 1, })],
+    object_shapes: [
+      Data({
+        family: { value: 0, },
+        constructor_tag: 0,
+        stored_witness_count: 0,
+        members: [member_schema],
+      }),
+      Data({
+        family: { value: 1, },
+        constructor_tag: 0,
+        stored_witness_count: 0,
+        members: [member_schema],
+      }),
+    ],
+  }
+  let observed = compile_test_image_observed(physical_program).unwrap()
+  assert_eq(
+    observed.functions
+    .filter(function => function.origin is HelperFunction(DestroyPlan(_)))
+    .length(),
+    1,
   )
 }
 

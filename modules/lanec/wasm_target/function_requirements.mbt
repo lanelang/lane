@@ -249,7 +249,7 @@ fn runtime_function_dependencies(
 
 ///|
 fn helper_function_dependencies(
-  image : @physical.PhysicalProgram,
+  destructors : WasmDestructorCatalog,
   role : WasmHelperFunctionRole,
 ) -> Array[WasmFunctionOrigin] {
   let dependencies : Array[WasmFunctionOrigin] = []
@@ -263,15 +263,17 @@ fn helper_function_dependencies(
       dependencies.push(RuntimeFunction(RetainReference))
     ReleaseReferenceErased | ReleaseCallable =>
       dependencies.push(RuntimeFunction(ReleaseReference))
-    DestroyShape(shape~) => {
-      let members = match image.object_shapes[shape] {
-        Data(shape) => shape.members
-        Environment(shape) => shape.members
+    DestroyPlan(plan~) =>
+      for action in destructors.plan(plan).actions {
+        match action {
+          ReleaseReference(..) | ReleaseCallable(..) =>
+            require_wasm_function(
+              dependencies,
+              RuntimeFunction(ReleaseReference),
+            )
+          ReleaseErased(..) => ()
+        }
       }
-      for schema in members {
-        require_reference_operation(dependencies, schema.cleanup, false)
-      }
-    }
   }
   dependencies
 }
@@ -289,6 +291,7 @@ fn initializer_wrapper_dependencies(
 ///|
 fn wasm_function_dependencies(
   image : @physical.PhysicalProgram,
+  destructors : WasmDestructorCatalog,
   origin : WasmFunctionOrigin,
 ) -> Array[WasmFunctionOrigin] raise WasmCompileError {
   match origin {
@@ -321,7 +324,7 @@ fn wasm_function_dependencies(
           )
       }
     RuntimeFunction(role) => runtime_function_dependencies(role)
-    HelperFunction(role) => helper_function_dependencies(image, role)
+    HelperFunction(role) => helper_function_dependencies(destructors, role)
     InitializerWrapper => initializer_wrapper_dependencies(image)
     ExportWrapper(function~) => [image_function_origin(image, function)]
   }
@@ -330,6 +333,7 @@ fn wasm_function_dependencies(
 ///|
 fn require_layout_support(
   roots : Array[WasmFunctionOrigin],
+  destructors : WasmDestructorCatalog,
   layout : @physical.LayoutRecipe,
 ) -> Unit {
   match layout {
@@ -353,7 +357,7 @@ fn require_layout_support(
       require_wasm_function(roots, HelperFunction(ReleaseReferenceErased))
       require_wasm_function(
         roots,
-        HelperFunction(DestroyShape(shape=shape.value)),
+        HelperFunction(destructors.shape_role(shape.value)),
       )
     }
     Reference => {
@@ -367,13 +371,14 @@ fn require_layout_support(
 ///|
 fn close_wasm_function_roots(
   image : @physical.PhysicalProgram,
+  destructors : WasmDestructorCatalog,
   roots : Array[WasmFunctionOrigin],
 ) -> Array[WasmFunctionOrigin] raise WasmCompileError {
   let required = roots.copy()
   let mut cursor = 0
   while cursor < required.length() {
     let origin = required[cursor]
-    for dependency in wasm_function_dependencies(image, origin) {
+    for dependency in wasm_function_dependencies(image, destructors, origin) {
       require_wasm_function(required, dependency)
     }
     cursor += 1
@@ -384,6 +389,7 @@ fn close_wasm_function_roots(
 ///|
 fn plan_wasm_function_requirements(
   image : @physical.PhysicalProgram,
+  destructors : WasmDestructorCatalog,
 ) -> WasmFunctionRequirements raise WasmCompileError {
   let roots : Array[WasmFunctionOrigin] = []
   for index, _ in image.functions {
@@ -391,7 +397,7 @@ fn plan_wasm_function_requirements(
     require_wasm_function(roots, image_function_origin(image, function))
   }
   for layout in image.layouts {
-    require_layout_support(roots, layout)
+    require_layout_support(roots, destructors, layout)
   }
   if image.initializer is Some(_) {
     require_wasm_function(roots, InitializerWrapper)
@@ -399,6 +405,6 @@ fn plan_wasm_function_requirements(
   for export_ in image.exports {
     require_wasm_function(roots, ExportWrapper(function=export_.function()))
   }
-  let required = close_wasm_function_roots(image, roots)
+  let required = close_wasm_function_roots(image, destructors, roots)
   { roots, required, }
 }

@@ -352,13 +352,19 @@ not a promise that every aggregate is scalar-replaceable.
 
 ### 8. Intern generated shape destructors
 
-This is not a current scheduled optimization. The earlier claim that 126
-functions contained 72 distinct bodies came from the deleted backend and from
-rendered-text comparison. The current Basic image has 84 object shapes and
-attributes 18,847 Wasm instructions to object operations, but those aggregate
-facts do not prove duplicate destructor semantics. A future proposal must first
-add owner-produced structured destructor-plan identity and demonstrate actual
-duplication; it must not infer sharing from rendered bodies.
+Delivered on 2026-09-03. The Wasm backend now derives a structured physical
+cleanup plan from each object layout, interns equal plans, and emits one helper
+per canonical plan. The plan is owned by `WasmFunctionCatalog`; neither the
+driver nor rendered Wasm text infers equivalence. Empty plans consume the
+existing no-op helper.
+
+On the pinned Basic artifact this removed 83 duplicate destructor functions
+(805 to 722 total Wasm functions). In the same backend cleanup, sparse static
+data stopped serializing the reserved float-stack gap and input physical slots
+began using their existing Wasm parameter locals. Together these changes reduced
+the raw artifact from 240,037 to 164,831 bytes: the Data section fell from
+79,288 to 12,728 bytes and the Code section from 158,087 to 149,691 bytes, while
+all 18 Basic tests retained their behavior.
 
 ### 9. Preserve erased payload and witness contracts across ABI boundaries
 
@@ -441,11 +447,12 @@ per-function call-depth protocol. ISS-425 completed conventional VM CFG cleanup.
 Further work is evidence-driven: any object-representation or ARC rewrite first
 needs owner-produced evidence identifying the removable boundary.
 
-The current evidence does not authorize another representation bridge,
-destructor-sharing, or ARC peephole pass. There are no duplicate runtime-ABI
-workers or unreachable Wasm support roles, and the remaining bridge counts cross
-real generic boundaries. New work needs a fact that identifies which specific
-boundary can be removed.
+The current evidence does not authorize another representation bridge or ARC
+peephole pass. There are no duplicate runtime-ABI workers or unreachable Wasm
+support roles, and the remaining bridge counts cross real generic boundaries.
+Further Wasm size work should first establish a proper stackification and local
+dataflow boundary; it must not rely on rendered-instruction peepholes or an
+opaque post-link optimizer.
 
 Each completed item must update the pinned Explore metrics and the end-to-end
 Basic timing. A smaller source-level IR without a smaller executable image is

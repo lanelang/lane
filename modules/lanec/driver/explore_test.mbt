@@ -685,17 +685,16 @@ test "explore reports deterministic typed scale metrics" {
       #|    [
       #|      ("functionCount", 4),
       #|      ("importCount", 1),
-      #|      ("instructionCount", 18),
-      #|      ("localCount", 3),
+      #|      ("instructionCount", 16),
+      #|      ("localCount", 2),
       #|      ("tableEntryCount", 0),
       #|      ("wasmIfCount", 0),
       #|      ("wasmUnreachableCount", 0),
       #|      ("unreachableWasmSupportRoleCount", 0),
-      #|      ("wasmExpansion.physicalStorage.localCount", 3),
+      #|      ("wasmExpansion.physicalStorage.localCount", 2),
       #|      ("wasmExpansion.physicalOpcode.scalar.instructionCount", 2),
       #|      ("wasmExpansion.physicalOpcode.callable.instructionCount", 4),
       #|      ("wasmExpansion.physicalOpcode.controlTransfer.instructionCount", 5),
-      #|      ("wasmExpansion.functionAbi.instructionCount", 2),
       #|      ("wasmExpansion.runtimeImportAdapter.instructionCount", 2),
       #|      ("wasmExpansion.boundaryWrapper.instructionCount", 3),
       #|    ],
@@ -849,9 +848,9 @@ test "explore lowers nested handlers through a finite recursive callable contrac
       #|  (
       #|    "wasm",
       #|    [
-      #|      ("functionCount", 41),
-      #|      ("instructionCount", 1222),
-      #|      ("tableEntryCount", 32),
+      #|      ("functionCount", 38),
+      #|      ("instructionCount", 1124),
+      #|      ("tableEntryCount", 29),
       #|    ],
       #|  ),
       #|]

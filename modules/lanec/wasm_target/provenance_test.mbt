@@ -56,6 +56,12 @@ test "Wasm compilation records every function at its emission boundary" {
   assert_eq(module_to_wat(observed.module_), module_to_wat(ordinary))
   debug_inspect(runtime_service_exports(observed.module_), content="[]")
   debug_inspect(
+    observed.module_.datas.map(data => (data.offset, data.init.length())),
+    content=(
+      #|[([I32Const(1024)], 1944), ([I32Const(68512)], 72)]
+    ),
+  )
+  debug_inspect(
     observed.functions,
     content=(
       #|[

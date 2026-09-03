@@ -154,11 +154,13 @@ fn compile_or_raise(
     page_size_log2: 16,
   })
   append_runtime_globals(wasm_module, static_image)
-  wasm_module.datas.push({
-    memory_idx: 0,
-    offset: [I32Const(0)],
-    init: static_image.bytes,
-  })
+  for segment in static_image.data_segments {
+    wasm_module.datas.push({
+      memory_idx: 0,
+      offset: [I32Const(segment.offset)],
+      init: segment.bytes,
+    })
+  }
   let table_size = function_catalog.table_entries.length() + 1
   wasm_module.tables.push({
     type_: {
@@ -286,27 +288,7 @@ fn compile_body(
     expansions,
   }
   let instructions : Array[@wasm_types.Instruction] = []
-  let mut parameter_index = 1
-  if body.inputs.environment is Some(slot) {
-    instructions.push(LocalGet(0))
-    instructions.push(LocalSet(locals.slot_local(slot)))
-  }
-  for slot in body.inputs.witnesses {
-    instructions.push(LocalGet(parameter_index))
-    instructions.push(LocalSet(locals.slot_local(slot)))
-    parameter_index += 1
-  }
-  for slot in body.inputs.user_parameters {
-    instructions.push(LocalGet(parameter_index))
-    instructions.push(LocalSet(locals.slot_local(slot)))
-    parameter_index += 1
-  }
-  add_expansion(
-    expansions,
-    FunctionAbi,
-    wasm_instruction_array_size(instructions),
-    0,
-  )
+  add_expansion(expansions, FunctionAbi, 0, 0)
   add_expansion(expansions, PhysicalStorage, 0, locals.slot_local_count)
   add_expansion(expansions, ControlFlow, 0, locals.control_local_count)
   let source_instruction_count_before = expansion_instruction_count(expansions)

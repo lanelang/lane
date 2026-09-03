@@ -345,6 +345,19 @@ validating those exact bytes; runtime loading independently validates external
 bytes again.
 _Avoid_: Physical Program, canonical core, per-module cache
 
+**Wasm Static Image**:
+The target-owned sparse set of initialized linear-memory segments together with
+the reserved-address end used as the heap base. Uninitialized address ranges,
+including guest-runtime scratch space, consume memory addresses but are not
+serialized as zero bytes.
+_Avoid_: contiguous byte blob, heap object graph, persisted core metadata
+
+**Wasm Destructor Plan**:
+The canonical sequence of physical cleanup actions and field offsets for an
+object. Object shapes with the same plan share one Wasm helper; nominal shape
+identity does not create helper identity.
+_Avoid_: object-shape destructor, source type destructor, heuristic function folding
+
 **Closure Conversion**:
 A lowering step that makes captured lexical variables explicit in function values.
 _Avoid_: type checking, name resolution

@@ -40,6 +40,7 @@ priv struct WasmFunctionCatalog {
   roots : Array[WasmFunctionOrigin]
   required : Array[WasmFunctionOrigin]
   runtime_layouts : WasmRuntimeLayoutIds
+  destructors : WasmDestructorCatalog
 }
 
 ///|
@@ -86,7 +87,7 @@ fn helper_function_type(role : WasmHelperFunctionRole) -> WasmFunctionType {
     | ReleaseReferenceErased
     | RetainCallable
     | ReleaseCallable => wasm_function_type([I64], [])
-    DestroyNoop | DestroyShape(_) => wasm_function_type([I32], [])
+    DestroyNoop | DestroyPlan(_) => wasm_function_type([I32], [])
     ByteStorageSizer => wasm_function_type([I32], [I32])
   }
 }
@@ -125,7 +126,7 @@ fn builtin_function_order() -> Array[WasmBuiltinFunctionRole] {
 
 ///|
 fn helper_function_order(
-  image : @physical.PhysicalProgram,
+  destructors : WasmDestructorCatalog,
 ) -> Array[WasmHelperFunctionRole] {
   let roles : Array[WasmHelperFunctionRole] = [
     CallableAbiGuard,
@@ -137,8 +138,8 @@ fn helper_function_order(
     ReleaseCallable,
     DestroyNoop,
   ]
-  for shape in 0..<image.object_shapes.length() {
-    roles.push(DestroyShape(shape~))
+  for plan in 0..<destructors.plans.length() {
+    roles.push(DestroyPlan(plan~))
   }
   roles.push(ByteStorageSizer)
   roles
@@ -180,6 +181,7 @@ fn WasmFunctionCatalog::new(
   image : @physical.PhysicalProgram,
   requirements : WasmFunctionRequirements,
   runtime_layouts : WasmRuntimeLayoutIds,
+  destructors : WasmDestructorCatalog,
 ) -> WasmFunctionCatalog {
   {
     entries: [],
@@ -189,6 +191,7 @@ fn WasmFunctionCatalog::new(
     roots: requirements.roots,
     required: requirements.required,
     runtime_layouts,
+    destructors,
   }
 }
 
@@ -477,7 +480,8 @@ fn WasmFunctionCatalog::validate(
         detail="required function is absent from the catalog: \{Repr(origin)}",
       )
     }
-    for dependency in wasm_function_dependencies(image, origin) {
+    for
+      dependency in wasm_function_dependencies(image, self.destructors, origin) {
       if !self.requires(dependency) {
         raise InvalidFunctionCatalog(
           detail="function dependency is absent from the closure: \{Repr(origin)} -> \{Repr(dependency)}",
@@ -485,7 +489,7 @@ fn WasmFunctionCatalog::validate(
       }
     }
   }
-  let closed = close_wasm_function_roots(image, self.roots)
+  let closed = close_wasm_function_roots(image, self.destructors, self.roots)
   for origin in self.required {
     if !closed.contains(origin) {
       raise InvalidFunctionCatalog(
@@ -589,7 +593,7 @@ fn WasmFunctionCatalog::validate(
         }
     }
   }
-  for role in helper_function_order(image) {
+  for role in helper_function_order(self.destructors) {
     guard self.find(HelperFunction(role)) is Some(handle) else { continue }
     let is_layout_helper = helper_is_layout_callback(role)
     if (self.entry(handle).table_slot is Some(_)) != is_layout_helper {
@@ -634,9 +638,12 @@ fn plan_wasm_function_catalog(
   image : @physical.PhysicalProgram,
   wasm_module : @wasm_types.Module,
 ) -> WasmFunctionCatalog raise WasmCompileError {
-  let requirements = plan_wasm_function_requirements(image)
+  let destructors = plan_wasm_destructors(image)
+  let requirements = plan_wasm_function_requirements(image, destructors)
   let runtime_layouts = wasm_runtime_layout_ids(image)
-  let catalog = WasmFunctionCatalog::new(image, requirements, runtime_layouts)
+  let catalog = WasmFunctionCatalog::new(
+    image, requirements, runtime_layouts, destructors,
+  )
   for origin in catalog.required {
     if origin is CoreImport(contract) {
       catalog.declare_core_import(wasm_module, contract)
@@ -697,7 +704,7 @@ fn plan_wasm_function_catalog(
       ),
     )
   }
-  for role in helper_function_order(image) {
+  for role in helper_function_order(catalog.destructors) {
     guard catalog.requires(HelperFunction(role)) else { continue }
     ignore(
       catalog.add_entry(

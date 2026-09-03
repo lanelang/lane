@@ -1,7 +1,7 @@
 ///|
 priv struct FunctionLocalPlan {
-  parameter_count : Int
   locals : Array[@wasm_types.ValueType]
+  slot_locals : Array[Int]
   slot_local_count : Int
   control_local_count : Int
   transfer_locals : Array[Array[Int]]
@@ -15,9 +15,27 @@ fn plan_function_locals(
   uses_cfg : Bool,
   use_dispatcher : Bool,
 ) -> FunctionLocalPlan {
-  let locals = body.slots.map(fn(slot) {
-    wasm_representation(slot.representation)
-  })
+  let locals : Array[@wasm_types.ValueType] = []
+  let slot_locals = Array::make(body.slots.length(), -1)
+  let mut parameter_index = 1
+  if body.inputs.environment is Some(slot) {
+    slot_locals[slot.value] = 0
+  }
+  for slot in body.inputs.witnesses {
+    slot_locals[slot.value] = parameter_index
+    parameter_index += 1
+  }
+  for slot in body.inputs.user_parameters {
+    slot_locals[slot.value] = parameter_index
+    parameter_index += 1
+  }
+  for slot_index, slot in body.slots {
+    if slot_locals[slot_index] < 0 {
+      slot_locals[slot_index] = parameter_count + locals.length()
+      locals.push(wasm_representation(slot.representation))
+    }
+  }
+  let slot_local_count = locals.length()
   let transfer_locals = body.blocks.map(_ => [])
   let i32_pool : Array[Int] = []
   let i64_pool : Array[Int] = []
@@ -69,9 +87,9 @@ fn plan_function_locals(
     None
   }
   {
-    parameter_count,
     locals,
-    slot_local_count: body.slots.length(),
+    slot_locals,
+    slot_local_count,
     control_local_count: i32_pool.length() +
     i64_pool.length() +
     f32_pool.length() +
@@ -87,7 +105,7 @@ fn FunctionLocalPlan::slot_local(
   self : FunctionLocalPlan,
   slot : @physical.SlotId,
 ) -> Int {
-  self.parameter_count + slot.value
+  self.slot_locals[slot.value]
 }
 
 ///|

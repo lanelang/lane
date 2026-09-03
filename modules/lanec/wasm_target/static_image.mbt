@@ -1,6 +1,6 @@
 ///|
 priv struct StaticImage {
-  bytes : Bytes
+  data_segments : Array[StaticDataSegment]
   layout_table_base : Int
   global_table_base : Int
   heap_base : Int
@@ -17,6 +17,12 @@ priv struct StaticImage {
   callable_target_abi_table_base : Int
   callable_table_size : Int
   guest_float_stack_pointer : Int
+}
+
+///|
+priv struct StaticDataSegment {
+  offset : Int
+  bytes : Bytes
 }
 
 ///|
@@ -137,8 +143,21 @@ fn write_zeroes(writer : @bytecodec.ByteWriter, count : Int) -> Unit {
 }
 
 ///|
-fn pad_to(writer : @bytecodec.ByteWriter, alignment : Int) -> Unit {
-  write_zeroes(writer, align_up(writer.length(), alignment) - writer.length())
+fn static_address(base : Int, writer : @bytecodec.ByteWriter) -> Int {
+  base + writer.length()
+}
+
+///|
+fn pad_static_image_to(
+  base : Int,
+  writer : @bytecodec.ByteWriter,
+  alignment : Int,
+) -> Unit {
+  write_zeroes(
+    writer,
+    align_up(static_address(base, writer), alignment) -
+    static_address(base, writer),
+  )
 }
 
 ///|
@@ -221,18 +240,19 @@ fn build_static_image(
   let writer = @bytecodec.ByteWriter::new()
   let shape_layouts = image.object_shapes.map(object_shape_layout)
   let shape_layout_ids = Array::make(image.object_shapes.length(), 0)
-  let guest_float_stack_pointer = if function_catalog.requires(
-      BuiltinFunction(FloatMemcpy),
-    ) {
-    write_zeroes(writer, guest_float_data_base())
-    writer.write_raw_bytes(guest_float_data())
-    write_zeroes(writer, guest_float_stack_top() - writer.length())
+  let data_segments : Array[StaticDataSegment] = []
+  let static_base = if function_catalog.requires(BuiltinFunction(FloatMemcpy)) {
+    data_segments.push({
+      offset: guest_float_data_base(),
+      bytes: guest_float_data(),
+    })
     guest_float_stack_top()
   } else {
     0
   }
+  let guest_float_stack_pointer = static_base
   write_zeroes(writer, 8)
-  let layout_table_base = writer.length()
+  let layout_table_base = static_address(static_base, writer)
   write_zeroes(writer, 32)
   let byte_sequence_layout_id = function_catalog.runtime_layouts.byte_sequence
   let byte_buffer_layout_id = function_catalog.runtime_layouts.byte_buffer
@@ -289,7 +309,9 @@ fn build_static_image(
       match layout {
         Data(shape) | Environment(shape) =>
           function_catalog.table_slot(
-            function_catalog.helper(DestroyShape(shape=shape.value)),
+            function_catalog.helper(
+              function_catalog.destructors.shape_role(shape.value),
+            ),
           ).index
         Unit
         | Bool
@@ -316,13 +338,13 @@ fn build_static_image(
   }
   let constant_refs : Array[Int] = []
   for constant in image.constants {
-    pad_to(writer, 8)
-    constant_refs.push(writer.length())
+    pad_static_image_to(static_base, writer, 8)
+    constant_refs.push(static_address(static_base, writer))
     writer.write_i32_le(-1)
     writer.write_u32_le_int(byte_sequence_layout_id)
     writer.write_u32_le_int(constant.length())
     writer.write_raw_bytes(constant)
-    pad_to(writer, 8)
+    pad_static_image_to(static_base, writer, 8)
   }
   let singleton_refs = Array::make(image.object_shapes.length(), 0)
   let singleton_layout_ids = Array::make(image.object_shapes.length(), 0)
@@ -337,21 +359,21 @@ fn build_static_image(
         }
       }
       if layout_id != 0 {
-        pad_to(writer, 8)
-        singleton_refs[shape_index] = writer.length()
+        pad_static_image_to(static_base, writer, 8)
+        singleton_refs[shape_index] = static_address(static_base, writer)
         singleton_layout_ids[shape_index] = layout_id
         writer.write_i32_le(-1)
         writer.write_u32_le_int(layout_id)
         writer.write_u32_le_int(data.constructor_tag)
-        pad_to(writer, 8)
+        pad_static_image_to(static_base, writer, 8)
       }
     }
   }
   let callable_table_size = function_catalog.callable_value_table_size()
   let mut callable_target_abi_table_base = 0
   if callable_table_size > 1 {
-    pad_to(writer, 4)
-    callable_target_abi_table_base = writer.length()
+    pad_static_image_to(static_base, writer, 4)
+    callable_target_abi_table_base = static_address(static_base, writer)
     let callable_target_abis = Array::make(callable_table_size, 0)
     for function_index, _ in image.functions {
       let function : @physical.FunctionId = { value: function_index + 1, }
@@ -370,13 +392,14 @@ fn build_static_image(
       writer.write_i32_le(abi)
     }
   }
-  pad_to(writer, 8)
-  let global_table_base = writer.length()
+  pad_static_image_to(static_base, writer, 8)
+  let global_table_base = static_address(static_base, writer)
   write_zeroes(writer, image.globals.length() * 8)
-  pad_to(writer, 8)
-  let heap_base = writer.length()
+  pad_static_image_to(static_base, writer, 8)
+  let heap_base = static_address(static_base, writer)
+  data_segments.push({ offset: static_base, bytes: writer.to_bytes(), })
   {
-    bytes: writer.to_bytes(),
+    data_segments,
     layout_table_base,
     global_table_base,
     heap_base,

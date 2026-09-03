@@ -33,7 +33,7 @@ pub(all) enum WasmHelperFunctionRole {
   RetainCallable
   ReleaseCallable
   DestroyNoop
-  DestroyShape(shape~ : Int)
+  DestroyPlan(plan~ : Int)
   ByteStorageSizer
 } derive(Debug, Eq)
 

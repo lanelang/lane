@@ -59,12 +59,11 @@ fn compile_helper_function(
         I32WrapI64,
         catalog.runtime(ReleaseReference).call(),
       ]
-    DestroyShape(shape~) =>
-      destroy_shape_body(
-        static_image,
+    DestroyPlan(plan~) =>
+      destroy_plan_body(
+        catalog.destructors.plan(plan),
         catalog,
         intern_function_type(wasm_module, [I64], []),
-        shape,
       )
     ByteStorageSizer =>
       [
@@ -80,44 +79,32 @@ fn compile_helper_function(
 }
 
 ///|
-fn destroy_shape_body(
-  static_image : StaticImage,
+fn destroy_plan_body(
+  plan : WasmDestructorPlan,
   catalog : WasmFunctionCatalog,
   erased_release_type : Int,
-  shape_index : Int,
 ) -> Array[@wasm_types.Instruction] {
-  let shape = static_image.object_shapes[shape_index]
-  let shape_layout = static_image.shape_layouts[shape_index]
-  let schemas = match shape {
-    Data(data_shape) => data_shape.members
-    Environment(environment_shape) => environment_shape.members
-  }
   let instructions : Array[@wasm_types.Instruction] = []
-  for index, schema in schemas {
-    let offset = shape_layout.member_offsets[index].to_int64()
-    match schema.cleanup {
-      Trivial => ()
-      OwnedRef => {
+  for action in plan.actions {
+    match action {
+      ReleaseReference(offset~) => {
         instructions.push(LocalGet(0))
-        instructions.push(I32Load(0, 2, offset))
+        instructions.push(I32Load(0, 2, offset.to_int64()))
         instructions.push(catalog.runtime(ReleaseReference).call())
       }
-      OwnedCallable => {
+      ReleaseCallable(offset~) => {
         instructions.push(LocalGet(0))
-        instructions.push(I64Load(0, 3, offset))
+        instructions.push(I64Load(0, 3, offset.to_int64()))
         instructions.push(I64Const(32L))
         instructions.push(I64ShrU)
         instructions.push(I32WrapI64)
         instructions.push(catalog.runtime(ReleaseReference).call())
       }
-      OwnedErased => {
+      ReleaseErased(value_offset~, witness_offset~) => {
         instructions.push(LocalGet(0))
-        instructions.push(I64Load(0, 3, offset))
+        instructions.push(I64Load(0, 3, value_offset.to_int64()))
         instructions.push(LocalGet(0))
-        let ordinal = schema.witness_ordinal.unwrap()
-        instructions.push(
-          I32Load(0, 2, (shape_layout.witness_base + ordinal * 4).to_int64()),
-        )
+        instructions.push(I32Load(0, 2, witness_offset.to_int64()))
         instructions.push(I32Const(5))
         instructions.push(I32Shl)
         instructions.push(GlobalGet(layout_table_base_global_index))

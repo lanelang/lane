@@ -271,8 +271,8 @@ fn wasm_helper_role(
     RetainCallable => WasmHelperFunction(name="retain callable", ordinal=None)
     ReleaseCallable => WasmHelperFunction(name="release callable", ordinal=None)
     DestroyNoop => WasmHelperFunction(name="destroy noop", ordinal=None)
-    DestroyShape(shape~) =>
-      WasmHelperFunction(name="destroy shape", ordinal=Some(shape))
+    DestroyPlan(plan~) =>
+      WasmHelperFunction(name="destroy plan", ordinal=Some(plan))
     ByteStorageSizer =>
       WasmHelperFunction(name="byte storage sizer", ordinal=None)
   }
