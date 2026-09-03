@@ -96,7 +96,7 @@ fn test_utf8_string_char_i32() -> Unit ! Assert {
   assert_true(i32_equal.equal(minimum, -2147483648i32))
 }
 
-pub fn answer() -> Unit ! Io {
+pub fn answer() -> Unit ! { Io, Panic } {
   [test_utf8_string_char_i32]
     |> execute_all_tests()
 }

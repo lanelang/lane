@@ -29,7 +29,7 @@ fn test_f32_operations() -> Unit ! Assert {
   assert_true(directly_rounded == next_after_one)
 }
 
-pub fn answer() -> Unit ! Io {
+pub fn answer() -> Unit ! { Io, Panic } {
   [test_f32_operations]
     |> execute_all_tests()
 }

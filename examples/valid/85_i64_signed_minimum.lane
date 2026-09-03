@@ -31,7 +31,7 @@ fn test_i64_signed_minimum() -> Unit ! Assert {
   assert_equal(-42 + 42, 0)
 }
 
-pub fn answer() -> Unit ! Io {
+pub fn answer() -> Unit ! { Io, Panic } {
   [test_i64_signed_minimum]
     |> execute_all_tests()
 }

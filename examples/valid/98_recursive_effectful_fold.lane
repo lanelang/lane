@@ -25,6 +25,6 @@ fn test_fold() -> Unit ! Assert {
   assert_equal(result, 6)
 }
 
-pub fn answer() -> Unit ! Io {
+pub fn answer() -> Unit ! { Io, Panic } {
   execute_all_tests([test_fold])
 }

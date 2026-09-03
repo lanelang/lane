@@ -55,7 +55,7 @@ fn test_byte_and_bytes_primitives() -> Unit ! Assert {
   )
 }
 
-pub fn answer() -> Unit ! Io {
+pub fn answer() -> Unit ! { Io, Panic } {
   [test_byte_and_bytes_primitives]
     |> execute_all_tests()
 }
