@@ -1649,7 +1649,7 @@
       "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "ok\nTests passed: 1, failed: 0"
+        "equals": "Total tests: 1, passed: 1, failed: 0"
       }
     },
     {
@@ -1658,7 +1658,7 @@
       "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "ok\nTests passed: 1, failed: 0"
+        "equals": "Total tests: 1, passed: 1, failed: 0"
       }
     },
     {
@@ -1667,7 +1667,7 @@
       "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "ok\nTests passed: 1, failed: 0"
+        "equals": "Total tests: 1, passed: 1, failed: 0"
       }
     },
     {
@@ -1676,7 +1676,7 @@
       "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "ok\nTests passed: 1, failed: 0"
+        "equals": "Total tests: 1, passed: 1, failed: 0"
       }
     },
     {
@@ -1975,7 +1975,7 @@
       "mode": "run",
       "entry": "answer",
       "expect": {
-        "equals": "ok\nTests passed: 1, failed: 0"
+        "equals": "Total tests: 1, passed: 1, failed: 0"
       }
     },
     {
