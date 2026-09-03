@@ -512,7 +512,7 @@ async fn run_separate_compile_smoke() -> LaneRunResult {
   if link.code != 0 {
     return link
   }
-  run_moon_lane(["exec", wasm + ":_start"])
+  run_moon_lane(["exec", wasm])
 }
 
 async fn run_moon_lane(lane_args : Array[String]) -> LaneRunResult {

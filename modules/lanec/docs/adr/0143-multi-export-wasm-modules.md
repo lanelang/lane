@@ -58,12 +58,15 @@ global. Discarding the instance discards its linear memory and therefore all
 Lane-managed instance roots together. Traps and host failures discard the same
 instance without a second cleanup protocol.
 
-`lane exec program.wasm:wasm_name` instantiates the module and invokes
-the named export. Its first command-level invocation ABI is exactly
-`() -> ()`; other valid module exports remain available to external WebAssembly
-hosts. `lane run FILE:ENTRY` remains a source convenience command and requires
-a zero-parameter Lane function returning `Unit`. Both commands use the same raw
-WebAssembly artifact and the same Wasmoon instantiation path.
+`lane exec program.wasm[:wasm_name]` instantiates the module and invokes the
+named export. When the suffix is omitted, Lane Command selects the ordinary
+`_start` export; a module without that export fails execution. This is a CLI
+default, not compiler-assigned semantics for `_start`. The command-level
+invocation ABI is exactly `() -> ()`; other valid module exports remain
+available to external WebAssembly hosts. `lane run FILE:ENTRY` remains a source
+convenience command and requires a zero-parameter Lane function returning
+`Unit`. Both commands use the same raw WebAssembly artifact and the same
+Wasmoon instantiation path.
 
 The Wasmoon JIT path builds its compiled state from the already initialized
 interpreter store. It must not execute the WebAssembly start section a second

@@ -36,21 +36,31 @@ test "reject run target without entry suffix" {
 }
 
 ///|
-test "reject exec target without entry suffix" {
-  guard parse_exec_target("program.wasm") is Err(error) else {
+test "exec target defaults to start export" {
+  guard parse_exec_target("program.wasm") is Ok(target) else {
+    abort("expected exec target")
+  }
+  assert_eq(target.file, "program.wasm")
+  assert_eq(target.entry, "_start")
+}
+
+///|
+test "reject exec target with an empty explicit entry" {
+  guard parse_exec_target("program.wasm:") is Err(error) else {
     abort("expected exec target error")
   }
-  debug_inspect(error, content="InvalidExecTarget(target=\"program.wasm\")")
+  debug_inspect(error, content="InvalidExecTarget(target=\"program.wasm:\")")
   inspect(
     error.render_human(),
     content=(
-      #|error[E6018]: invalid exec target `program.wasm`
-      #|  expected: PROGRAM:ENTRY
+      #|error[E6018]: invalid exec target `program.wasm:`
+      #|  expected: PROGRAM[:ENTRY]
       #|
       #|`lane exec` loads an existing WebAssembly module and invokes one exported entry.
+      #|Without an explicit entry suffix, it invokes the `_start` export.
       #|
       #|Example:
-      #|  lane exec program.wasm:main
+      #|  lane exec program.wasm
     ),
   )
 }
@@ -138,13 +148,11 @@ test "source inspection renders canonical module dependencies" {
       module_path_text: "App.Main",
       imports: ["Basic.Io", "App.Model"],
     }),
-    content=(
-      #|{
-      #|  "schema": 1,
-      #|  "module": "App.Main",
-      #|  "imports": ["Basic.Io", "App.Model"]
-      #|}
-    ),
+    content={
+      "schema": 1,
+      "module": "App.Main",
+      "imports": ["Basic.Io", "App.Model"],
+    },
   )
 }
 
@@ -593,6 +601,7 @@ async test "link preserves multiple named exports and shares aliases" {
   let execution = execute_wasm(wasm, "identity", no_jit=true)
   let erased_unit_execution = execute_wasm(wasm, "unit_arg", no_jit=true)
   let erased_unit_jit_execution = execute_wasm(wasm, "unit_arg")
+  let missing_default_execution = lane_exec(program, "_start", no_jit=true)
   cleanup_library_fixture(workspace)
   assert_eq(function_exports.map(export_ => export_.0), [
     "identity", "identity_i64", "identity_f32", "identity_f64", "constant", "again",
@@ -615,6 +624,16 @@ async test "link preserves multiple named exports and shares aliases" {
   )
   assert_true(erased_unit_execution is Succeeded)
   assert_true(erased_unit_jit_execution is Succeeded)
+  assert_true(
+    missing_default_execution
+    is UserErrors(
+      [
+        ExecutionFailed(
+          EngineTrap(detail="WebAssembly function export `_start` is missing")
+        ),
+      ]
+    ),
+  )
 }
 
 ///|

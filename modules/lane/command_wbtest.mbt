@@ -24,7 +24,7 @@ test "argparse accepts complete Lane artifact commands" {
         "link", "--export", "Main.main:_start", "--export", "Main.answer:answer",
         "--output", "program.wasm", "Main.lmo",
       ]),
-      lane_subcommand_values(["exec", "program.wasm:answer"]),
+      lane_subcommand_values(["exec", "program.wasm"]),
       lane_subcommand_values(["inspect", "Main.lane"]),
     ],
     content=(
@@ -49,7 +49,7 @@ test "argparse accepts complete Lane artifact commands" {
       #|      "objects": ["Main.lmo"],
       #|    },
       #|  ),
-      #|  ("exec", { "target": ["program.wasm:answer"] }),
+      #|  ("exec", { "target": ["program.wasm"] }),
       #|  ("inspect", { "input": ["Main.lane"] }),
       #|]
     ),
@@ -58,9 +58,14 @@ test "argparse accepts complete Lane artifact commands" {
 
 ///|
 test "exec target preserves a Windows drive separator" {
+  guard parse_exec_target("C:\\lane\\program.wasm") is Ok(default_target) else {
+    abort("expected default exec target")
+  }
   guard parse_exec_target("C:\\lane\\program.wasm:answer") is Ok(target) else {
     abort("expected exec target")
   }
+  assert_eq(default_target.file, "C:\\lane\\program.wasm")
+  assert_eq(default_target.entry, "_start")
   assert_eq(target.file, "C:\\lane\\program.wasm")
   assert_eq(target.entry, "answer")
 }

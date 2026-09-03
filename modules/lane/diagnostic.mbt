@@ -155,12 +155,13 @@ fn CliError::to_command_report(self : CliError) -> CommandReport {
       command_report(
         code="E6018",
         title="invalid exec target `\{target}`",
-        fields=[command_report_field("expected", "PROGRAM:ENTRY")],
+        fields=[command_report_field("expected", "PROGRAM[:ENTRY]")],
         details=[
           "`lane exec` loads an existing WebAssembly module and invokes one exported entry.",
+          "Without an explicit entry suffix, it invokes the `_start` export.",
         ],
         suggestions=[
-          command_suggestion("Example:", command="lane exec program.wasm:main"),
+          command_suggestion("Example:", command="lane exec program.wasm"),
         ],
       )
     InvalidExploreTarget(target~) =>

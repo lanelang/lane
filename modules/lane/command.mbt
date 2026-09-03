@@ -297,6 +297,18 @@ fn parse_run_target(target : String) -> Result[RunTarget, CliError] {
 
 ///|
 fn parse_exec_target(target : String) -> Result[RunTarget, CliError] {
+  let parts = target.split(":").map(StringView::to_owned).collect()
+  if parts.length() == 1 ||
+    (
+      parts.length() == 2 &&
+      parts[0].length() == 1 &&
+      (parts[1].has_prefix("\\") || parts[1].has_prefix("/"))
+    ) {
+    if target.is_empty() {
+      return Err(InvalidExecTarget(target~))
+    }
+    return Ok({ file: target, entry: "_start", })
+  }
   parse_entry_target(target, ExecTargetCommand)
 }
 
@@ -385,7 +397,7 @@ fn exec_target_positional_arg() -> @argparse.PositionArg {
   PositionArg(
     "target",
     num_args=@argparse.ValueRange::single(),
-    about="WebAssembly module and exported entry to invoke, as PROGRAM:ENTRY.",
+    about="WebAssembly module and optional exported entry, as PROGRAM[:ENTRY]. Defaults to `_start`.",
   )
 }
 

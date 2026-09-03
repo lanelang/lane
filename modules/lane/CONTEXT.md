@@ -52,6 +52,8 @@ _Avoid_: implicit public export, selected executable entry
 **Command Invocation ABI**:
 The `() -> ()` Core WebAssembly signature currently accepted by `lane exec`.
 This is a Lane Command capability, not a restriction on valid linked exports.
+When the command target omits an explicit export suffix, Lane Command selects
+`_start`; absence of that export is an execution error.
 _Avoid_: WebAssembly Export ABI, source function type
 
 **Executable Explore Command**:
