@@ -176,6 +176,9 @@ fn compile_instruction(
       }
       result
     }
+    BorrowClosureEnvironment(destination, target, callable) =>
+      load_packed_direct_environment(locals, function_catalog, callable, target) +
+      [LocalSet(locals.slot_local(destination))]
     CallValue(callable, abi_id, witnesses, arguments, destination) => {
       let result = validate_callable_abi(
         locals, function_catalog, callable, abi_id,

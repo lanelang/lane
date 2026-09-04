@@ -167,16 +167,21 @@ fn lower_executable_program_to_physical_or_raise(
     )
   }
   let finalized = match
-    @vmcfg.finalize_observed({
-      exports,
-      initializer,
-      functions,
-      data_family_count: lowerer.data_families.length(),
-      globals: lowerer.instance_globals,
-      layouts: lowerer.layouts,
-      object_shapes: lowerer.object_shapes,
-      constants: lowerer.constants,
-    }) {
+    @vmcfg.finalize_observed(
+      {
+        exports,
+        initializer,
+        functions,
+        data_family_count: lowerer.data_families.length(),
+        globals: lowerer.instance_globals,
+        layouts: lowerer.layouts,
+        object_shapes: lowerer.object_shapes,
+        constants: lowerer.constants,
+      },
+      callable_adapters=lowerer.callable_adapters.map(adapter => {
+        adapter.function
+      }),
+    ) {
     Ok(finalized) => finalized
     Err(error) => raise VmcfgFinalizeError(error)
   }

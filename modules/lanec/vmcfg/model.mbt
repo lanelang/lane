@@ -140,6 +140,7 @@ pub(all) enum Instruction {
   BorrowCapture(@physical.ObjectShapeId, ValueId, Int, ProjectionResult)
   ConsumeCaptures(@physical.ObjectShapeId, ValueId, Array[ProjectionSelection])
   MakeClosure(ValueId, @physical.FunctionId, ValueId)
+  BorrowClosureEnvironment(ValueId, @physical.FunctionId, ValueId)
   ByteToI64(ValueId, ValueId)
   I64ToByte(ValueId, ValueId)
   ByteSequenceMake(ValueId, ValueId, ValueId)

@@ -303,6 +303,22 @@ fn PhysicalProgramVerifier::verify_instruction(
           self.fail(site, "MakeClosure target must be a physical body")
       }
     }
+    BorrowClosureEnvironment(destination, target, callable) => {
+      self.expect_kind(site, body, callable, CallableValue)
+      guard self.function_entry(site, target) is PhysicalBody(target_body) &&
+        target_body.inputs.environment is Some(environment) else {
+        self.fail(
+          site, "closure environment projection requires a target with an environment",
+        )
+      }
+      self.expect_slot(site, body, destination, I32, Trivial)
+      self.expect_kind(
+        site,
+        body,
+        destination,
+        target_body.slots[environment.value].kind,
+      )
+    }
     ByteToI64(destination, source) => {
       self.expect_slot(site, body, destination, I64, Trivial)
       self.expect_slot(site, body, source, I32, Trivial)

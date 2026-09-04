@@ -163,6 +163,7 @@ fn address_taken_functions(image : @physical.PhysicalProgram) -> Array[Bool] {
         match instruction {
           ConstFunction(_, function)
           | MakeClosure(_, function, _)
+          | BorrowClosureEnvironment(_, function, _)
           | CallPackedDirect(function, _, _, _, _) =>
             address_taken[function.value - 1] = true
           _ => ()

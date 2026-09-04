@@ -211,6 +211,7 @@ pub(all) enum Instruction {
   ConsumeFields(ObjectShapeId, SlotId, Array[ProjectionSelection])
   MakeEnv(SlotId, ObjectShapeId, LayoutOperand, Array[SlotId], Array[SlotId])
   BorrowCapture(ObjectShapeId, SlotId, Int, ProjectionResult)
+  BorrowClosureEnvironment(SlotId, FunctionId, SlotId)
   ConsumeCaptures(ObjectShapeId, SlotId, Array[ProjectionSelection])
   MakeClosure(SlotId, FunctionId, SlotId)
   ByteToI64(SlotId, SlotId)

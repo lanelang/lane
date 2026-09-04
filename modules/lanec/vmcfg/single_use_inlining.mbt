@@ -54,7 +54,9 @@ fn find_single_use_inline_candidate(
     for block_index, block in body.blocks {
       for instruction_index, instruction in block.instructions {
         match instruction {
-          ConstFunction(_, target) | MakeClosure(_, target, _) =>
+          ConstFunction(_, target)
+          | MakeClosure(_, target, _)
+          | BorrowClosureEnvironment(_, target, _) =>
             mark_first_class_function_use(uses, target)
           CallPackedDirect(target, _, _, _, _) =>
             mark_first_class_function_use(uses, target)
@@ -169,7 +171,57 @@ fn inline_direct_call_site(
     (Some(_), None, None) | (Some(_), Some(_), Some(_)) | (None, _, _) => ()
     _ => return None
   }
-  let values = caller.values.copy()
+  guard inline_call_body(
+      callee,
+      caller.values,
+      environment,
+      witnesses,
+      arguments,
+      destination,
+    )
+    is Some((values, inlined, mapped_return)) else {
+    return None
+  }
+  let blocks = caller.blocks.mapi((block_index, block) => {
+    guard block_index == site.block else { return block }
+    match site.instruction {
+      Some(instruction_index) => {
+        let instructions = block.instructions[:instruction_index].to_owned()
+        instructions.append(inlined)
+        instructions.append(block.instructions[instruction_index + 1:])
+        { ..block, instructions, }
+      }
+      None => {
+        let instructions = block.instructions.copy()
+        instructions.append(inlined)
+        { ..block, instructions, terminator: Return(mapped_return), }
+      }
+    }
+  })
+  let functions = image.functions.copy()
+  functions[site.caller] = Body({ ..caller, values, blocks, })
+  Some(functions)
+}
+
+///|
+// Instantiate the actual body, including result conversions and closure
+// construction. This does not equate observationally equivalent closures.
+fn inline_call_body(
+  callee : FunctionBody,
+  caller_values : Array[ValueMetadata],
+  environment : ValueId?,
+  witnesses : Array[ValueId],
+  arguments : Array[ValueId],
+  destination : ValueId?,
+) -> (Array[ValueMetadata], Array[Instruction], ValueId?)? {
+  guard callee.blocks is [callee_block] &&
+    callee_block.terminator is Return(returned) &&
+    callee_block.parameters.is_empty() &&
+    witnesses.length() == callee.inputs.witnesses.length() &&
+    arguments.length() == callee.inputs.user_parameters.length() else {
+    return None
+  }
+  let values = caller_values.copy()
   let mapping : Array[ValueId?] = Array::make(callee.values.length(), None)
   match (callee.inputs.environment, environment) {
     (None, None) => ()
@@ -195,7 +247,7 @@ fn inline_direct_call_site(
   }
   for index in 0..<callee.values.length() {
     let mapped = mapping[index].unwrap()
-    if mapped.value < caller.values.length() {
+    if mapped.value < caller_values.length() {
       continue
     }
     values[mapped.value] = {
@@ -210,29 +262,10 @@ fn inline_direct_call_site(
     map_instruction_values(instruction, transform)
   })
   let mapped_return = returned.map(transform)
-  if site.instruction is Some(_) &&
-    destination is Some(destination) &&
+  if destination is Some(destination) &&
     mapped_return is Some(result) &&
     result != destination {
     inlined.push(Move(destination, result))
   }
-  let blocks = caller.blocks.mapi((block_index, block) => {
-    guard block_index == site.block else { return block }
-    match site.instruction {
-      Some(instruction_index) => {
-        let instructions = block.instructions[:instruction_index].to_owned()
-        instructions.append(inlined)
-        instructions.append(block.instructions[instruction_index + 1:])
-        { ..block, instructions, }
-      }
-      None => {
-        let instructions = block.instructions.copy()
-        instructions.append(inlined)
-        { ..block, instructions, terminator: Return(mapped_return), }
-      }
-    }
-  })
-  let functions = image.functions.copy()
-  functions[site.caller] = Body({ ..caller, values, blocks, })
-  Some(functions)
+  Some((values, inlined, mapped_return))
 }

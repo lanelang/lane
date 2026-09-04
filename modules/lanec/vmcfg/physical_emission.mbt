@@ -155,6 +155,8 @@ fn emit_instruction(
       )
     MakeClosure(destination, function, environment) =>
       MakeClosure(slot(destination), function, slot(environment))
+    BorrowClosureEnvironment(destination, function, callable) =>
+      BorrowClosureEnvironment(slot(destination), function, slot(callable))
     ByteToI64(destination, source) => ByteToI64(slot(destination), slot(source))
     I64ToByte(destination, source) => I64ToByte(slot(destination), slot(source))
     ByteSequenceMake(destination, length, fill) =>

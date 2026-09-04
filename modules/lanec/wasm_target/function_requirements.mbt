@@ -79,7 +79,8 @@ fn require_physical_instruction_dependencies(
         )
       }
     }
-    CallPackedDirect(target, _, _, _, _) => {
+    CallPackedDirect(target, _, _, _, _)
+    | BorrowClosureEnvironment(_, target, _) => {
       require_wasm_function(dependencies, image_function_origin(image, target))
       require_wasm_function(
         dependencies,

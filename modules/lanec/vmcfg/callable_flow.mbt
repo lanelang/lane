@@ -1,7 +1,8 @@
 ///|
 priv enum CallableEnvironmentFact {
   CaptureFree
-  LocalEnvironment(ValueId)
+  LocalEnvironment(CallableFlowValueRef)
+  CapturedEnvironments(Array[CallableFlowValueRef])
   PackedEnvironment
 } derive(Eq)
 
@@ -15,7 +16,7 @@ priv struct CallableAlternative {
 priv struct CallableFlowValueRef {
   function_index : Int
   value : ValueId
-}
+} derive(Eq)
 
 ///|
 priv struct AggregateSiteId {
@@ -202,7 +203,10 @@ fn analyze_callable_instruction(
       refine_callable_fact(
         facts,
         destination,
-        known_callable(target, LocalEnvironment(environment)),
+        known_callable(
+          target,
+          LocalEnvironment({ function_index, value: environment, }),
+        ),
       )
     MakeData(destination, _, _, _, _) | MakeEnv(destination, _, _, _, _) =>
       refine_callable_fact(
@@ -290,12 +294,30 @@ fn analyze_callable_instruction(
       }
       changed
     }
-    CallPackedDirect(target, _, witnesses, arguments, destination) => {
+    BorrowClosureEnvironment(destination, target, callable) =>
+      refine_callable_fact(
+        facts,
+        destination,
+        callable_environment_fact(
+          analysis,
+          facts,
+          facts[callable.value],
+          target,
+        ),
+      )
+    CallPackedDirect(target, callable, witnesses, arguments, destination) => {
       let mut changed = propagate_callable_inputs(
         image,
         analysis,
         target,
-        Some(Unknown([], [FunctionParameter])),
+        Some(
+          callable_environment_fact(
+            analysis,
+            facts,
+            facts[callable.value],
+            target,
+          ),
+        ),
         witnesses.map(value => facts[value.value]),
         arguments.map(value => facts[value.value]),
       )
@@ -410,12 +432,19 @@ fn analyze_callable_terminator(
         changed = true
       }
     }
-    TailCallPackedDirect(target, _, witnesses, arguments) => {
+    TailCallPackedDirect(target, callable, witnesses, arguments) => {
       if propagate_callable_inputs(
           image,
           analysis,
           target,
-          Some(Unknown([], [FunctionParameter])),
+          Some(
+            callable_environment_fact(
+              analysis,
+              facts,
+              facts[callable.value],
+              target,
+            ),
+          ),
           witnesses.map(value => facts[value.value]),
           arguments.map(value => facts[value.value]),
         ) {
@@ -626,10 +655,10 @@ fn propagate_callable_invocation_inputs(
   let argument_facts = arguments.map(value => facts[value.value])
   let mut changed = false
   for alternative in callable_alternatives(callable) {
-    let environment = match alternative.environment {
-      CaptureFree => None
-      LocalEnvironment(value) => Some(facts[value.value])
-      PackedEnvironment => Some(Unknown([], [FunctionParameter]))
+    let environment = if alternative.environment is CaptureFree {
+      None
+    } else {
+      Some(environment_fact(analysis, facts, alternative.environment))
     }
     if propagate_callable_inputs(
         image,
@@ -643,6 +672,48 @@ fn propagate_callable_invocation_inputs(
     }
   }
   changed
+}
+
+///|
+fn environment_fact(
+  analysis : CallableFlowAnalysis,
+  facts : Array[CallableFlowFact],
+  environment : CallableEnvironmentFact,
+) -> CallableFlowFact {
+  match environment {
+    LocalEnvironment(reference) => facts[reference.value.value]
+    CapturedEnvironments(references) =>
+      references.fold(init=Unreached, fn(result, reference) {
+        let captured = analysis.bodies[reference.function_index].unwrap().values[reference.value.value].cross_function()
+        merge_callable_facts(result, captured)
+      })
+    CaptureFree | PackedEnvironment => Unknown([], [FunctionParameter])
+  }
+}
+
+///|
+fn callable_environment_fact(
+  analysis : CallableFlowAnalysis,
+  facts : Array[CallableFlowFact],
+  callable : CallableFlowFact,
+  target : @physical.FunctionId,
+) -> CallableFlowFact {
+  if callable is Unreached {
+    return Unreached
+  }
+  guard callable is KnownCallables(alternatives, _) else {
+    return Unknown([], [FunctionParameter])
+  }
+  let mut result = Unreached
+  for alternative in alternatives {
+    if alternative.target == target {
+      result = merge_callable_facts(
+        result,
+        environment_fact(analysis, facts, alternative.environment),
+      )
+    }
+  }
+  result
 }
 
 ///|
@@ -767,9 +838,13 @@ fn aggregate_member_fact(
           exact = false
           continue
         }
-        if site.shape != shape ||
-          member_index < 0 ||
-          member_index >= site.members.length() {
+        // A successful typed projection refines the receiver to this shape.
+        // Other constructors in a joined value cannot contribute a result;
+        // treating them as unknown discards all information from match arms.
+        if site.shape != shape {
+          continue
+        }
+        if member_index < 0 || member_index >= site.members.length() {
           exact = false
           continue
         }
@@ -937,7 +1012,13 @@ fn merge_callable_alternatives(
       if existing.target == alternative.target {
         found = true
         if existing.environment != alternative.environment {
-          merged[index] = { ..existing, environment: PackedEnvironment, }
+          merged[index] = {
+            ..existing,
+            environment: merge_callable_environments(
+              existing.environment,
+              alternative.environment,
+            ),
+          }
         }
         break
       }
@@ -947,6 +1028,32 @@ fn merge_callable_alternatives(
     }
   }
   merged
+}
+
+///|
+fn merge_callable_environments(
+  left : CallableEnvironmentFact,
+  right : CallableEnvironmentFact,
+) -> CallableEnvironmentFact {
+  if left == right {
+    return left
+  }
+  let references = match left {
+    LocalEnvironment(reference) => [reference]
+    CapturedEnvironments(references) => references.copy()
+    CaptureFree | PackedEnvironment => return PackedEnvironment
+  }
+  let other = match right {
+    LocalEnvironment(reference) => [reference]
+    CapturedEnvironments(references) => references
+    CaptureFree | PackedEnvironment => return PackedEnvironment
+  }
+  for reference in other {
+    if !references.contains(reference) {
+      references.push(reference)
+    }
+  }
+  CapturedEnvironments(references)
 }
 
 ///|
@@ -992,9 +1099,10 @@ fn CallableFlowFact::cross_function(
       KnownCallables(
         alternatives.map(alternative => {
           match alternative.environment {
-            LocalEnvironment(_) =>
-              { ..alternative, environment: PackedEnvironment, }
-            CaptureFree | PackedEnvironment => alternative
+            LocalEnvironment(reference) =>
+              { ..alternative, environment: CapturedEnvironments([reference]), }
+            CaptureFree | CapturedEnvironments(_) | PackedEnvironment =>
+              alternative
           }
         }),
         boundaries,
@@ -1003,9 +1111,10 @@ fn CallableFlowFact::cross_function(
       Unknown(
         alternatives.map(alternative => {
           match alternative.environment {
-            LocalEnvironment(_) =>
-              { ..alternative, environment: PackedEnvironment, }
-            CaptureFree | PackedEnvironment => alternative
+            LocalEnvironment(reference) =>
+              { ..alternative, environment: CapturedEnvironments([reference]), }
+            CaptureFree | CapturedEnvironments(_) | PackedEnvironment =>
+              alternative
           }
         }),
         boundaries,
@@ -1178,7 +1287,7 @@ fn indirect_call_resolution(fact : CallableFlowFact) -> IndirectCallResolution {
         match alternative.environment {
           CaptureFree => CaptureFree
           LocalEnvironment(_) => Local
-          PackedEnvironment => Packed
+          CapturedEnvironments(_) | PackedEnvironment => Packed
         },
       )
     KnownCallables(_, _) if targets.length() > 1 => MultipleTargets(targets)

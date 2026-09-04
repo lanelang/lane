@@ -277,6 +277,7 @@ fn arc_instruction_plan(instruction : Instruction) -> ArcInstructionPlan {
     | LoadObjectWitness(_, _, _, _)
     | BorrowField(_, _, _, _)
     | BorrowCapture(_, _, _, _)
+    | BorrowClosureEnvironment(_, _, _)
     | ByteToI64(_, _)
     | I64ToByte(_, _)
     | ByteSequenceMake(_, _, _)

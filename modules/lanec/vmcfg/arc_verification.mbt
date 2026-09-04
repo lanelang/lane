@@ -349,6 +349,8 @@ fn arc_borrow_roots(
         result,
       ).contains(destination) => Some(source)
     Copy(candidate, source) if candidate == destination => Some(source)
+    BorrowClosureEnvironment(candidate, _, source) if candidate == destination =>
+      Some(source)
     _ => None
   }
   guard source is Some(value) else { return [] }

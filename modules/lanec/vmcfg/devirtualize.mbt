@@ -325,10 +325,17 @@ fn record_callable_candidate(
         candidates,
         flow,
         target,
-        facts[environment.value],
+        facts[environment.value.value],
       )
     KnownCallables(
-      [{ target, environment: CaptureFree | PackedEnvironment, }],
+      [
+        {
+          target,
+          environment: CaptureFree
+          | CapturedEnvironments(_)
+          | PackedEnvironment,
+        },
+      ],
       _
     ) => invalidate_environment_candidate(candidates, target)
     KnownCallables(alternatives, _) | Unknown(alternatives, _) =>
@@ -551,10 +558,25 @@ fn devirtualize_instruction(
           _
         ) =>
           materialize_direct_call(
-            target, environment, witnesses, arguments, destination, facts, flow,
+            target,
+            environment.value,
+            witnesses,
+            arguments,
+            destination,
+            facts,
+            flow,
             plans,
           )
-        KnownCallables([{ target, environment: PackedEnvironment, }], _) =>
+        KnownCallables(
+          [
+            {
+              target,
+              environment: CapturedEnvironments(_)
+              | PackedEnvironment,
+            },
+          ],
+          _
+        ) =>
           CallPackedDirect(target, callable, witnesses, arguments, destination)
         _ => instruction
       }
@@ -626,10 +648,24 @@ fn devirtualize_terminator(
           _
         ) =>
           materialize_direct_tail_call(
-            target, environment, witnesses, arguments, facts, flow, plans,
+            target,
+            environment.value,
+            witnesses,
+            arguments,
+            facts,
+            flow,
+            plans,
           )
-        KnownCallables([{ target, environment: PackedEnvironment, }], _) =>
-          TailCallPackedDirect(target, callable, witnesses, arguments)
+        KnownCallables(
+          [
+            {
+              target,
+              environment: CapturedEnvironments(_)
+              | PackedEnvironment,
+            },
+          ],
+          _
+        ) => TailCallPackedDirect(target, callable, witnesses, arguments)
         _ => terminator
       }
     }
@@ -750,7 +786,12 @@ fn dead_callable_construction(
   match instruction {
     ConstFunction(destination, _)
     | MakeClosure(destination, _, _)
-    | MakeEnv(destination, _, _, _, _) => use_def.use_count(destination) == 0
+    | MakeEnv(destination, _, _, _, _)
+    | EraseI32(destination, _)
+    | EraseI64(destination, _)
+    | EraseF32(destination, _)
+    | EraseF64(destination, _)
+    | EraseUnit(destination) => use_def.use_count(destination) == 0
     Copy(destination, _) | Move(destination, _) | RetainCopy(destination, _) =>
       body.values[destination.value].kind is CallableValue &&
       use_def.use_count(destination) == 0

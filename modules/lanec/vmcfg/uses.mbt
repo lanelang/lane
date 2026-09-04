@@ -132,7 +132,8 @@ fn instruction_operand_values(instruction : Instruction) -> Array[ValueId] {
     | ConsumeFields(_, source, _)
     | BorrowCapture(_, source, _, _)
     | ConsumeCaptures(_, source, _)
-    | MakeClosure(_, _, source) => [source]
+    | MakeClosure(_, _, source)
+    | BorrowClosureEnvironment(_, _, source) => [source]
     ConstI64(_, _)
     | ConstI32(_, _)
     | ConstF32(_, _)
@@ -216,6 +217,7 @@ fn instruction_destinations(instruction : Instruction) -> Array[ValueId] {
     | LoadObjectWitness(destination, _, _, _)
     | MakeEnv(destination, _, _, _, _)
     | MakeClosure(destination, _, _)
+    | BorrowClosureEnvironment(destination, _, _)
     | ByteToI64(destination, _)
     | I64ToByte(destination, _)
     | ByteSequenceMake(destination, _, _)

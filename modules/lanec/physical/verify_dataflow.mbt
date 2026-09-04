@@ -981,6 +981,28 @@ fn PhysicalProgramVerifier::apply_instruction_flow(
     }
     ConstFunction(destination, _) | ConstString(destination, _) =>
       self.write_from_metadata(site, body, state, destination)
+    BorrowClosureEnvironment(destination, _, callable) => {
+      let provenance = match self.read_flow(site, state, callable) {
+        LiveOwned(OwnedCallable, ownership) =>
+          { root: LocalRoots(ownership.roots), projections: [], }
+        LiveBorrowed(OwnedCallable, provenance) => provenance
+        _ =>
+          self.fail(
+            site, "closure environment projection requires a live callable",
+          )
+      }
+      self.write_flow(
+        site,
+        body,
+        state,
+        destination,
+        LiveBorrowed(OwnedRef, provenance),
+      )
+      state.object_shapes[destination.value] = statically_known_object_shape(
+        self.image.object_shapes,
+        body.slots[destination.value].kind,
+      )
+    }
     CallDirect(target, environment, witnesses, arguments, destination) => {
       for witness in witnesses {
         ignore(self.consume_flow(site, body, state, witness))

@@ -207,6 +207,8 @@ fn render_instruction(instruction : Instruction) -> String {
       "consume_captures \{render_shape(shape)}, \{render_slot(source)}, [\{render_selections(selections)}]"
     MakeClosure(destination, function, environment) =>
       "make_closure \{render_slot(destination)}, \{render_function(function)}, \{render_slot(environment)}"
+    BorrowClosureEnvironment(destination, function, callable) =>
+      "borrow_closure_environment \{render_slot(destination)}, \{render_function(function)}, \{render_slot(callable)}"
     ByteToI64(destination, source) =>
       unary_instruction("byte_to_i64", destination, source)
     I64ToByte(destination, source) =>

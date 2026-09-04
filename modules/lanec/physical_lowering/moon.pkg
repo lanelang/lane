@@ -12,6 +12,7 @@ import {
 }
 
 import {
+  "Milky2018/lanec/compile",
   "Milky2018/lanec/effect_lowering",
   "Milky2018/lanec/wasm_target",
   "Milky2018/lane_runtime",
@@ -32,5 +33,6 @@ options(
     "f32_wbtest.mbt": [ "native" ],
     "lower_wbtest.mbt": [ "native" ],
     "wasm_execution_wbtest.mbt": [ "native" ],
+    "callable_storage_wbtest.mbt": [ "native" ],
   },
 )

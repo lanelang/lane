@@ -821,8 +821,8 @@ test "explore lowers nested handlers through a finite recursive callable contrac
       #|    [
       #|      ("functionCount", 21),
       #|      ("instructionCount", 109),
-      #|      ("directCallCount", 12),
-      #|      ("indirectCallCount", 9),
+      #|      ("directCallCount", 13),
+      #|      ("indirectCallCount", 8),
       #|      ("closureCount", 16),
       #|      ("environmentCount", 18),
       #|      ("genericAbiEraseCount", 8),
@@ -835,8 +835,8 @@ test "explore lowers nested handlers through a finite recursive callable contrac
       #|    [
       #|      ("functionCount", 21),
       #|      ("instructionCount", 118),
-      #|      ("directCallCount", 12),
-      #|      ("indirectCallCount", 9),
+      #|      ("directCallCount", 13),
+      #|      ("indirectCallCount", 8),
       #|      ("closureCount", 16),
       #|      ("environmentCount", 18),
       #|      ("genericAbiEraseCount", 8),
@@ -849,7 +849,7 @@ test "explore lowers nested handlers through a finite recursive callable contrac
       #|    "wasm",
       #|    [
       #|      ("functionCount", 38),
-      #|      ("instructionCount", 1124),
+      #|      ("instructionCount", 1122),
       #|      ("tableEntryCount", 29),
       #|    ],
       #|  ),
@@ -1236,10 +1236,10 @@ test "explore attributes a closed effect worker nominal ABI crossing" {
       #|  1,
       #|  3,
       #|  [
-      #|    ("directCallCount", 8),
-      #|    ("indirectCallCount", 2),
+      #|    ("directCallCount", 7),
+      #|    ("indirectCallCount", 3),
       #|    ("genericAbiEraseCount", 2),
-      #|    ("genericAbiUneraseCount", 2),
+      #|    ("genericAbiUneraseCount", 1),
       #|  ],
       #|  [],
       #|)

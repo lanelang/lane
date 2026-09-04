@@ -2,7 +2,7 @@
 fn finalize_test_image_without_physical_verification(
   image : Image,
 ) -> Result[@physical.PhysicalProgram, FinalizeError] {
-  match prepare(image) {
+  match prepare(image, []) {
     Err(error) => Err(error)
     Ok(prepared) => finalize_prepared_without_physical_verification(prepared)
   }

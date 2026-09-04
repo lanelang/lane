@@ -11,6 +11,7 @@ fn simplify_body(body : FunctionBody) -> FunctionBody raise FinalizeError {
 
 ///|
 fn simplify_body_once(body : FunctionBody) -> FunctionBody raise FinalizeError {
+  let body = simplify_representation_values(body)
   let body = propagate_sparse_constants(body)
   let body = { ..body, blocks: remove_unreachable_blocks(body.blocks), }
   let body = eliminate_common_scalar_expressions(body)
@@ -534,6 +535,12 @@ fn map_instruction_values(
       )
     MakeClosure(destination, function, environment) =>
       MakeClosure(transform(destination), function, transform(environment))
+    BorrowClosureEnvironment(destination, function, callable) =>
+      BorrowClosureEnvironment(
+        transform(destination),
+        function,
+        transform(callable),
+      )
     ByteToI64(destination, source) =>
       ByteToI64(transform(destination), transform(source))
     I64ToByte(destination, source) =>

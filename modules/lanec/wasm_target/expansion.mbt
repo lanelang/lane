@@ -17,6 +17,7 @@ fn physical_opcode_family(
     | ConsumeFields(_, _, _)
     | MakeEnv(_, _, _, _, _)
     | BorrowCapture(_, _, _, _)
+    | BorrowClosureEnvironment(_, _, _)
     | ConsumeCaptures(_, _, _) => Object
     ConstString(_, _)
     | ByteSequenceMake(_, _, _)

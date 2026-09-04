@@ -11,7 +11,7 @@ import {
 // Values
 pub fn finalize(Image) -> Result[@physical.VerifiedPhysicalProgram, FinalizeError]
 
-pub fn finalize_observed(Image) -> Result[Finalization, FinalizeError]
+pub fn finalize_observed(Image, callable_adapters? : Array[@physical.FunctionId]) -> Result[Finalization, FinalizeError]
 
 pub fn image_to_code(Image) -> String
 
@@ -201,6 +201,7 @@ pub(all) enum Instruction {
   BorrowCapture(@physical.ObjectShapeId, ValueId, Int, ProjectionResult)
   ConsumeCaptures(@physical.ObjectShapeId, ValueId, Array[ProjectionSelection])
   MakeClosure(ValueId, @physical.FunctionId, ValueId)
+  BorrowClosureEnvironment(ValueId, @physical.FunctionId, ValueId)
   ByteToI64(ValueId, ValueId)
   I64ToByte(ValueId, ValueId)
   ByteSequenceMake(ValueId, ValueId, ValueId)

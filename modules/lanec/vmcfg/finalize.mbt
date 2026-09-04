@@ -9,8 +9,11 @@ pub fn finalize(
 }
 
 ///|
-pub fn finalize_observed(image : Image) -> Result[Finalization, FinalizeError] {
-  match prepare(image) {
+pub fn finalize_observed(
+  image : Image,
+  callable_adapters? : Array[@physical.FunctionId] = [],
+) -> Result[Finalization, FinalizeError] {
+  match prepare(image, callable_adapters) {
     Err(error) => Err(error)
     Ok(prepared) =>
       match finalize_prepared(prepared) {
@@ -76,14 +79,21 @@ fn verify_indirect_call_observations(
 }
 
 ///|
-fn prepare(image : Image) -> Result[CanonicalPreArcImage, FinalizeError] {
-  Ok(prepare_or_raise(image)) catch {
+fn prepare(
+  image : Image,
+  adapters : Array[@physical.FunctionId],
+) -> Result[CanonicalPreArcImage, FinalizeError] {
+  Ok(prepare_or_raise(image, adapters)) catch {
     error => Err(error)
   }
 }
 
 ///|
-fn prepare_or_raise(image : Image) -> CanonicalPreArcImage raise FinalizeError {
+fn prepare_or_raise(
+  image : Image,
+  adapters : Array[@physical.FunctionId],
+) -> CanonicalPreArcImage raise FinalizeError {
+  let image = compose_callable_adapters(image, adapters)
   let devirtualized = devirtualize_image_with_direct_environments(image)
   let image = inline_single_use_direct_functions(
     devirtualized.image,

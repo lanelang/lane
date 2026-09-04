@@ -334,8 +334,8 @@ The private lowering operation that consumes verified Runtime ANF and target
 ABI facts while constructing VM CFG. It is the sole producer of physical value
 contracts and structural representation adaptations. Substitutions, evidence
 recipes, adapter memoization, layout interning, and work queues remain private
-to Physical Lowering; no intermediate planning sidecar
-crosses the package boundary.
+to Physical Lowering. VM CFG receives only certified adapter-cancellation
+relations, not the type/evidence planning catalogs that prove them.
 _Avoid_: planner catalog interface, emitter type guess, specialization policy
 
 **Physical Value Contract**:
@@ -396,6 +396,9 @@ _Avoid_: slot history, source reference graph, consumer-owned use counts
 The authoritative whole-image fixed point for callable alternatives,
 environments, aggregate members, immutable globals, and known function results.
 Devirtualization and environment-ABI planning consume this fact directly.
+Cross-function propagation retains environment-origin references without
+making their local SSA values available in another function. Allocation sites
+approximate possible instances; they never establish instance identity.
 _Avoid_: instruction-adjacency pattern, reference-count eligibility, rewrite fallback
 
 **Packed Direct Call**:
@@ -406,6 +409,27 @@ carrier's embedded target is the explicit target, transfers its environment,
 and emits a direct call without the Callable ABI Guard Helper or indirect-table
 dispatch.
 _Avoid_: target selection from callable bits, unchecked carrier, late ABI inference
+
+**Closure Environment Projection**:
+A borrow of the environment of the current callable instance, for an explicit
+target. Physical verification checks the destination against that target's
+environment shape and keeps the callable as the borrow root. Wasm emission
+reuses the Packed Direct Call target guard before extracting the environment;
+it does not reinterpret arbitrary scalar bits as an object. A local SSA capture
+relation can eliminate the projection without consulting a runtime instance.
+_Avoid_: adapter-specific unpacking, capture selection by function ID alone
+
+**Adapter Body Composition**:
+VM CFG composes known calls between Physical Lowering-classified adapters by
+instantiating the actual callee body. Parameter/result conversions and returned
+closure construction remain intact. Each original call is visited once using
+original bodies; copied calls are not unfolded again. Generic implementations
+remain available, and recursive relationships cannot cause unlimited expansion.
+Ordinary callers are not cloned into. Local SSA simplification then removes
+actual erase/unerase pairs and projections from the same constructed object.
+Equal endpoint contracts do not imply equal closure code/environment identity.
+_Avoid_: contract-only closure replacement, allocation-site value equality,
+size-based semantic decisions
 
 **Deferred Callable Adaptation**:
 The Structural Representation Adaptation between two callable contracts.

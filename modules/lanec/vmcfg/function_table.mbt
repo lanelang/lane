@@ -224,7 +224,8 @@ fn reachable_functions(
           | CallDirect(target, _, _, _, _)
           | CallRuntimeImport(target, _, _)
           | CallPackedDirect(target, _, _, _, _)
-          | MakeClosure(_, target, _) =>
+          | MakeClosure(_, target, _)
+          | BorrowClosureEnvironment(_, target, _) =>
             mark_reachable_function(
               image.functions,
               reachable,
@@ -314,6 +315,12 @@ fn remap_instruction_function_ids(
         destination,
         remap_function_id(function, mappings),
         environment,
+      )
+    BorrowClosureEnvironment(destination, function, callable) =>
+      BorrowClosureEnvironment(
+        destination,
+        remap_function_id(function, mappings),
+        callable,
       )
     _ => instruction
   }
