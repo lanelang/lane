@@ -134,7 +134,7 @@ fn compile_wasm_module_for_jit(
       code.locals,
       code.body,
     )
-    @milkir.optimize_with_level(function, @milkir.OptLevel::from_int(2))
+    @optimize.optimize_with_level(function, @optimize.OptLevel::from_int(2))
     |> ignore
     let compiled = @wasmoon_jit.compile_wasm_body_artifact_function(
       function,

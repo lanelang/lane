@@ -19,10 +19,10 @@ import {
   "Milky2018/diagnostic@0.1.0",
   "Milky2018/lanec@0.1.0",
   "Milky2018/lane_runtime@0.1.0",
-  "Milky2018/wasm_core@0.14.0",
-  "Milky2018/wasmoon@0.14.0",
+  "Milky2018/wasm_core@0.15.0",
+  "Milky2018/wasmoon@0.15.0",
   "gmlewis/jsonrpc2@0.0.34",
   "moonbit-community/prettyprinter@0.4.10",
-  "moonbitlang/async@0.21.1",
+  "moonbitlang/async@0.21.2",
   "moonbitlang/x@0.5.1",
 }
